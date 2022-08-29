@@ -2,4 +2,7 @@
 *.swp
 *.swo
 
+.terraform*
+terraform-provider-ydb
+
 vendor/

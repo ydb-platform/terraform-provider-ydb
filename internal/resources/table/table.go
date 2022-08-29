@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 )
 
 func ResourceYDBTable() *schema.Resource {
@@ -53,7 +54,7 @@ func ResourceYDBTable() *schema.Resource {
 					ValidateFunc: nil, // TODO(shmel1k@): think about validate func
 				},
 			},
-			"indexes": {
+			"index": {
 				Type:     schema.TypeList,
 				Optional: true,
 				Elem: &schema.Resource{
@@ -63,11 +64,11 @@ func ResourceYDBTable() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
-						"type": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ValidateFunc: validation.NoZeroValues,
-						},
+						// "type": {
+						// 	Type:         schema.TypeString,
+						// 	Required:     true,
+						// 	ValidateFunc: validation.NoZeroValues,
+						// },
 						"columns": {
 							Type:     schema.TypeList,
 							Required: true,
@@ -80,6 +81,8 @@ func ResourceYDBTable() *schema.Resource {
 				},
 			},
 			"ttl": {
+				Type:     schema.TypeSet,
+				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"column_name": {
@@ -102,7 +105,7 @@ func ResourceYDBTable() *schema.Resource {
 			},
 			"attribute": {
 				Type:     schema.TypeList,
-				Required: true,
+				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"key": {
@@ -205,4 +208,54 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) *TableResource {
 			Columns: pk,
 		},
 	}
+}
+
+func flattenTableDescription(d *schema.ResourceData, desc options.Description) {
+	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
+
+	cols := make([]interface{}, 0, len(desc.Columns))
+	for _, col := range desc.Columns {
+		mp := make(map[string]interface{})
+		mp["name"] = col.Name
+		mp["type"] = col.Type.String()
+		mp["family"] = col.Family
+		cols = append(cols, mp)
+	}
+	_ = d.Set("columns", cols)
+
+	pk := make([]interface{}, 0, len(desc.PrimaryKey))
+	for _, p := range desc.PrimaryKey {
+		pk = append(pk, p)
+	}
+	_ = d.Set("primary_key", pk)
+
+	indexes := make([]interface{}, 0, len(desc.Indexes))
+	for _, idx := range desc.Indexes {
+		mp := make(map[string]interface{})
+		mp["name"] = idx.Name
+		// TODO(shmel1k@): index type?
+		cols := make([]interface{}, 0, len(idx.IndexColumns))
+		for _, c := range idx.IndexColumns {
+			cols = append(cols, c)
+		}
+		mp["columns"] = cols
+	}
+	_ = d.Set("index", indexes)
+
+	if desc.TimeToLiveSettings != nil {
+		ttlSettings := make(map[string]interface{})
+		ttlSettings["column_name"] = desc.TimeToLiveSettings.ColumnName
+		ttlSettings["mode"] = desc.TimeToLiveSettings.Mode
+		ttlSettings["expire_after_seconds"] = desc.TimeToLiveSettings.ExpireAfterSeconds
+		_ = d.Set("ttl", ttlSettings)
+	}
+
+	attributes := make([]interface{}, 0, len(desc.Attributes))
+	for k, v := range desc.Attributes {
+		attributes = append(attributes, map[string]string{
+			"key":   k,
+			"value": v,
+		})
+	}
+	_ = d.Set("attribute", attributes)
 }
