@@ -64,11 +64,11 @@ func ResourceYDBTable() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
-						// "type": {
-						// 	Type:         schema.TypeString,
-						// 	Required:     true,
-						// 	ValidateFunc: validation.NoZeroValues,
-						// },
+						"type": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validation.NoZeroValues,
+						},
 						"columns": {
 							Type:     schema.TypeList,
 							Required: true,
@@ -145,15 +145,18 @@ type TableIndex struct {
 type TableTTL struct {
 	ColumnName  string
 	Mode        string
+	ColumnUnit  string
 	ExpireAfter time.Duration
 }
 
 type TableResource struct {
 	Path             string
 	DatabaseEndpoint string
+	Attributes       map[string]string
 	Columns          []*TableColumn
-	PrimaryKey       *TablePrimaryKey
 	Indexes          []*TableIndex
+	PrimaryKey       *TablePrimaryKey
+	TTL              *TableTTL
 }
 
 func tableResourceSchemaToTableResource(d *schema.ResourceData) *TableResource {
@@ -199,9 +202,20 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) *TableResource {
 		}
 	}
 
+	attributesRaw := d.Get("attribute")
+	attributes := make(map[string]string)
+	if attributesRaw != nil {
+		raw := attributesRaw.([]interface{})
+		for _, v := range raw {
+			vv := v.(map[string]interface{})
+			attributes[vv["key"].(string)] = vv["value"].(string)
+		}
+	}
+
 	return &TableResource{
 		Path:             d.Get("path").(string),
 		DatabaseEndpoint: d.Get("database_endpoint").(string),
+		Attributes:       attributes,
 		Columns:          columns,
 		Indexes:          indexes,
 		PrimaryKey: &TablePrimaryKey{
@@ -247,6 +261,7 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description) {
 		ttlSettings["column_name"] = desc.TimeToLiveSettings.ColumnName
 		ttlSettings["mode"] = desc.TimeToLiveSettings.Mode
 		ttlSettings["expire_after_seconds"] = desc.TimeToLiveSettings.ExpireAfterSeconds
+		ttlSettings["column_unit"] = desc.TimeToLiveSettings.ColumnUnit
 		_ = d.Set("ttl", ttlSettings)
 	}
 

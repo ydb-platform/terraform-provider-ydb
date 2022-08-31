@@ -13,7 +13,12 @@ type TableClientParams struct {
 }
 
 func CreateTableClient(ctx context.Context, params TableClientParams) (table.Client, error) {
-	db, err := ydb.Open(ctx, params.DatabaseEndpoint, ydb.WithAccessTokenCredentials(params.Token))
+	var opts []ydb.Option
+	if params.Token != "" {
+		opts = append(opts, ydb.WithAccessTokenCredentials(params.Token))
+	}
+
+	db, err := ydb.Open(ctx, params.DatabaseEndpoint, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -23,21 +23,21 @@ resource "ydb_table" "table1" {
 //  acl {
 //  }
   path              = "table-path"              # Will create table at /path/to/my/table
-  database_endpoint = "grpc://mr-nvme-testing.search.yandex.net:8761/?database=/local"
+  database_endpoint = "grpc://mr-nvme-testing-10.search.yandex.net:8761/?database=/local"
   column {
     name   = "a"
     type   = "Uint8"
-    family = "smth"
+//    family = "smth"
   }
   column {
     name   = "b"
     type   = "Uint16"
-    family = "smth"
+//    family = "smth"
   }
   column {
     name   = "c"
     type   = "Utf8"
-    family = "smth"
+//    family = "smth"
   }
   primary_key = [
     "a", "b"
@@ -46,7 +46,7 @@ resource "ydb_table" "table1" {
   index {
       name    = "index_1_name"
       columns = ["a", "c", "b"]
-//      type    = "global"
+      type    = "global" // global_async
   }
 
   ttl {
