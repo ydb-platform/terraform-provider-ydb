@@ -4,7 +4,6 @@ import (
 	"context"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
 type TableClientParams struct {
@@ -12,7 +11,7 @@ type TableClientParams struct {
 	Token            string
 }
 
-func CreateTableClient(ctx context.Context, params TableClientParams) (table.Client, error) {
+func CreateDBConnection(ctx context.Context, params TableClientParams) (ydb.Connection, error) {
 	var opts []ydb.Option
 	if params.Token != "" {
 		opts = append(opts, ydb.WithAccessTokenCredentials(params.Token))
@@ -22,6 +21,5 @@ func CreateTableClient(ctx context.Context, params TableClientParams) (table.Cli
 	if err != nil {
 		return nil, err
 	}
-
-	return db.Table(), nil
+	return db, nil
 }

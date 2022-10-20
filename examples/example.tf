@@ -9,63 +9,83 @@ terraform {
 # To be discussed.
 # Do we really any configuration parameters except token?
 provider "ydb" {
-//  credentials {
-//    token = ""
-//  }
+  token = "my_token"
 }
-
-// resource "ydb_database" "database1" {
-//   // TODO(shmel1k@): add after control-plane!?
-// }
 
 resource "ydb_table" "table1" {
   # TODO(shmel1k@): do we have ACL now?.
-//  acl {
-//  }
   path              = "table-path"              # Will create table at /path/to/my/table
-  database_endpoint = "grpc://mr-nvme-testing-10.search.yandex.net:8761/?database=/local"
+  database_endpoint = "grpcs://ydb.serverless.cloud-preprod.yandex.net:2135?database=/pre-prod_ydb_public/aoedo0ji1lgce9l91har/cc8pfiaj0ab96vmvp5v8"
+
+  // TODO(shmel1k@): move to YQL
   column {
     name   = "a"
-    type   = "Uint8"
-//    family = "smth"
+    type   = "Optional<Uint64>" // или по дефолту считать всё Optional и не указывать явно?
+//    not_null = true // ADD
   }
   column {
     name   = "b"
-    type   = "Uint16"
-//    family = "smth"
+    type   = "Optional<Uint8>"
   }
   column {
     name   = "c"
-    type   = "Utf8"
-//    family = "smth"
+    type   = "Optional<Utf8>"
   }
+  column {
+    name = "d"
+    type = "Optional<Timestamp>"
+  }
+
   primary_key = [
     "a", "b"
-  ] // Can not be changed or altered(???).
+  ] // Can not be changed or altered.
 
   index {
       name    = "index_1_name"
-      columns = ["a", "c", "b"]
-      type    = "global" // global_async
+      columns = ["b", "a", "c"]
+//      type    = "global" // global_async
   }
 
   ttl {
-    column_name          = "d"
+    column_name          = "d" # Колонка должна присутствовать в списке колонок.
     mode                 = "date_type" // mode = "since_unix_epoch"
     expire_after_seconds = 10
+  }
+
+  attributes = {
+    hello = "world"
+    privet = "mir"
+  }
+
+  auto_partitioning {
+    by_size = 2048 # В мегабайтах, если 0, то выключено.
+    by_load = true // false -- дефолт.
+  }
+
+  partitioning_policy {
+    type = "uniform_partitions" // type = "explicit_partitions"
+    partitions_count = 42 # Применимо только для uniform_partitions
+//    explicit_partitions = [ // Только для type = "explicit_partitions"
+//      42, 47, 50 // Границы шардов
+//    ]
+
+//    min_partitions_count = 1 # Минимальное количество партиций. Дефолт -- 1.
+//    max_partitions_count = 10 # Максимальное количество партиций. Дефолт -- Undefined.
+  }
+
+  primary_key_bloom_filter = true # Дефолт -- false
+
+  lifecycle {
+    ignore_changes = [
+      column, // disables alter
+      partitioning_policy, // disables partitioning policy changes
+      auto_partitioning
+    ]
   }
 //
 //  ###################################################################################
 //  // NOTE(shmel1k@): below are creatable/modifiable attributes, but not really used.
 //
-//  attribute {
-//    key   = "privet"
-//    value = "mir"
-//  }
-//  attribute {
-//    key   = "hello"
-//    value = "world"
-//  }
 //
 //  profile {
 //    storage_policy {
@@ -99,25 +119,6 @@ resource "ydb_table" "table1" {
 //    compaction_policy {
 //      preset_name = "preset_name" # TODO: add preset names
 //    }
-//    partitioning_policy {
-//      preset_name = "" # TODO: preset names?
-//      auto_partitioning = "unspecified" # TODO: add enum
-//      partitions = {
-//        uniform_partitions = {
-//          uniform_partitions = 42
-//        }
-//
-//        # XXX(shmel1k@): mutually exclusive with uniform_partitions
-//        explicit_partitions = {
-//          split_point {
-//            value = "42" # golang interface if possible
-//          }
-//          split_point {
-//            value = "privet"
-//          }
-//        }
-//      }
-//    }
 //    execution_policy {
 //      preset_name = ""
 //    }
@@ -145,7 +146,6 @@ resource "ydb_table" "table1" {
 // resource "ydb_queue" "queue1" {
 //   # YMQ should be enabled in any ydb database, just like streams.
 //   name = "sqs/my/queue/path" # Will create queue at "sqs/my/queue/path" // SQS path?..
-//   # TODO(shmel1k@): FirstClassCitizen queues?
 //   database_endpoint = "grpcs://..."
 // 
 //   visibility_timeout_seconds  = var.visibility_timeout_seconds

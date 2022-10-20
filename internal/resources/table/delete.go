@@ -9,7 +9,10 @@ import (
 )
 
 func TableDelete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
-	tableResource := tableResourceSchemaToTableResource(d)
+	tableResource, err := tableResourceSchemaToTableResource(d)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	if tableResource == nil {
 		return diag.Diagnostics{
 			diag.Diagnostic{
@@ -19,18 +22,18 @@ func TableDelete(ctx context.Context, d *schema.ResourceData, cfg interface{}) d
 		}
 	}
 
-	client, err := tbl.CreateTableClient(ctx, tbl.TableClientParams{
+	db, err := tbl.CreateDBConnection(ctx, tbl.TableClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
-		Token:            "",
+		Token:            tableResource.Token,
 	})
 	if err != nil {
 		return diag.Errorf("failed to initialize table client: %s", err)
 	}
 	defer func() {
-		_ = client.Close(ctx)
+		_ = db.Close(ctx)
 	}()
 
-	tableSession, err := client.CreateSession(ctx)
+	tableSession, err := db.Table().CreateSession(ctx)
 	if err != nil {
 		return diag.Errorf("failed to create table session: %s", err)
 	}

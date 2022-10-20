@@ -1,6 +1,8 @@
 package table
 
 import (
+	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -38,11 +40,6 @@ func ResourceYDBTable() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
-						"family": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Computed: true, // TODO(shmel1k@): ?
-						},
 					},
 				},
 			},
@@ -51,7 +48,7 @@ func ResourceYDBTable() *schema.Resource {
 				Required: true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
-					ValidateFunc: nil, // TODO(shmel1k@): think about validate func
+					ValidateFunc: validation.NoZeroValues, // TODO(shmel1k@): think about validate func
 				},
 			},
 			"index": {
@@ -100,28 +97,82 @@ func ResourceYDBTable() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
+						"column_unit": {
+							Type:     schema.TypeString,
+							Optional: true,
+							ValidateFunc: validation.StringInSlice([]string{
+								"ns",
+								"us",
+								"ms",
+								"s",
+							}, false),
+						},
 					},
 				},
 			},
-			"attribute": {
-				Type:     schema.TypeList,
+			"attributes": {
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"auto_partitioning": {
+				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"key": {
-							Type:         schema.TypeString,
-							Required:     true,
+						"by_size": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							Computed:     true,
 							ValidateFunc: validation.NoZeroValues,
+							// TODO(shmel1k@): check default values.
 						},
-						"value": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ValidateFunc: validation.NoZeroValues,
+						"by_load": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Computed: true,
 						},
 					},
 				},
 			},
-			// TODO(shmel1k@): should we add more keys?
+			"partitioning_policy": {
+				Type:     schema.TypeSet,
+				Optional: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"type": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
+						"partitions_count": {
+							Type:     schema.TypeInt,
+							Optional: true,
+						},
+						"explicit_partitions": {
+							Type:     schema.TypeList,
+							Optional: true,
+							Elem: &schema.Schema{
+								Type: schema.TypeInt,
+							},
+						},
+						"min_partitions_count": {
+							Type:     schema.TypeInt,
+							Optional: true,
+						},
+						"max_partitions_count": {
+							Type:     schema.TypeInt,
+							Optional: true,
+						},
+					},
+				},
+			},
+
+			"primary_key_bloom_filter": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -149,17 +200,104 @@ type TableTTL struct {
 	ExpireAfter time.Duration
 }
 
-type TableResource struct {
-	Path             string
-	DatabaseEndpoint string
-	Attributes       map[string]string
-	Columns          []*TableColumn
-	Indexes          []*TableIndex
-	PrimaryKey       *TablePrimaryKey
-	TTL              *TableTTL
+type TableAutoPartitioning struct {
+	BySize *int
+	ByLoad *bool
 }
 
-func tableResourceSchemaToTableResource(d *schema.ResourceData) *TableResource {
+type TablePartitioningPolicy struct {
+	Type               string
+	ExplicitPartitions []int
+	PartitionsCount    int
+	MinPartitionsCount int
+	MaxPartitionsCount int
+}
+
+type TableResource struct {
+	Path               string
+	DatabaseEndpoint   string
+	Token              string
+	Attributes         map[string]string
+	Columns            []*TableColumn
+	Indexes            []*TableIndex
+	PrimaryKey         *TablePrimaryKey
+	TTL                *TableTTL
+	AutoPartitioning   *TableAutoPartitioning
+	PartitioningPolicy *TablePartitioningPolicy
+	EnableBloomFilter  *bool
+}
+
+func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
+	v, ok := d.GetOk("ttl")
+	if !ok {
+		return
+	}
+	ttlSet := v.(*schema.Set)
+	for _, l := range ttlSet.List() {
+		m := l.(map[string]interface{})
+		ttl = &TableTTL{}
+		if unit, ok := m["column_unit"].(string); ok {
+			ttl.ColumnUnit = unit
+		}
+		ttl.ColumnName = m["column_name"].(string)
+		ttl.ExpireAfter = time.Duration(m["expire_after_seconds"].(int)) * time.Second
+		ttl.Mode = m["mode"].(string)
+	}
+	return
+}
+
+func expandTableAutoPartitioningSettings(d *schema.ResourceData) (ap *TableAutoPartitioning) {
+	v, ok := d.GetOk("auto_partitioning")
+	if !ok {
+		return
+	}
+	apSet := v.(*schema.Set)
+	for _, l := range apSet.List() {
+		m := l.(map[string]interface{})
+		ap = &TableAutoPartitioning{}
+		if byLoad, ok := m["by_load"].(bool); ok {
+			ap.ByLoad = &byLoad
+		}
+		if bySize, ok := m["by_size"].(int); ok {
+			ap.BySize = &bySize
+		}
+	}
+	return
+}
+
+func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePartitioningPolicy) {
+	v, ok := d.GetOk("partitioning_policy")
+	if !ok {
+		return
+	}
+
+	pSet := v.(*schema.Set)
+	for _, l := range pSet.List() {
+		m := l.(map[string]interface{})
+		p = &TablePartitioningPolicy{}
+		if typ, ok := m["type"].(string); ok {
+			p.Type = typ
+		}
+		if partitionsCount, ok := m["partitions_count"].(int); ok {
+			p.PartitionsCount = partitionsCount
+		}
+		if explicitPartitions, ok := m["explicit_partitions"].([]interface{}); ok {
+			for _, v := range explicitPartitions {
+				p.ExplicitPartitions = append(p.ExplicitPartitions, v.(int))
+			}
+		}
+		if minPartitionsCount, ok := m["min_partitions_count"].(int); ok {
+			p.MinPartitionsCount = minPartitionsCount
+		}
+		if maxPartitionsCount, ok := m["max_partitions_count"].(int); ok {
+			p.MaxPartitionsCount = maxPartitionsCount
+		}
+	}
+
+	return
+}
+
+func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource, error) {
 	columnsRaw := d.Get("column").([]interface{})
 	columns := make([]*TableColumn, 0, len(columnsRaw))
 	for _, v := range columnsRaw {
@@ -182,11 +320,12 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) *TableResource {
 		pk = append(pk, v.(string))
 	}
 
-	indexesRaw := d.Get("indexes")
+	indexesRaw := d.Get("index")
 	var indexes []*TableIndex
 	if indexesRaw != nil {
-		raw := indexesRaw.([]map[string]interface{})
-		for _, r := range raw {
+		raw := indexesRaw.([]interface{})
+		for _, rw := range raw {
+			r := rw.(map[string]interface{})
 			name := r["name"].(string)
 			typ := r["type"].(string)
 			colsRaw := r["columns"].([]interface{})
@@ -202,18 +341,40 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) *TableResource {
 		}
 	}
 
-	attributesRaw := d.Get("attribute")
+	attributesRaw := d.Get("attributes")
 	attributes := make(map[string]string)
+	// TODO(shmel1k@): add sorting.
 	if attributesRaw != nil {
-		raw := attributesRaw.([]interface{})
-		for _, v := range raw {
-			vv := v.(map[string]interface{})
-			attributes[vv["key"].(string)] = vv["value"].(string)
+		raw := attributesRaw.(map[string]interface{})
+		for k, v := range raw {
+			attributes[k] = v.(string)
 		}
 	}
 
+	ttl := expandTableTTLSettings(d)
+
+	token := ""
+	if tok, ok := d.GetOk("token"); ok {
+		token = tok.(string)
+	}
+
+	databaseEndpoint := d.Get("database_endpoint").(string)
+	databaseURL, err := url.Parse(databaseEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse database endpoint: %s", err)
+	}
+
+	autoPartitioning := expandTableAutoPartitioningSettings(d)
+	partitioningPolicy := expandTablePartitioningPolicySettings(d)
+
+	var bloomFilterEnabled *bool
+	if v, ok := d.GetOk("primary_key_bloom_filter"); ok {
+		b := v.(bool)
+		bloomFilterEnabled = &b
+	}
+
 	return &TableResource{
-		Path:             d.Get("path").(string),
+		Path:             databaseURL.Query().Get("database") + "/" + d.Get("path").(string),
 		DatabaseEndpoint: d.Get("database_endpoint").(string),
 		Attributes:       attributes,
 		Columns:          columns,
@@ -221,21 +382,26 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) *TableResource {
 		PrimaryKey: &TablePrimaryKey{
 			Columns: pk,
 		},
-	}
+		TTL:                ttl,
+		AutoPartitioning:   autoPartitioning,
+		PartitioningPolicy: partitioningPolicy,
+		Token:              token,
+		EnableBloomFilter:  bloomFilterEnabled,
+	}, nil
 }
 
-func flattenTableDescription(d *schema.ResourceData, desc options.Description) {
+func flattenTableDescription(d *schema.ResourceData, desc options.Description, database string) {
 	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
 
 	cols := make([]interface{}, 0, len(desc.Columns))
 	for _, col := range desc.Columns {
 		mp := make(map[string]interface{})
 		mp["name"] = col.Name
-		mp["type"] = col.Type.String()
-		mp["family"] = col.Family
+		mp["type"] = col.Type.String() // TODO(shmel1k@): why optional?
+		// mp["family"] = col.Family
 		cols = append(cols, mp)
 	}
-	_ = d.Set("columns", cols)
+	_ = d.Set("column", cols)
 
 	pk := make([]interface{}, 0, len(desc.PrimaryKey))
 	for _, p := range desc.PrimaryKey {
@@ -253,24 +419,44 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description) {
 			cols = append(cols, c)
 		}
 		mp["columns"] = cols
+		indexes = append(indexes, mp)
 	}
 	_ = d.Set("index", indexes)
 
 	if desc.TimeToLiveSettings != nil {
-		ttlSettings := make(map[string]interface{})
-		ttlSettings["column_name"] = desc.TimeToLiveSettings.ColumnName
-		ttlSettings["mode"] = desc.TimeToLiveSettings.Mode
-		ttlSettings["expire_after_seconds"] = desc.TimeToLiveSettings.ExpireAfterSeconds
-		ttlSettings["column_unit"] = desc.TimeToLiveSettings.ColumnUnit
+		var ttlSettings []interface{}
+		ttlSettings = append(ttlSettings, map[string]interface{}{
+			"column_name":          desc.TimeToLiveSettings.ColumnName,
+			"mode":                 desc.TimeToLiveSettings.Mode,
+			"expire_after_seconds": desc.TimeToLiveSettings.ExpireAfterSeconds,
+			"column_unit":          desc.TimeToLiveSettings.ColumnUnit.ToYDB().String(),
+		})
 		_ = d.Set("ttl", ttlSettings)
 	}
 
-	attributes := make([]interface{}, 0, len(desc.Attributes))
+	attributes := make(map[string]interface{})
 	for k, v := range desc.Attributes {
-		attributes = append(attributes, map[string]string{
-			"key":   k,
-			"value": v,
-		})
+		attributes[k] = v
 	}
-	_ = d.Set("attribute", attributes)
+	_ = d.Set("attributes", attributes)
+
+	var autoPartitioningSettings []interface{}
+	autoPartitioningSettings = append(autoPartitioningSettings, map[string]interface{}{
+		"by_load": desc.PartitioningSettings.PartitioningByLoad == options.FeatureEnabled,
+		"by_size": desc.PartitioningSettings.PartitioningBySize == options.FeatureEnabled,
+	})
+	_ = d.Set("auto_partitioning", autoPartitioningSettings)
+
+	var partitioningPolicy []interface{}
+	pol := map[string]interface{}{
+		"max_partitions_count": desc.PartitioningSettings.MaxPartitionsCount,
+		"min_partitions_count": desc.PartitioningSettings.MinPartitionsCount,
+	}
+	if desc.Stats != nil {
+		pol["partitions_count"] = desc.Stats.Partitions
+	}
+	partitioningPolicy = append(partitioningPolicy, pol)
+	_ = d.Set("partitioning_policy", partitioningPolicy)
+
+	_ = d.Set("primary_key_bloom_filter", desc.KeyBloomFilter == options.FeatureEnabled)
 }
