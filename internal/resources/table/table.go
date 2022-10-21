@@ -3,7 +3,6 @@ package table
 import (
 	"fmt"
 	"net/url"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -191,13 +190,12 @@ type TableIndex struct {
 	Name    string
 	Type    string
 	Columns []string
+	Cover   []string
 }
 
 type TableTTL struct {
-	ColumnName  string
-	Mode        string
-	ColumnUnit  string
-	ExpireAfter time.Duration
+	ColumnName string
+	Interval   string
 }
 
 type TableAutoPartitioning struct {
@@ -213,11 +211,18 @@ type TablePartitioningPolicy struct {
 	MaxPartitionsCount int
 }
 
+type TableFamily struct {
+	Name        string
+	Data        string
+	Compression string
+}
+
 type TableResource struct {
 	Path               string
 	DatabaseEndpoint   string
 	Token              string
 	Attributes         map[string]string
+	Family             []*TableFamily
 	Columns            []*TableColumn
 	Indexes            []*TableIndex
 	PrimaryKey         *TablePrimaryKey
@@ -236,12 +241,8 @@ func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
 	for _, l := range ttlSet.List() {
 		m := l.(map[string]interface{})
 		ttl = &TableTTL{}
-		if unit, ok := m["column_unit"].(string); ok {
-			ttl.ColumnUnit = unit
-		}
+		ttl.Interval = m["interval"].(string)
 		ttl.ColumnName = m["column_name"].(string)
-		ttl.ExpireAfter = time.Duration(m["expire_after_seconds"].(int)) * time.Second
-		ttl.Mode = m["mode"].(string)
 	}
 	return
 }

@@ -152,21 +152,6 @@ func prepareCreateTableRequest(r *TableResource) (string, []options.CreateTableO
 	}
 
 	if r.TTL != nil {
-		mode := options.TimeToLiveModeDateType
-		if r.TTL.Mode == "since_unix_epoch" {
-			mode = options.TimeToLiveModeValueSinceUnixEpoch
-		}
-		var columnUnit *options.TimeToLiveUnit
-		if mode == options.TimeToLiveModeValueSinceUnixEpoch {
-			md := strColumnUnitToYDBColumnUnit(r.TTL.ColumnUnit)
-			columnUnit = &md
-		}
-		opts = append(opts, options.WithTimeToLiveSettings(options.TimeToLiveSettings{
-			ColumnName:         r.TTL.ColumnName,
-			Mode:               mode,
-			ExpireAfterSeconds: uint32(r.TTL.ExpireAfter.Seconds()),
-			ColumnUnit:         columnUnit,
-		}))
 	}
 
 	opts = append(opts, options.WithPrimaryKeyColumn(r.PrimaryKey.Columns...))

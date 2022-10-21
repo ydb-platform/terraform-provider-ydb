@@ -13,124 +13,127 @@ provider "ydb" {
 }
 
 resource "ydb_table" "table1" {
-  # TODO(shmel1k@): do we have ACL now?.
-  path              = "table-path"              # Will create table at /path/to/my/table
+  path              = "path/to/table"              # Will create table at /path/to/my/table
   database_endpoint = "grpcs://ydb.serverless.cloud-preprod.yandex.net:2135?database=/pre-prod_ydb_public/aoedo0ji1lgce9l91har/cc8pfiaj0ab96vmvp5v8"
 
-  // TODO(shmel1k@): move to YQL
+  // ТОЛЬКО ДОБАВЛЯЕМ КОЛОНКИ, НЕ УДАЛЯЕМ!!!
   column {
     name   = "a"
-    type   = "Optional<Uint64>" // или по дефолту считать всё Optional и не указывать явно?
-//    not_null = true // ADD
+    type   = "Uint64" // или по дефолту считать всё Optional и не указывать явно?
+    not_null = true // ADD
+    family = "SOME_FAMILY"
+    // CREATE TABLE `table-path`(`a` Uint64 NOT NULL, PRIMARY KEY `a`)
   }
   column {
     name   = "b"
-    type   = "Optional<Uint8>"
+    type   = "Uint8"
+    not_null = true | false
+  }
+  /*
+  [ 
+    {
+      "name": "a"
+    },
+    {
+      - "name": "b"
+      + "name": "c"
+      "type": "String"
+    }
+  ]
+  */
+  /*
+  function X;
+  function Y
+  function Z
+
+  function Z
+  function X
+  function A
+
+  Z, X, A
+  X, Z, A
+
+
+  */
+  column {
+    name   = "c" // RENAME | DROP | MODIFY ARE PROHIBITED. ONLY ADD COLUMN IS ALLOWED.
+    type   = "Utf8" // Change to 'Text', 'String' change to 'Bytes'
+    not_null = true | false
   }
   column {
-    name   = "c"
-    type   = "Optional<Utf8>"
-  }
-  column {
+    // Сравнение колонок по именам. Создание -- смотрим на порядок. Потом -- нет.
     name = "d"
-    type = "Optional<Timestamp>"
+    type = "Timestamp" // YQL types
+    not_null = true | false # default = false
   }
 
   primary_key = [
     "a", "b"
   ] // Can not be changed or altered.
 
+
+  // TODO(shmel1k@): А мы ждём вообще создание индекса в терраформе? Он же может день идти. Другие операции могут ждать и понимать, что БД готова к обновлению приложения.
+  // operations list + watch till created.
+  // wait_async_operations = true // Ждать, пока все операции применятся успешно.
+
+  // MODIFY INDEX ONLY THROUGH DROP + CREATE
   index {
       name    = "index_1_name"
       columns = ["b", "a", "c"]
-//      type    = "global" // global_async
+      type    = "global_sync" // global_async
+      cover   = ["d", "e", "f"]
+  }
+  index {
+      name    = "index_2_name"
+      columns = ["a", "c", "b"]
+      type    = "global_sync" // global_async
+      cover   = ["d", "e", "f"]
   }
 
-  ttl {
-    column_name          = "d" # Колонка должна присутствовать в списке колонок.
-    mode                 = "date_type" // mode = "since_unix_epoch"
-    expire_after_seconds = 10
+  ttl { // Can be dropped, modified, created, etc.
+    column_name          = "d" # Колонка должна присутствовать в списке колонок. // modifiable. Меняется через RESET + CREATE.
+    mode                 = "date_type" // mode = "since_unix_epoch" // modifiable. Меняется через RESET + CREATE.
+    expire_interval = "PT05" // modifiable. Меняется через RESET + CREATE.
+    // https://ydb.tech/en/docs/concepts/ttl - change to ISO 8601
   }
 
-  attributes = {
-    hello = "world"
-    privet = "mir"
+  partitioning_settings { // https://ydb.tech/en/docs/concepts/datamodel/table
+    auto_partitioning_by_size_enabled = true
+    auto_partitioning_by_load = true
+    auto_partitioning_partition_size_mb = 1024
+    auto_partitioning_min_partitions_count = 1
+    auto_partitioning_max_partitions_count = 2
+    uniform_partitions = 2
+    partition_at_keys = [
+      // [100, 1000]
+      // [[100, "abc"], [1000, "cde"]]
+    ] // can be set only on create
+    read_replicas_settings = "ANY_AZ:5"
+    // PARTITION_AT_KEYS - ONLY ON CREATE
+    // UNIFORM_PARTITIONS - ONLY ON CREATE
+    // Остальное -- изменяем, как нам скажут.
   }
 
-  auto_partitioning {
-    by_size = 2048 # В мегабайтах, если 0, то выключено.
-    by_load = true // false -- дефолт.
+  family { // column_family?
+    name = "name"
+    data = "ssd"
+    compression = "off"
+  }
+  family { // column_family?
+    name = "name2"
+    data = "hdd"
+    compression = "lz4"
   }
 
-  partitioning_policy {
-    type = "uniform_partitions" // type = "explicit_partitions"
-    partitions_count = 42 # Применимо только для uniform_partitions
-//    explicit_partitions = [ // Только для type = "explicit_partitions"
-//      42, 47, 50 // Границы шардов
-//    ]
+  key_bloom_filter = true # Дефолт -- false
 
-//    min_partitions_count = 1 # Минимальное количество партиций. Дефолт -- 1.
-//    max_partitions_count = 10 # Максимальное количество партиций. Дефолт -- Undefined.
-  }
-
-  primary_key_bloom_filter = true # Дефолт -- false
-
+  // terraform specific
   lifecycle {
     ignore_changes = [
       column, // disables alter
-      partitioning_policy, // disables partitioning policy changes
-      auto_partitioning
+      partitioning_settings, // disables partitioning_settings changes
     ]
   }
-//
-//  ###################################################################################
-//  // NOTE(shmel1k@): below are creatable/modifiable attributes, but not really used.
-//
-//
-//  profile {
-//    storage_policy {
-//      syslog {
-//        # storage_pool
-//        media = ""
-//      }
-//      log = {
-//        # storage_pool
-//      }
-//      data = {
-//        # storage_pool
-//      }
-//      external = {
-//        # storage_pool
-//      }
-//      keep_in_memory = true # if defined
-//      column_families = [
-//        {
-//          name = "privet"
-//          data = {
-//            # storage_pool
-//          }
-//          external = {
-//            # storage_pool
-//          }
-//          compression = "compressed" # todo: add enum
-//        }
-//      ]
-//    }
-//    compaction_policy {
-//      preset_name = "preset_name" # TODO: add preset names
-//    }
-//    execution_policy {
-//      preset_name = ""
-//    }
-//    replication_policy {
-//      preset_name = ""
-//      replicas_count = 2
-//      create_per_availability_zone = true # false | undef
-//      allow_promotion = true # false | undef
-//    }
-//    caching_policy {
-//    }
-//  }
 }
 
 # Старое описание
