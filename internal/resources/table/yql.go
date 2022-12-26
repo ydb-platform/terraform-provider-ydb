@@ -187,7 +187,6 @@ func PrepareCreateRequest(r *TableResource) string {
 		req = append(req, '`')
 		req = append(req, r.TTL.ColumnName...)
 		req = append(req, '`')
-		req = append(req, '\n')
 		needComma = true
 	}
 	if r.AutoPartitioning != nil {
@@ -222,10 +221,44 @@ func PrepareCreateRequest(r *TableResource) string {
 		}
 	}
 	if r.PartitioningPolicy != nil {
+		if needComma {
+			req = append(req, ',', '\n')
+		}
+		if r.PartitioningPolicy.PartitionsCount != 0 {
+			req = appendIndent(req, indent)
+			req = append(req, "UNIFORM_PARTITIONS = "...)
+			req = strconv.AppendInt(req, int64(r.PartitioningPolicy.PartitionsCount), 10)
+			needComma = true
+		}
+		// TODO(shmel1k@): ???
+		if len(r.PartitioningPolicy.ExplicitPartitions) != 0 {
+			if needComma {
+				req = append(req, ',', '\n')
+			}
+			needComma = true
+		}
+		if r.PartitioningPolicy.MinPartitionsCount != 0 {
+			if needComma {
+				req = append(req, ',', '\n')
+			}
+			req = appendIndent(req, indent)
+			req = append(req, "AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = "...)
+			req = strconv.AppendInt(req, int64(r.PartitioningPolicy.MinPartitionsCount), 10)
+			needComma = true
+		}
+		if r.PartitioningPolicy.MaxPartitionsCount != 0 {
+			if needComma {
+				req = append(req, ',', '\n')
+			}
+			req = appendIndent(req, indent)
+			req = append(req, "AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = "...)
+			req = strconv.AppendInt(req, int64(r.PartitioningPolicy.MaxPartitionsCount), 10)
+		}
+		// needComma = true
 	}
-	indent--
+	// indent--
 
-	req = append(req, ')')
+	req = append(req, '\n', ')')
 
 	return string(req)
 }

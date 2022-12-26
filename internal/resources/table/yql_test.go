@@ -195,6 +195,42 @@ func TestPrepareCreateRequest(t *testing.T) {
 				"\tTTL = Interval(\"PT0S\") ON `ttl`" + "\n" +
 				")",
 		},
+		{
+			testName: "table with two columns and partitioning settings",
+			resource: &TableResource{
+				Path: "hello/world",
+				Columns: []*TableColumn{
+					{
+						Name: "mir",
+						Type: "Utf8",
+					},
+					{
+						Name: "ttl",
+						Type: "Timestamp",
+					},
+				},
+				PrimaryKey: &TablePrimaryKey{
+					Columns: []string{
+						"mir",
+					},
+				},
+				PartitioningPolicy: &TablePartitioningPolicy{
+					PartitionsCount:    5,
+					MaxPartitionsCount: 42,
+					MinPartitionsCount: 10,
+				},
+			},
+			expected: "CREATE TABLE `hello/world`(" + "\n" +
+				"\tmir Utf8," + "\n" +
+				"\tttl Timestamp," + "\n" +
+				"\tPRIMARY KEY (`mir`)" + "\n" +
+				")" + "\n" +
+				"WITH (" + "\n" +
+				"\tUNIFORM_PARTITIONS = 5," + "\n" +
+				"\tAUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 10," + "\n" +
+				"\tAUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 42" + "\n" +
+				")",
+		},
 	}
 
 	for _, v := range testData {

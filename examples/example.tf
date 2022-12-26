@@ -19,62 +19,57 @@ resource "ydb_table" "table1" {
   // ТОЛЬКО ДОБАВЛЯЕМ КОЛОНКИ, НЕ УДАЛЯЕМ!!!
   column {
     name   = "a"
-    type   = "Uint64" // или по дефолту считать всё Optional и не указывать явно?
-    not_null = true // ADD
-    family = "SOME_FAMILY"
-    // CREATE TABLE `table-path`(`a` Uint64 NOT NULL, PRIMARY KEY `a`)
+    type   = "Uint64"
+    not_null = true // default = false
+    family = "family_name"
   }
   column {
     name   = "b"
     type   = "Uint8"
-    not_null = true | false
+    not_null = true
   }
-  /*
-  [ 
-    {
-      "name": "a"
-    },
-    {
-      - "name": "b"
-      + "name": "c"
-      "type": "String"
-    }
-  ]
-  */
-  /*
-  function X;
-  function Y
-  function Z
-
-  function Z
-  function X
-  function A
-
-  Z, X, A
-  X, Z, A
-
-
-  */
   column {
-    name   = "c" // RENAME | DROP | MODIFY ARE PROHIBITED. ONLY ADD COLUMN IS ALLOWED.
-    type   = "Utf8" // Change to 'Text', 'String' change to 'Bytes'
-    not_null = true | false
+    name   = "c"
+    type   = "Text"
+    not_null = true
   }
   column {
     // Сравнение колонок по именам. Создание -- смотрим на порядок. Потом -- нет.
     name = "d"
     type = "Timestamp" // YQL types
-    not_null = true | false # default = false
+    not_null = true
+  }
+  // DynamoDB?
+  column {
+    name = "e"
+    type = "Bytes"
+    not_null = false
+  }
+  /*
+    PRIMARY KEY ( column, ... ),
+    FAMILY column_family ( family_options, ... )
+  */
+
+  family {
+    name = "family_name"
+    data = "ssd"
+    compression = "off"
+  }
+  family {
+    name = "name2"
+    data = "hdd"
+    compression = "lz4"
   }
 
   primary_key = [
     "a", "b"
-  ] // Can not be changed or altered.
+  ] // Can not be changed or altered: error on modification ops.
 
 
   // TODO(shmel1k@): А мы ждём вообще создание индекса в терраформе? Он же может день идти. Другие операции могут ждать и понимать, что БД готова к обновлению приложения.
   // operations list + watch till created.
-  // wait_async_operations = true // Ждать, пока все операции применятся успешно.
+  // XXX wait_async_operations = true // Ждать, пока все операции применятся успешно.
+  // XXX: дожидаемся. Флажок не пилим.
 
   // MODIFY INDEX ONLY THROUGH DROP + CREATE
   index {
@@ -89,12 +84,19 @@ resource "ydb_table" "table1" {
       type    = "global_sync" // global_async
       cover   = ["d", "e", "f"]
   }
+  // TODO: А не подождать ли команды для атомарной модификации индекса?..
+  // Инструмент миграции!
 
   ttl { // Can be dropped, modified, created, etc.
     column_name          = "d" # Колонка должна присутствовать в списке колонок. // modifiable. Меняется через RESET + CREATE.
     mode                 = "date_type" // mode = "since_unix_epoch" // modifiable. Меняется через RESET + CREATE.
     expire_interval = "PT05" // modifiable. Меняется через RESET + CREATE.
     // https://ydb.tech/en/docs/concepts/ttl - change to ISO 8601
+  }
+
+  changefeed { // Делается через ALTER
+    mode = "KEYS_ONLY" // https://ydb.tech/en/docs/yql/reference/syntax/alter_table#changefeed-options
+    format = "JSON"
   }
 
   partitioning_settings { // https://ydb.tech/en/docs/concepts/datamodel/table
@@ -112,17 +114,6 @@ resource "ydb_table" "table1" {
     // PARTITION_AT_KEYS - ONLY ON CREATE
     // UNIFORM_PARTITIONS - ONLY ON CREATE
     // Остальное -- изменяем, как нам скажут.
-  }
-
-  family { // column_family?
-    name = "name"
-    data = "ssd"
-    compression = "off"
-  }
-  family { // column_family?
-    name = "name2"
-    data = "hdd"
-    compression = "lz4"
   }
 
   key_bloom_filter = true # Дефолт -- false
@@ -150,7 +141,7 @@ resource "ydb_table" "table1" {
 //   # YMQ should be enabled in any ydb database, just like streams.
 //   name = "sqs/my/queue/path" # Will create queue at "sqs/my/queue/path" // SQS path?..
 //   database_endpoint = "grpcs://..."
-// 
+//
 //   visibility_timeout_seconds  = var.visibility_timeout_seconds
 //   message_retention_seconds   = var.message_retention_seconds
 //   max_message_size            = var.max_message_size
@@ -163,6 +154,6 @@ resource "ydb_table" "table1" {
 //   content_based_deduplication = var.content_based_deduplication
 //   deduplication_scope         = var.deduplication_scope
 //   fifo_throughput_limit       = var.fifo_throughput_limit
-// 
+//
 //   tags = var.tags
 // }
