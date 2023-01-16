@@ -205,10 +205,14 @@ type TableAutoPartitioning struct {
 
 type TablePartitioningPolicy struct {
 	Type               string
-	ExplicitPartitions []int
+	PartitionAtKeys    []int
 	PartitionsCount    int
 	MinPartitionsCount int
 	MaxPartitionsCount int
+}
+
+type TableReplicationSettings struct {
+	ReadReplicaSettings string
 }
 
 type TableFamily struct {
@@ -217,19 +221,25 @@ type TableFamily struct {
 	Compression string
 }
 
+type TableChangeDataCaptureSettings struct {
+	Mode   string
+	Format string
+}
+
 type TableResource struct {
-	Path               string
-	DatabaseEndpoint   string
-	Token              string
-	Attributes         map[string]string
-	Family             []*TableFamily
-	Columns            []*TableColumn
-	Indexes            []*TableIndex
-	PrimaryKey         *TablePrimaryKey
-	TTL                *TableTTL
-	AutoPartitioning   *TableAutoPartitioning
-	PartitioningPolicy *TablePartitioningPolicy
-	EnableBloomFilter  *bool
+	Path                string
+	DatabaseEndpoint    string
+	Token               string
+	Attributes          map[string]string
+	Family              []*TableFamily
+	Columns             []*TableColumn
+	Indexes             []*TableIndex
+	PrimaryKey          *TablePrimaryKey
+	TTL                 *TableTTL
+	AutoPartitioning    *TableAutoPartitioning
+	PartitioningPolicy  *TablePartitioningPolicy
+	ReplicationSettings *TableReplicationSettings
+	EnableBloomFilter   *bool
 }
 
 func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
@@ -284,7 +294,7 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePart
 		}
 		if explicitPartitions, ok := m["explicit_partitions"].([]interface{}); ok {
 			for _, v := range explicitPartitions {
-				p.ExplicitPartitions = append(p.ExplicitPartitions, v.(int))
+				p.PartitionAtKeys = append(p.PartitionAtKeys, v.(int))
 			}
 		}
 		if minPartitionsCount, ok := m["min_partitions_count"].(int); ok {

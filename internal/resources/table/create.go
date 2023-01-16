@@ -173,9 +173,9 @@ func prepareCreateTableRequest(r *TableResource) (string, []options.CreateTableO
 
 	var partitioningPolicyOpts []options.PartitioningPolicyOption
 	if r.PartitioningPolicy != nil {
-		if len(r.PartitioningPolicy.ExplicitPartitions) > 0 {
-			parts := make([]types.Value, 0, len(r.PartitioningPolicy.ExplicitPartitions))
-			for _, v := range r.PartitioningPolicy.ExplicitPartitions {
+		if len(r.PartitioningPolicy.PartitionAtKeys) > 0 {
+			parts := make([]types.Value, 0, len(r.PartitioningPolicy.PartitionAtKeys))
+			for _, v := range r.PartitioningPolicy.PartitionAtKeys {
 				parts = append(parts, types.Uint64Value(uint64(v)))
 			}
 			partitioningPolicyOpts = append(partitioningPolicyOpts, options.WithPartitioningPolicyExplicitPartitions(parts...))
@@ -252,6 +252,7 @@ func TableCreate(ctx context.Context, d *schema.ResourceData, cfg interface{}) d
 
 	path, opts := prepareCreateTableRequest(tableResource)
 	err = tableSession.CreateTable(ctx, path, opts...)
+	tableSession.Execute(ctx, nil, "", nil, nil)
 	if err != nil {
 		return diag.Diagnostics{
 			{

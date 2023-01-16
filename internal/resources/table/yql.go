@@ -231,7 +231,7 @@ func PrepareCreateRequest(r *TableResource) string {
 			needComma = true
 		}
 		// TODO(shmel1k@): ???
-		if len(r.PartitioningPolicy.ExplicitPartitions) != 0 {
+		if len(r.PartitioningPolicy.PartitionAtKeys) != 0 {
 			if needComma {
 				req = append(req, ',', '\n')
 			}
