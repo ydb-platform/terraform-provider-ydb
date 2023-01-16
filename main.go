@@ -5,7 +5,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 )
 
 func main() {
@@ -15,7 +14,7 @@ func main() {
 	_ = opts
 
 	var sess table.Session
-	sess.CreateTable(context.Background(), "", options.WithAttribute())
+	sess.CreateTable(context.Background(), "")
 
 	plugin.Serve(nil)
 }
