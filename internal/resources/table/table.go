@@ -39,6 +39,38 @@ func ResourceYDBTable() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
+						"family": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validation.NoZeroValues,
+						},
+						"not_null": {
+							Type:     schema.TypeBool,
+							Optional: true,
+						},
+					},
+				},
+			},
+			"family": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:         schema.TypeString,
+							Required:     true,
+							ValidateFunc: validation.NoZeroValues,
+						},
+						"data": {
+							Type:         schema.TypeString,
+							Required:     true,
+							ValidateFunc: validation.NoZeroValues,
+						},
+						"compression": {
+							Type:         schema.TypeString,
+							Required:     true,
+							ValidateFunc: validation.NoZeroValues,
+						},
 					},
 				},
 			},
@@ -73,6 +105,14 @@ func ResourceYDBTable() *schema.Resource {
 								ValidateFunc: validation.NoZeroValues,
 							},
 						},
+						"cover": {
+							Type:     schema.TypeList,
+							Optional: true,
+							Elem: &schema.Schema{
+								Type:         schema.TypeString,
+								ValidateFunc: validation.NoZeroValues,
+							},
+						},
 					},
 				},
 			},
@@ -86,25 +126,15 @@ func ResourceYDBTable() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
-						"mode": {
+						// "mode": {
+						// 	Type:         schema.TypeString,
+						// 	Required:     true,
+						// 	ValidateFunc: validation.NoZeroValues,
+						// },
+						"expire_interval": {
 							Type:         schema.TypeString,
 							Required:     true,
-							ValidateFunc: validation.StringInSlice([]string{"date_type", "since_unix_epoch"}, false),
-						},
-						"expire_after_seconds": {
-							Type:         schema.TypeInt,
-							Required:     true,
 							ValidateFunc: validation.NoZeroValues,
-						},
-						"column_unit": {
-							Type:     schema.TypeString,
-							Optional: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								"ns",
-								"us",
-								"ms",
-								"s",
-							}, false),
 						},
 					},
 				},
@@ -114,72 +144,65 @@ func ResourceYDBTable() *schema.Resource {
 				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
-			"auto_partitioning": {
+			"partitioning_settings": {
 				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"by_size": {
-							Type:         schema.TypeInt,
-							Optional:     true,
-							Computed:     true,
-							ValidateFunc: validation.NoZeroValues,
-							// TODO(shmel1k@): check default values.
-						},
-						"by_load": {
-							Type:     schema.TypeBool,
-							Optional: true,
-							Computed: true,
-						},
-					},
-				},
-			},
-			"partitioning_policy": {
-				Type:     schema.TypeSet,
-				Optional: true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"type": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Computed: true,
-						},
-						"partitions_count": {
+						"uniform_partitions": {
 							Type:     schema.TypeInt,
 							Optional: true,
 						},
-						"explicit_partitions": {
+						"partition_at_keys": {
 							Type:     schema.TypeList,
 							Optional: true,
 							Elem: &schema.Schema{
 								Type: schema.TypeInt,
 							},
 						},
-						"min_partitions_count": {
+						"auto_partitioning_min_partitions_count": {
 							Type:     schema.TypeInt,
 							Optional: true,
 						},
-						"max_partitions_count": {
+						"auto_partitioning_max_partitions_count": {
 							Type:     schema.TypeInt,
 							Optional: true,
+						},
+						"auto_partitioning_partition_size_mb": {
+							Type:     schema.TypeInt,
+							Optional: true,
+						},
+						"auto_partitioning_by_load": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+						},
+						"auto_partitioning_by_size_enabled": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
 						},
 					},
 				},
 			},
-
-			"primary_key_bloom_filter": {
+			"key_bloom_filter": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Computed: true,
+			},
+			"read_replicas_settings": {
+				Type:     schema.TypeString,
+				Optional: true,
 			},
 		},
 	}
 }
 
 type TableColumn struct {
-	Name   string
-	Type   string
-	Family string
+	Name    string
+	Type    string
+	Family  string
+	NotNull bool
 }
 
 type TablePrimaryKey struct {
@@ -194,8 +217,9 @@ type TableIndex struct {
 }
 
 type TableTTL struct {
-	ColumnName string
-	Interval   string
+	ColumnName     string
+	Mode           string
+	ExpireInterval string
 }
 
 type TablePartitioningSettings struct {
@@ -246,8 +270,9 @@ func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
 	for _, l := range ttlSet.List() {
 		m := l.(map[string]interface{})
 		ttl = &TableTTL{}
-		ttl.Interval = m["interval"].(string)
 		ttl.ColumnName = m["column_name"].(string)
+		//		ttl.Mode = m["mode"].(string)
+		ttl.ExpireInterval = m["expire_interval"].(string)
 	}
 	return
 }
@@ -274,24 +299,24 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePart
 	pSet := v.(*schema.Set)
 	for _, l := range pSet.List() {
 		m := l.(map[string]interface{})
-		if partitionsCount, ok := m["partitions_count"].(int); ok {
+		if partitionsCount, ok := m["uniform_partitions"].(int); ok {
 			p.PartitionsCount = partitionsCount
 		}
-		if explicitPartitions, ok := m["explicit_partitions"].([]interface{}); ok {
+		if explicitPartitions, ok := m["partition_at_keys"].([]interface{}); ok {
 			for _, v := range explicitPartitions {
-				p.PartitionAtKeys = append(p.PartitionAtKeys, v.(int))
+				p.PartitionAtKeys = append(p.PartitionAtKeys, v.(int)) // TODO(shmel1k@): improve.
 			}
 		}
-		if minPartitionsCount, ok := m["min_partitions_count"].(int); ok {
+		if minPartitionsCount, ok := m["auto_partitioning_min_partitions_count"].(int); ok {
 			p.MinPartitionsCount = minPartitionsCount
 		}
-		if maxPartitionsCount, ok := m["max_partitions_count"].(int); ok {
+		if maxPartitionsCount, ok := m["auto_partitioning_max_partitions_count"].(int); ok {
 			p.MaxPartitionsCount = maxPartitionsCount
 		}
-		if byLoad, ok := m["by_load"].(bool); ok {
+		if byLoad, ok := m["auto_partitioning_by_load"].(bool); ok {
 			p.ByLoad = &byLoad
 		}
-		if bySize, ok := m["by_size"].(int); ok {
+		if bySize, ok := m["auto_partitioning_by_size_enabled"].(int); ok {
 			p.BySize = &bySize
 		}
 	}
@@ -312,6 +337,9 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 			Name:   mp["name"].(string),
 			Type:   mp["type"].(string),
 			Family: family,
+		}
+		if notNull, ok := mp["not_null"]; ok {
+			col.NotNull = notNull.(bool)
 		}
 		columns = append(columns, col)
 	}
@@ -335,10 +363,35 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 			for _, c := range colsRaw {
 				colsArr = append(colsArr, c.(string))
 			}
+
+			var coverArr []string
+			if r["covers"] != nil {
+				for _, c := range r["covers"].([]interface{}) {
+					coverArr = append(coverArr, c.(string))
+				}
+			}
+
 			indexes = append(indexes, &TableIndex{
 				Name:    name,
 				Type:    typ,
 				Columns: colsArr,
+				Cover:   coverArr,
+			})
+		}
+	}
+	familiesRaw := d.Get("family")
+	var families []*TableFamily
+	if familiesRaw != nil {
+		raw := familiesRaw.([]interface{})
+		for _, rw := range raw {
+			r := rw.(map[string]interface{})
+			name := r["name"].(string)
+			data := r["data"].(string)
+			compression := r["compression"].(string)
+			families = append(families, &TableFamily{
+				Name:        name,
+				Data:        data,
+				Compression: compression,
 			})
 		}
 	}
@@ -379,6 +432,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 		Path:             databaseURL.Query().Get("database") + "/" + d.Get("path").(string),
 		DatabaseEndpoint: d.Get("database_endpoint").(string),
 		Attributes:       attributes,
+		Family:           families,
 		Columns:          columns,
 		Indexes:          indexes,
 		PrimaryKey: &TablePrimaryKey{

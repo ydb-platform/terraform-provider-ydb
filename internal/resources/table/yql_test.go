@@ -181,8 +181,8 @@ func TestPrepareCreateRequest(t *testing.T) {
 					},
 				},
 				TTL: &TableTTL{
-					ColumnName: "ttl",
-					Interval:   "PT0S",
+					ColumnName:     "ttl",
+					ExpireInterval: "PT0S",
 				},
 			},
 			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
@@ -204,8 +204,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 						Type: "Utf8",
 					},
 					{
-						Name: "ttl",
-						Type: "Timestamp",
+						Name:    "ttl",
+						Type:    "Timestamp",
+						NotNull: true,
 					},
 				},
 				PrimaryKey: &TablePrimaryKey{
@@ -221,7 +222,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 			},
 			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
 				"\tmir Utf8," + "\n" +
-				"\tttl Timestamp," + "\n" +
+				"\tttl Timestamp NOT NULL," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
 				")" + "\n" +
 				"WITH (" + "\n" +
@@ -240,8 +241,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 						Type: "Utf8",
 					},
 					{
-						Name: "ttl",
-						Type: "Timestamp",
+						Name:    "ttl",
+						Type:    "Timestamp",
+						NotNull: true,
 					},
 				},
 				PrimaryKey: &TablePrimaryKey{
@@ -255,11 +257,11 @@ func TestPrepareCreateRequest(t *testing.T) {
 			},
 			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
 				"\tmir Utf8," + "\n" +
-				"\tttl Timestamp," + "\n" +
+				"\tttl Timestamp NOT NULL," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
 				")" + "\n" +
 				"WITH (" + "\n" +
-				"\tREAD_REPLICAS_SETTINGS = PER_AZ" + "\n" +
+				"\tREAD_REPLICAS_SETTINGS = \"PER_AZ\"" + "\n" +
 				")",
 		},
 	}

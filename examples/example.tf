@@ -21,7 +21,6 @@ resource "ydb_table" "table1" {
     name   = "a"
     type   = "Uint64"
     not_null = true // default = false
-    family = "family_name"
   }
   column {
     name   = "b"
@@ -31,13 +30,13 @@ resource "ydb_table" "table1" {
   column {
     name   = "c"
     type   = "Text"
-    not_null = true
+    # not_null = true
   }
   column {
     // Сравнение колонок по именам. Создание -- смотрим на порядок. Потом -- нет.
     name = "d"
     type = "Timestamp" // YQL types
-    not_null = true
+    # not_null = true
   }
   // DynamoDB?
   column {
@@ -50,16 +49,16 @@ resource "ydb_table" "table1" {
     FAMILY column_family ( family_options, ... )
   */
 
-  family {
-    name = "family_name"
-    data = "ssd"
-    compression = "off"
-  }
-  family {
-    name = "name2"
-    data = "hdd"
-    compression = "lz4"
-  }
+  # family {
+  #   name = "family_name"
+  #   data = "ssd"
+  #   compression = "off"
+  # }
+  # family {
+  #   name = "name2"
+  #   data = "hdd"
+  #   compression = "lz4"
+  # }
 
   primary_key = [
     "a", "b"
@@ -89,15 +88,15 @@ resource "ydb_table" "table1" {
 
   ttl { // Can be dropped, modified, created, etc.
     column_name          = "d" # Колонка должна присутствовать в списке колонок. // modifiable. Меняется через RESET + CREATE.
-    mode                 = "date_type" // mode = "since_unix_epoch" // modifiable. Меняется через RESET + CREATE.
-    expire_interval = "PT05" // modifiable. Меняется через RESET + CREATE.
+#    mode                 = "date_type" // mode = "since_unix_epoch" // modifiable. Меняется через RESET + CREATE.
+    expire_interval = "PT0S" // modifiable. Меняется через RESET + CREATE.
     // https://ydb.tech/en/docs/concepts/ttl - change to ISO 8601
   }
 
-  changefeed { // Делается через ALTER
-    mode = "KEYS_ONLY" // https://ydb.tech/en/docs/yql/reference/syntax/alter_table#changefeed-options
-    format = "JSON"
-  }
+  // changefeed { // Делается через ALTER
+  //   mode = "KEYS_ONLY" // https://ydb.tech/en/docs/yql/reference/syntax/alter_table#changefeed-options
+  //   format = "JSON"
+  // }
 
   partitioning_settings { // https://ydb.tech/en/docs/concepts/datamodel/table
     auto_partitioning_by_size_enabled = true
@@ -110,11 +109,12 @@ resource "ydb_table" "table1" {
       // [100, 1000]
       // [[100, "abc"], [1000, "cde"]]
     ] // can be set only on create
-    read_replicas_settings = "ANY_AZ:5"
     // PARTITION_AT_KEYS - ONLY ON CREATE
     // UNIFORM_PARTITIONS - ONLY ON CREATE
     // Остальное -- изменяем, как нам скажут.
   }
+
+  read_replicas_settings = "PER_AZ:3"
 
   key_bloom_filter = true # Дефолт -- false
 

@@ -45,11 +45,20 @@ func PrepareCreateRequest(r *TableResource) string {
 			req = appendWithEscape(req, v.Family)
 			req = append(req, '`')
 		}
+		if v.NotNull {
+			req = append(req, " NOT NULL"...)
+		}
 		req = append(req, ',')
 		req = append(req, '\n')
 	}
 
+	haveIndex := false
 	for _, v := range r.Indexes {
+		if haveIndex {
+			req = append(req, ',')
+			req = append(req, '\n')
+		}
+		haveIndex = true
 		req = appendIndent(req, indent)
 		req = append(req, "INDEX"...)
 		req = append(req, ' ')
@@ -164,7 +173,7 @@ func PrepareCreateRequest(r *TableResource) string {
 	if r.TTL != nil {
 		req = appendIndent(req, indent)
 		req = append(req, "TTL = Interval(\""...)
-		req = appendWithEscape(req, r.TTL.Interval)
+		req = appendWithEscape(req, r.TTL.ExpireInterval)
 		req = append(req, '"')
 		req = append(req, ')')
 		req = append(req, " ON "...)
@@ -242,8 +251,9 @@ func PrepareCreateRequest(r *TableResource) string {
 			req = append(req, ',')
 		}
 		req = appendIndent(req, indent)
-		req = append(req, "READ_REPLICAS_SETTINGS = "...)
+		req = append(req, "READ_REPLICAS_SETTINGS = \""...)
 		req = appendWithEscape(req, r.ReplicationSettings.ReadReplicasSettings)
+		req = append(req, '"')
 		//			needComma = true
 	}
 	// indent--
