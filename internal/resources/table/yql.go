@@ -14,26 +14,35 @@ func appendIndent(req []byte, indent int) []byte {
 	return req
 }
 
+func appendWithEscape(buf []byte, s string) []byte {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '"' || s[i] == '/' {
+			buf = append(buf, '\\')
+		}
+		buf = append(buf, s[i])
+	}
+	return buf
+}
+
 func PrepareCreateRequest(r *TableResource) string {
 	req := make([]byte, 0, defaultRequestCapacity)
 
 	req = append(req, "CREATE TABLE `"...)
-	req = append(req, r.Path...)
+	req = appendWithEscape(req, r.Path)
 	req = append(req, "`("...)
 	req = append(req, '\n')
 
-	indent := 0
-	indent++
+	indent := 1
 	for _, v := range r.Columns {
 		req = appendIndent(req, indent)
-		req = append(req, v.Name...) // TODO(shmel1k@): escape
+		req = appendWithEscape(req, v.Name) // TODO(shmel1k@): escape
 		req = append(req, ' ')
-		req = append(req, v.Type...) // TODO(shmel1k@): escape
+		req = appendWithEscape(req, v.Type) // TODO(shmel1k@): escape
 		if v.Family != "" {
 			req = append(req, ' ')
 			req = append(req, "FAMILY "...)
 			req = append(req, '`')
-			req = append(req, v.Family...)
+			req = appendWithEscape(req, v.Family)
 			req = append(req, '`')
 		}
 		req = append(req, ',')
@@ -45,7 +54,7 @@ func PrepareCreateRequest(r *TableResource) string {
 		req = append(req, "INDEX"...)
 		req = append(req, ' ')
 		req = append(req, '`')
-		req = append(req, v.Name...)
+		req = appendWithEscape(req, v.Name)
 		req = append(req, '`')
 		req = append(req, ' ')
 		req = append(req, "GLOBAL"...)
@@ -54,13 +63,11 @@ func PrepareCreateRequest(r *TableResource) string {
 		} else {
 			req = append(req, " SYNC"...)
 		}
-		req = append(req, ' ')
-		req = append(req, "ON"...)
-		req = append(req, ' ')
+		req = append(req, " ON "...)
 		req = append(req, '(')
 		for _, c := range v.Columns {
 			req = append(req, '`')
-			req = append(req, c...)
+			req = appendWithEscape(req, c)
 			req = append(req, '`', ',')
 		}
 		req[len(req)-1] = ')' // NOTE(shmel1k@): remove last column
@@ -71,7 +78,7 @@ func PrepareCreateRequest(r *TableResource) string {
 			req = append(req, '(')
 			for _, c := range v.Cover {
 				req = append(req, '`')
-				req = append(req, c...)
+				req = appendWithEscape(req, c)
 				req = append(req, '`')
 				req = append(req, ',')
 			}
@@ -83,36 +90,13 @@ func PrepareCreateRequest(r *TableResource) string {
 		req = append(req, '\n')
 	}
 
-	/*
-				CREATE TABLE my_table (
-				    a Uint64,
-				    b Bool,
-				    c Uft8,
-				    d Date,
-				INDEX idx_d GLOBAL ON (d),
-				INDEX idx_ba GLOBAL ASYNC ON (b, a) COVER (c),
-			    PRIMARY KEY (a),
-		        FAMILY default (
-		            DATA = "ssd",
-		            COMPRESSION = "off"
-		        ),
-		        FAMILY family_large (
-		            DATA = "hdd",
-		            COMPRESSION = "lz4"
-		        ))
-				WITH (
-				AUTO_PARTITIONING_BY_SIZE = ENABLED,
-				AUTO_PARTITIONING_PARTITION_SIZE_MB = 512
-				);
-	*/
-
 	req = appendIndent(req, indent)
 	req = append(req, "PRIMARY KEY"...)
 	req = append(req, ' ')
 	req = append(req, '(')
 	for _, v := range r.PrimaryKey.Columns {
 		req = append(req, '`')
-		req = append(req, v...)
+		req = appendWithEscape(req, v)
 		req = append(req, '`')
 		req = append(req, ',')
 	}
@@ -126,7 +110,7 @@ func PrepareCreateRequest(r *TableResource) string {
 			req = append(req, "FAMILY"...)
 			req = append(req, ' ')
 			req = append(req, '`')
-			req = append(req, v.Name...)
+			req = appendWithEscape(req, v.Name)
 			req = append(req, '`')
 			req = append(req, '(')
 			req = append(req, '\n')
@@ -134,14 +118,14 @@ func PrepareCreateRequest(r *TableResource) string {
 			req = appendIndent(req, indent)
 			req = append(req, "DATA = "...)
 			req = append(req, '"')
-			req = append(req, v.Data...) // XXX
+			req = appendWithEscape(req, v.Data)
 			req = append(req, '"')
 			req = append(req, ',')
 			req = append(req, '\n')
 			req = appendIndent(req, indent)
-			req = append(req, "COMPRESSION = "...) // XXX
+			req = append(req, "COMPRESSION = "...)
 			req = append(req, '"')
-			req = append(req, v.Compression...) // XXX
+			req = appendWithEscape(req, v.Compression)
 			req = append(req, '"')
 			req = append(req, '\n')
 			indent--
@@ -162,10 +146,10 @@ func PrepareCreateRequest(r *TableResource) string {
 	if len(r.Attributes) != 0 {
 		needWith = true
 	}
-	if r.AutoPartitioning != nil {
+	if r.PartitioningSettings != nil {
 		needWith = true
 	}
-	if r.PartitioningPolicy != nil {
+	if r.ReplicationSettings != nil {
 		needWith = true
 	}
 
@@ -180,22 +164,22 @@ func PrepareCreateRequest(r *TableResource) string {
 	if r.TTL != nil {
 		req = appendIndent(req, indent)
 		req = append(req, "TTL = Interval(\""...)
-		req = append(req, r.TTL.Interval...) // XXX(shmel1k@): escape
+		req = appendWithEscape(req, r.TTL.Interval)
 		req = append(req, '"')
 		req = append(req, ')')
 		req = append(req, " ON "...)
 		req = append(req, '`')
-		req = append(req, r.TTL.ColumnName...)
+		req = appendWithEscape(req, r.TTL.ColumnName)
 		req = append(req, '`')
 		needComma = true
 	}
-	if r.AutoPartitioning != nil {
-		if r.AutoPartitioning.ByLoad != nil {
+	if r.PartitioningSettings != nil {
+		if r.PartitioningSettings.ByLoad != nil {
 			if needComma {
 				req = append(req, ',')
 			}
 			req = appendIndent(req, indent)
-			if *r.AutoPartitioning.ByLoad {
+			if *r.PartitioningSettings.ByLoad {
 				req = append(req, "AUTO_PARTITIONING_BY_LOAD = ENABLED"...)
 			} else {
 				req = append(req, "AUTO_PARTITIONING_BY_LOAD = DISABLED"...)
@@ -204,7 +188,7 @@ func PrepareCreateRequest(r *TableResource) string {
 			req = append(req, '\n')
 			needComma = true
 		}
-		if r.AutoPartitioning.BySize != nil {
+		if r.PartitioningSettings.BySize != nil {
 			if needComma {
 				req = append(req, ',')
 			}
@@ -214,47 +198,53 @@ func PrepareCreateRequest(r *TableResource) string {
 			req = append(req, '\n')
 			req = appendIndent(req, indent)
 			req = append(req, "AUTO_PARTITIONING_BY_SIZE = "...)
-			req = strconv.AppendInt(req, int64(*r.AutoPartitioning.BySize), 10)
+			req = strconv.AppendInt(req, int64(*r.PartitioningSettings.BySize), 10)
 			req = append(req, ',')
 			req = append(req, '\n')
 			needComma = true
 		}
-	}
-	if r.PartitioningPolicy != nil {
-		if needComma {
-			req = append(req, ',', '\n')
-		}
-		if r.PartitioningPolicy.PartitionsCount != 0 {
+		if r.PartitioningSettings.PartitionsCount != 0 {
+			if needComma {
+				req = append(req, ',', '\n')
+			}
 			req = appendIndent(req, indent)
 			req = append(req, "UNIFORM_PARTITIONS = "...)
-			req = strconv.AppendInt(req, int64(r.PartitioningPolicy.PartitionsCount), 10)
+			req = strconv.AppendInt(req, int64(r.PartitioningSettings.PartitionsCount), 10)
 			needComma = true
 		}
-		// TODO(shmel1k@): ???
-		if len(r.PartitioningPolicy.PartitionAtKeys) != 0 {
+		if len(r.PartitioningSettings.PartitionAtKeys) != 0 {
 			if needComma {
 				req = append(req, ',', '\n')
 			}
 			needComma = true
 		}
-		if r.PartitioningPolicy.MinPartitionsCount != 0 {
+		if r.PartitioningSettings.MinPartitionsCount != 0 {
 			if needComma {
 				req = append(req, ',', '\n')
 			}
 			req = appendIndent(req, indent)
 			req = append(req, "AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = "...)
-			req = strconv.AppendInt(req, int64(r.PartitioningPolicy.MinPartitionsCount), 10)
+			req = strconv.AppendInt(req, int64(r.PartitioningSettings.MinPartitionsCount), 10)
 			needComma = true
 		}
-		if r.PartitioningPolicy.MaxPartitionsCount != 0 {
+		if r.PartitioningSettings.MaxPartitionsCount != 0 {
 			if needComma {
 				req = append(req, ',', '\n')
 			}
 			req = appendIndent(req, indent)
 			req = append(req, "AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = "...)
-			req = strconv.AppendInt(req, int64(r.PartitioningPolicy.MaxPartitionsCount), 10)
+			req = strconv.AppendInt(req, int64(r.PartitioningSettings.MaxPartitionsCount), 10)
+			needComma = true
 		}
-		// needComma = true
+	}
+	if r.ReplicationSettings != nil && r.ReplicationSettings.ReadReplicasSettings != "" {
+		if needComma {
+			req = append(req, ',')
+		}
+		req = appendIndent(req, indent)
+		req = append(req, "READ_REPLICAS_SETTINGS = "...)
+		req = appendWithEscape(req, r.ReplicationSettings.ReadReplicasSettings)
+		//			needComma = true
 	}
 	// indent--
 

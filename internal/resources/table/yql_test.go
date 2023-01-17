@@ -1,7 +1,6 @@
 package table
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,7 +106,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 					},
 				},
 			},
-			expected: "CREATE TABLE `privet/hello`(" + "\n" +
+			expected: "CREATE TABLE `privet\\/hello`(" + "\n" +
 				"\tmir Utf8" + "," + "\n" +
 				"\tvasya Utf8" + "," + "\n" +
 				"\tcover Uint32" + "," + "\n" +
@@ -148,7 +147,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 					},
 				},
 			},
-			expected: "CREATE TABLE `hello/world`(" + "\n" +
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
 				"\tmir Utf8 FAMILY `some_family`," + "\n" +
 				"\tvasya Utf8," + "\n" +
 				"\tPRIMARY KEY (`mir`)," + "\n" +
@@ -186,7 +185,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 					Interval:   "PT0S",
 				},
 			},
-			expected: "CREATE TABLE `hello/world`(" + "\n" +
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
 				"\tmir Utf8," + "\n" +
 				"\tttl Timestamp," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
@@ -214,13 +213,13 @@ func TestPrepareCreateRequest(t *testing.T) {
 						"mir",
 					},
 				},
-				PartitioningPolicy: &TablePartitioningPolicy{
+				PartitioningSettings: &TablePartitioningSettings{
 					PartitionsCount:    5,
 					MaxPartitionsCount: 42,
 					MinPartitionsCount: 10,
 				},
 			},
-			expected: "CREATE TABLE `hello/world`(" + "\n" +
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
 				"\tmir Utf8," + "\n" +
 				"\tttl Timestamp," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
@@ -231,6 +230,38 @@ func TestPrepareCreateRequest(t *testing.T) {
 				"\tAUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 42" + "\n" +
 				")",
 		},
+		{
+			testName: "table with replica settings",
+			resource: &TableResource{
+				Path: "hello/world",
+				Columns: []*TableColumn{
+					{
+						Name: "mir",
+						Type: "Utf8",
+					},
+					{
+						Name: "ttl",
+						Type: "Timestamp",
+					},
+				},
+				PrimaryKey: &TablePrimaryKey{
+					Columns: []string{
+						"mir",
+					},
+				},
+				ReplicationSettings: &TableReplicationSettings{
+					ReadReplicasSettings: "PER_AZ",
+				},
+			},
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
+				"\tmir Utf8," + "\n" +
+				"\tttl Timestamp," + "\n" +
+				"\tPRIMARY KEY (`mir`)" + "\n" +
+				")" + "\n" +
+				"WITH (" + "\n" +
+				"\tREAD_REPLICAS_SETTINGS = PER_AZ" + "\n" +
+				")",
+		},
 	}
 
 	for _, v := range testData {
@@ -238,7 +269,6 @@ func TestPrepareCreateRequest(t *testing.T) {
 		t.Run(v.testName, func(t *testing.T) {
 			got := PrepareCreateRequest(v.resource)
 			assert.Equal(t, v.expected, got)
-			fmt.Println(got)
 		})
 	}
 }

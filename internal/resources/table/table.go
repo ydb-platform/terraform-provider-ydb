@@ -198,13 +198,9 @@ type TableTTL struct {
 	Interval   string
 }
 
-type TableAutoPartitioning struct {
-	BySize *int
-	ByLoad *bool
-}
-
-type TablePartitioningPolicy struct {
-	Type               string
+type TablePartitioningSettings struct {
+	BySize             *int
+	ByLoad             *bool
 	PartitionAtKeys    []int
 	PartitionsCount    int
 	MinPartitionsCount int
@@ -212,7 +208,7 @@ type TablePartitioningPolicy struct {
 }
 
 type TableReplicationSettings struct {
-	ReadReplicaSettings string
+	ReadReplicasSettings string
 }
 
 type TableFamily struct {
@@ -227,19 +223,18 @@ type TableChangeDataCaptureSettings struct {
 }
 
 type TableResource struct {
-	Path                string
-	DatabaseEndpoint    string
-	Token               string
-	Attributes          map[string]string
-	Family              []*TableFamily
-	Columns             []*TableColumn
-	Indexes             []*TableIndex
-	PrimaryKey          *TablePrimaryKey
-	TTL                 *TableTTL
-	AutoPartitioning    *TableAutoPartitioning
-	PartitioningPolicy  *TablePartitioningPolicy
-	ReplicationSettings *TableReplicationSettings
-	EnableBloomFilter   *bool
+	Path                 string
+	DatabaseEndpoint     string
+	Token                string
+	Attributes           map[string]string
+	Family               []*TableFamily
+	Columns              []*TableColumn
+	Indexes              []*TableIndex
+	PrimaryKey           *TablePrimaryKey
+	TTL                  *TableTTL
+	ReplicationSettings  *TableReplicationSettings
+	PartitioningSettings *TablePartitioningSettings
+	EnableBloomFilter    *bool
 }
 
 func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
@@ -257,38 +252,28 @@ func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
 	return
 }
 
-func expandTableAutoPartitioningSettings(d *schema.ResourceData) (ap *TableAutoPartitioning) {
-	v, ok := d.GetOk("auto_partitioning")
+func expandTableReplicasSettings(d *schema.ResourceData) (p *TableReplicationSettings) {
+	v, ok := d.GetOk("read_replicas_settings")
 	if !ok {
 		return
 	}
-	apSet := v.(*schema.Set)
-	for _, l := range apSet.List() {
-		m := l.(map[string]interface{})
-		ap = &TableAutoPartitioning{}
-		if byLoad, ok := m["by_load"].(bool); ok {
-			ap.ByLoad = &byLoad
-		}
-		if bySize, ok := m["by_size"].(int); ok {
-			ap.BySize = &bySize
-		}
-	}
+
+	p = &TableReplicationSettings{}
+	p.ReadReplicasSettings = v.(string)
 	return
 }
 
-func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePartitioningPolicy) {
+func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePartitioningSettings) {
 	v, ok := d.GetOk("partitioning_policy")
 	if !ok {
 		return
 	}
 
+	p = &TablePartitioningSettings{}
+
 	pSet := v.(*schema.Set)
 	for _, l := range pSet.List() {
 		m := l.(map[string]interface{})
-		p = &TablePartitioningPolicy{}
-		if typ, ok := m["type"].(string); ok {
-			p.Type = typ
-		}
 		if partitionsCount, ok := m["partitions_count"].(int); ok {
 			p.PartitionsCount = partitionsCount
 		}
@@ -302,6 +287,12 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePart
 		}
 		if maxPartitionsCount, ok := m["max_partitions_count"].(int); ok {
 			p.MaxPartitionsCount = maxPartitionsCount
+		}
+		if byLoad, ok := m["by_load"].(bool); ok {
+			p.ByLoad = &byLoad
+		}
+		if bySize, ok := m["by_size"].(int); ok {
+			p.BySize = &bySize
 		}
 	}
 
@@ -375,8 +366,8 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 		return nil, fmt.Errorf("failed to parse database endpoint: %s", err)
 	}
 
-	autoPartitioning := expandTableAutoPartitioningSettings(d)
-	partitioningPolicy := expandTablePartitioningPolicySettings(d)
+	partitioningSettings := expandTablePartitioningPolicySettings(d)
+	replicasSettings := expandTableReplicasSettings(d)
 
 	var bloomFilterEnabled *bool
 	if v, ok := d.GetOk("primary_key_bloom_filter"); ok {
@@ -393,11 +384,11 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 		PrimaryKey: &TablePrimaryKey{
 			Columns: pk,
 		},
-		TTL:                ttl,
-		AutoPartitioning:   autoPartitioning,
-		PartitioningPolicy: partitioningPolicy,
-		Token:              token,
-		EnableBloomFilter:  bloomFilterEnabled,
+		TTL:                  ttl,
+		PartitioningSettings: partitioningSettings,
+		ReplicationSettings:  replicasSettings,
+		Token:                token,
+		EnableBloomFilter:    bloomFilterEnabled,
 	}, nil
 }
 
