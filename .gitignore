@@ -1,7 +1,7 @@
 # vim files
 *.swp
 *.swo
-
+*.DS_Store
 bin/
-
+*.idea
 vendor/
