@@ -1,4 +1,4 @@
-module github.com/ydb/terraform-provider-ydb
+module github.com/ydb-platform/terraform-provider-ydb
 
 go 1.18
 

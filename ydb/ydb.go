@@ -2,8 +2,8 @@ package ydb
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/ydb/terraform-provider-ydb/sdk/terraform/auth"
-	"github.com/ydb/terraform-provider-ydb/sdk/terraform/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/topic"
 )
 
 func Provider(tokenCallback auth.GetTokenCallback) *schema.Provider {
@@ -21,11 +21,11 @@ func Provider(tokenCallback auth.GetTokenCallback) *schema.Provider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"ydb_topic": topicProvider.DataSource(false),
+			"ydb_topic": topicProvider.DataSource(""),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"ydb_topic": topicProvider.Resource(false),
+			"ydb_topic": topicProvider.Resource(""),
 		},
 	}
 }
