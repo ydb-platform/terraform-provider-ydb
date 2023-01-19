@@ -52,12 +52,12 @@ var (
 	}
 )
 
-func (t *TopicProvider) Resource(isDeprecated bool) *schema.Resource {
+func (t *TopicProvider) Resource(DeprecationMessage string) *schema.Resource {
 	r := &schema.Resource{
-		CreateContext: t.resourceYcpYDBTopicCreate,
-		ReadContext:   t.resourceYcpYDBTopicRead,
-		UpdateContext: t.resourceYcpYDBTopicUpdate,
-		DeleteContext: t.resourceYcpYDBTopicDelete,
+		CreateContext: t.resourceYDBTopicCreate,
+		ReadContext:   t.resourceYDBTopicRead,
+		UpdateContext: t.resourceYDBTopicUpdate,
+		DeleteContext: t.resourceYDBTopicDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -133,14 +133,12 @@ func (t *TopicProvider) Resource(isDeprecated bool) *schema.Resource {
 		},
 	}
 
-	if isDeprecated {
-		r.DeprecationMessage = `resource "ycp_ydb_stream" is deprecated. Use "ycp_ydb_topic" instead.`
-	}
+	r.DeprecationMessage = DeprecationMessage
 
 	return r
 }
 
-func (t *TopicProvider) resourceYcpYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+func (t *TopicProvider) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	client, err := t.createYDBConnection(ctx, d, nil)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize yds control plane client: %s", err))
@@ -204,16 +202,16 @@ func (t *TopicProvider) resourceYcpYDBTopicCreate(ctx context.Context, d *schema
 	topicPath := d.Get("name").(string)
 	d.SetId(d.Get("database_endpoint").(string) + "/" + topicPath)
 
-	return t.resourceYcpYDBTopicRead(ctx, d, nil)
+	return t.resourceYDBTopicRead(ctx, d, nil)
 }
 
-func (t *TopicProvider) resourceYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return t.performYcpYDBTopicUpdate(ctx, d)
+func (t *TopicProvider) resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return t.performYDBTopicUpdate(ctx, d)
 }
 
-func (t *TopicProvider) resourceYcpYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func (t *TopicProvider) resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
-	topic, err := parseYcpYDBEntityID(d.Id())
+	topic, err := parseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -277,8 +275,8 @@ func (t *TopicProvider) createYDBConnection(
 	return sess, nil
 }
 
-func (t *TopicProvider) resourceYcpYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	topic, err := parseYcpYDBEntityID(d.Id())
+func (t *TopicProvider) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+	topic, err := parseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -311,8 +309,8 @@ func (t *TopicProvider) resourceYcpYDBTopicRead(ctx context.Context, d *schema.R
 	return nil
 }
 
-func (t *TopicProvider) performYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.Diagnostics {
-	topic, err := parseYcpYDBEntityID(d.Id())
+func (t *TopicProvider) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.Diagnostics {
+	topic, err := parseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -329,14 +327,14 @@ func (t *TopicProvider) performYcpYDBTopicUpdate(ctx context.Context, d *schema.
 
 	if d.HasChange("name") {
 		// Creating new topic
-		return t.resourceYcpYDBTopicCreate(ctx, d, nil)
+		return t.resourceYDBTopicCreate(ctx, d, nil)
 	}
 
 	topicName := topic.getEntityPath()
 	desc, err := topicClient.Describe(ctx, topicName)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
-			return t.resourceYcpYDBTopicCreate(ctx, d, nil)
+			return t.resourceYDBTopicCreate(ctx, d, nil)
 		}
 		return diag.FromErr(fmt.Errorf("failed to get description for topic %q", topicName))
 	}
@@ -348,5 +346,5 @@ func (t *TopicProvider) performYcpYDBTopicUpdate(ctx context.Context, d *schema.
 		return diag.FromErr(fmt.Errorf("got error when tried to alter topic: %s", err))
 	}
 
-	return t.resourceYcpYDBTopicRead(ctx, d, nil)
+	return t.resourceYDBTopicRead(ctx, d, nil)
 }

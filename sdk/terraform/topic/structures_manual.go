@@ -197,7 +197,7 @@ func prepareYDBTopicAlterSettings(
 	return
 }
 
-func parseYcpYDBEntityID(id string) (*ydbEntity, error) {
+func parseYDBEntityID(id string) (*ydbEntity, error) {
 	if id == "" {
 		return nil, fmt.Errorf("failed to parse ycp_ydb_topic id: %s", "got empty id")
 	}
