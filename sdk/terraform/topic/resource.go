@@ -52,7 +52,7 @@ var (
 	}
 )
 
-func (t *TopicProvider) Resource(DeprecationMessage string) *schema.Resource {
+func (t *TopicProvider) Resource(deprecationMessage string) *schema.Resource {
 	r := &schema.Resource{
 		CreateContext: t.resourceYDBTopicCreate,
 		ReadContext:   t.resourceYDBTopicRead,
@@ -133,7 +133,7 @@ func (t *TopicProvider) Resource(DeprecationMessage string) *schema.Resource {
 		},
 	}
 
-	r.DeprecationMessage = DeprecationMessage
+	r.DeprecationMessage = deprecationMessage
 
 	return r
 }

@@ -15,7 +15,7 @@ type TopicProvider struct {
 	tokenCallback auth.GetTokenCallback
 }
 
-func (t *TopicProvider) DataSource(isDeprecated bool) *schema.Resource {
+func (t *TopicProvider) DataSource(deprecationMessage string) *schema.Resource {
 	r := &schema.Resource{
 		ReadContext: t.dataSourceYDBTopicRead,
 
@@ -85,10 +85,7 @@ func (t *TopicProvider) DataSource(isDeprecated bool) *schema.Resource {
 			},
 		},
 	}
-
-	if isDeprecated {
-		r.DeprecationMessage = `data source "ycp_ydb_stream" is deprecated. Use "ycp_ydb_topic" instead.`
-	}
+	r.DeprecationMessage = deprecationMessage
 
 	return r
 }

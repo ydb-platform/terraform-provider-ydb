@@ -199,12 +199,12 @@ func prepareYDBTopicAlterSettings(
 
 func parseYDBEntityID(id string) (*ydbEntity, error) {
 	if id == "" {
-		return nil, fmt.Errorf("failed to parse ycp_ydb_topic id: %s", "got empty id")
+		return nil, fmt.Errorf("failed to parse ydb_topic id: %s", "got empty id")
 	}
 
 	endpoint, database, useTLS, err := parseYDBDatabaseEndpoint(id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse ycp_ydb_topic id: %s", err)
+		return nil, fmt.Errorf("failed to parse ydb_topic id: %s", err)
 	}
 
 	slashCount := 0
@@ -219,7 +219,7 @@ func parseYDBEntityID(id string) (*ydbEntity, error) {
 		}
 	}
 	if i == len(database) || i == len(database)-1 || slashCount < 4 {
-		return nil, fmt.Errorf("failed to parse ycp_ydb_topic id: %s", "got empty topic path")
+		return nil, fmt.Errorf("failed to parse ydb_topic id: %s", "got empty topic path")
 	}
 
 	return &ydbEntity{
