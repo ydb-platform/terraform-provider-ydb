@@ -1,20 +1,17 @@
 package main
 
 import (
-	"context"
-
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb/terraform-provider-ydb/ydb"
 )
 
 func main() {
 	opts := &plugin.ServeOpts{
-		ProviderFunc: nil,
+		ProviderFunc: func() *schema.Provider {
+			return ydb.Provider(nil)
+		},
 	}
-	_ = opts
 
-	var sess table.Session
-	sess.CreateTable(context.Background(), "")
-
-	plugin.Serve(nil)
+	plugin.Serve(opts)
 }

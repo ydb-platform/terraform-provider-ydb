@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
+	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
@@ -52,12 +52,12 @@ var (
 	}
 )
 
-func resourceYcpYDBTopic(isDeprecated bool) *schema.Resource {
+func (t *TopicProvider) Resource(isDeprecated bool) *schema.Resource {
 	r := &schema.Resource{
-		CreateContext: resourceYcpYDBTopicCreate,
-		ReadContext:   resourceYcpYDBTopicRead,
-		UpdateContext: resourceYcpYDBTopicUpdate,
-		DeleteContext: resourceYcpYDBTopicDelete,
+		CreateContext: t.resourceYcpYDBTopicCreate,
+		ReadContext:   t.resourceYcpYDBTopicRead,
+		UpdateContext: t.resourceYcpYDBTopicUpdate,
+		DeleteContext: t.resourceYcpYDBTopicDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -140,8 +140,8 @@ func resourceYcpYDBTopic(isDeprecated bool) *schema.Resource {
 	return r
 }
 
-func resourceYcpYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	client, err := createYDBConnection(ctx, d, nil)
+func (t *TopicProvider) resourceYcpYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+	client, err := t.createYDBConnection(ctx, d, nil)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize yds control plane client: %s", err))
 	}
@@ -204,21 +204,21 @@ func resourceYcpYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ in
 	topicPath := d.Get("name").(string)
 	d.SetId(d.Get("database_endpoint").(string) + "/" + topicPath)
 
-	return resourceYcpYDBTopicRead(ctx, d, nil)
+	return t.resourceYcpYDBTopicRead(ctx, d, nil)
 }
 
-func resourceYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return performYcpYDBTopicUpdate(ctx, d)
+func (t *TopicProvider) resourceYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return t.performYcpYDBTopicUpdate(ctx, d)
 }
 
-func resourceYcpYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func (t *TopicProvider) resourceYcpYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	topic, err := parseYcpYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	client, err := createYDBConnection(ctx, d, topic)
+	client, err := t.createYDBConnection(ctx, d, topic)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %s", err))
 	}
@@ -252,7 +252,7 @@ type ResourceDataProxy interface {
 	Timeout(s string) time.Duration
 }
 
-func createYDBConnection(
+func (t *TopicProvider) createYDBConnection(
 	ctx context.Context,
 	d ResourceDataProxy,
 	ydbEn *ydbEntity,
@@ -264,11 +264,11 @@ func createYDBConnection(
 		// NOTE(shmel1k@): resource is not initialized yet.
 		databaseEndpoint = d.Get("database_endpoint").(string)
 	}
-	token := ""
-	//token, err := getIAMToken(ctx, d, config)
-	//if err != nil {
-	//	return nil, err
-	//}
+
+	token, err := t.tokenCallback(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ydb token: %s", err)
+	}
 
 	sess, err := ydb.Open(ctx, databaseEndpoint, ydb.WithAccessTokenCredentials(token))
 	if err != nil {
@@ -277,14 +277,13 @@ func createYDBConnection(
 	return sess, nil
 }
 
-func resourceYcpYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
-
+func (t *TopicProvider) resourceYcpYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	topic, err := parseYcpYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	ydbClient, err := createYDBConnection(ctx, d, topic)
+	ydbClient, err := t.createYDBConnection(ctx, d, topic)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %s", err))
 	}
@@ -312,13 +311,13 @@ func resourceYcpYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ inte
 	return nil
 }
 
-func performYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.Diagnostics {
+func (t *TopicProvider) performYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.Diagnostics {
 	topic, err := parseYcpYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	ydbClient, err := createYDBConnection(ctx, d, topic)
+	ydbClient, err := t.createYDBConnection(ctx, d, topic)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %s", err))
 	}
@@ -330,14 +329,14 @@ func performYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.
 
 	if d.HasChange("name") {
 		// Creating new topic
-		return resourceYcpYDBTopicCreate(ctx, d, nil)
+		return t.resourceYcpYDBTopicCreate(ctx, d, nil)
 	}
 
 	topicName := topic.getEntityPath()
 	desc, err := topicClient.Describe(ctx, topicName)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
-			return resourceYcpYDBTopicCreate(ctx, d, nil)
+			return t.resourceYcpYDBTopicCreate(ctx, d, nil)
 		}
 		return diag.FromErr(fmt.Errorf("failed to get description for topic %q", topicName))
 	}
@@ -349,5 +348,5 @@ func performYcpYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.
 		return diag.FromErr(fmt.Errorf("got error when tried to alter topic: %s", err))
 	}
 
-	return resourceYcpYDBTopicRead(ctx, d, nil)
+	return t.resourceYcpYDBTopicRead(ctx, d, nil)
 }

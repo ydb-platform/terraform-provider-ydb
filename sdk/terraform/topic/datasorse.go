@@ -8,11 +8,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/ydb/terraform-provider-ydb/sdk/terraform/auth"
 )
 
-func dataSourceYcpYDBTopic(isDeprecated bool) *schema.Resource {
+type TopicProvider struct {
+	tokenCallback auth.GetTokenCallback
+}
+
+func (t *TopicProvider) DataSource(isDeprecated bool) *schema.Resource {
 	r := &schema.Resource{
-		ReadContext: dataSourceYDBTopicRead,
+		ReadContext: t.dataSourceYDBTopicRead,
 
 		SchemaVersion: 0,
 		Schema: map[string]*schema.Schema{
@@ -88,9 +93,14 @@ func dataSourceYcpYDBTopic(isDeprecated bool) *schema.Resource {
 	return r
 }
 
-func dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func NewProvider(cb auth.GetTokenCallback) *TopicProvider {
+	return &TopicProvider{
+		tokenCallback: cb,
+	}
+}
 
-	client, err := createYDBConnection(ctx, d, nil)
+func (t *TopicProvider) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client, err := t.createYDBConnection(ctx, d, nil)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-stream control plane client: %s", err))
 	}
