@@ -1,3 +1,0 @@
-package topic
-
-func Topic() {}
