@@ -80,7 +80,7 @@ func TestParseYDBDatabaseEndpoint(t *testing.T) {
 	}
 }
 
-func TestParseYcpYDBEntityID(t *testing.T) {
+func TestParseYDBEntityID(t *testing.T) {
 	var testData = []struct {
 		testName    string
 		id          string
