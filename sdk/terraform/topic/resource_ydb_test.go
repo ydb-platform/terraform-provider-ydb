@@ -1,67 +1,82 @@
 package topic
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-func TestAccYcpYDBTopic_basic(t *testing.T) {
-	t.Parallel()
-
-	ydbResourceName := fmt.Sprintf("ydb-topic-permissions-test-%s", acctest.RandString(5))
-	topicName := fmt.Sprintf("permissions-test-%s", acctest.RandString(5))
-	topicResourceName := fmt.Sprintf("ydb-test-topic-%s", acctest.RandString(5))
-
-	existingYDBResourceName := fmt.Sprintf("ycp_ydb_database.%s", ydbResourceName)
-	existingTopicResourceName := fmt.Sprintf("ycp_ydb_topic.%s", topicResourceName)
-	resource.Test(t, resource.TestCase{
-		Steps: []resource.TestStep{
-			{
-				Check: resource.ComposeTestCheckFunc(
-					testAccYcpYDBTopicExist(topicName, existingYDBResourceName, existingTopicResourceName),
-				),
-			},
-			{
-				ResourceName:      "ydb_topic.topic1",
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
+func TestParseYDBDatabaseEndpoint(t *testing.T) {
+	var testData = []struct {
+		testName             string
+		endpoint             string
+		expectedBaseEndpoint string
+		expectedDatabasePath string
+		expectedUseTLS       bool
+		expectedErr          bool
+	}{
+		{
+			testName:    "empty endpoint",
+			endpoint:    "",
+			expectedErr: true,
 		},
-	})
-}
+		{
+			testName:    "endpoint without grpc(s) prefix",
+			endpoint:    "ydb.yandex-team.ru/?database=/some_database/path",
+			expectedErr: true,
+		},
+		{
+			testName:    "only hostname endpoint",
+			endpoint:    "ydb.yandex-team.ru",
+			expectedErr: true,
+		},
+		{
+			testName:    "endpoint without database",
+			endpoint:    "grpcs://ydb.yandex-team.ru",
+			expectedErr: true,
+		},
+		{
+			testName:             "valid grpcs endpoint",
+			endpoint:             "grpcs://ydb.yandex-team.ru/?database=/some_database_path",
+			expectedDatabasePath: "/some_database_path",
+			expectedBaseEndpoint: "ydb.yandex-team.ru",
+			expectedUseTLS:       true,
+			expectedErr:          false,
+		},
+		{
+			testName:             "valid grpc endpoint",
+			endpoint:             "grpc://ydb.yandex-team.ru/?database=/some/path",
+			expectedDatabasePath: "/some/path",
+			expectedBaseEndpoint: "ydb.yandex-team.ru",
+			expectedUseTLS:       false,
+			expectedErr:          false,
+		},
+		{
+			testName:    "valid endpoint with invalid protocol",
+			endpoint:    "grp://ydb.yandex-team.ru/?database=/some/path",
+			expectedErr: true,
+		},
+	}
 
-func testAccYcpYDBTopicExist(topicPath, ydbResourceName, topicResourceName string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		// TODO(shmel1k@): remove copypaste there and in ydb_permissions_test
-		prs, ok := s.RootModule().Resources[topicResourceName]
-		if !ok {
-			return fmt.Errorf("not found: %s", topicResourceName)
-		}
-		if prs.Primary.ID == "" {
-			return fmt.Errorf("%s", "no ID for permission is set")
-		}
-
-		rs, ok := s.RootModule().Resources[ydbResourceName]
-		if !ok {
-			return fmt.Errorf("not found: %s", ydbResourceName)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("no ID is set")
-		}
-
-		_, _, _, err := parseYDBDatabaseEndpoint(rs.Primary.Attributes["endpoint"])
-		if err != nil {
-			return err
-		}
-
-		return nil
-
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			gotEp, gotDatabasePath, gotUseTLS, gotErr := parseYDBDatabaseEndpoint(v.endpoint)
+			if gotErr != nil && !v.expectedErr {
+				t.Errorf("got err %q, but expected <nil>", gotErr)
+			}
+			if gotErr == nil && v.expectedErr {
+				t.Error("got <nil> err, but expected")
+			}
+			if gotEp != v.expectedBaseEndpoint {
+				t.Errorf("got base_endpoint %q, but expected %q", gotEp, v.expectedBaseEndpoint)
+			}
+			if gotDatabasePath != v.expectedDatabasePath {
+				t.Errorf("got database_path %q, but expected %q", gotDatabasePath, v.expectedDatabasePath)
+			}
+			if gotUseTLS != v.expectedUseTLS {
+				t.Errorf("got use_tls %v, but expected %v", gotUseTLS, v.expectedUseTLS)
+			}
+		})
 	}
 }
 
