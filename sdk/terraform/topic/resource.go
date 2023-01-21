@@ -52,7 +52,7 @@ var (
 	}
 )
 
-func (t *TopicProvider) Resource(deprecationMessage string) *schema.Resource {
+func (t *Provider) Resource(deprecationMessage string) *schema.Resource {
 	r := &schema.Resource{
 		CreateContext: t.resourceYDBTopicCreate,
 		ReadContext:   t.resourceYDBTopicRead,
@@ -138,10 +138,10 @@ func (t *TopicProvider) Resource(deprecationMessage string) *schema.Resource {
 	return r
 }
 
-func (t *TopicProvider) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+func (t *Provider) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	client, err := t.createYDBConnection(ctx, d, nil)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to initialize yds control plane client: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to initialize yds control plane client: %w", err))
 	}
 	defer func() {
 		_ = client.Close(ctx)
@@ -157,8 +157,7 @@ func (t *TopicProvider) resourceYDBTopicCreate(ctx context.Context, d *schema.Re
 		}
 	}
 
-	var consumers []topictypes.Consumer
-
+	consumers := make([]topictypes.Consumer, 0, 4)
 	for _, v := range d.Get("consumer").([]interface{}) {
 		consumer := v.(map[string]interface{})
 		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
@@ -168,9 +167,9 @@ func (t *TopicProvider) resourceYDBTopicCreate(ctx context.Context, d *schema.Re
 			}
 		}
 		consumerName := consumer["name"].(string)
-		startingMessageTs, ok := consumer["starting_message_timestamp_ms"].(int)
+		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
 		if !ok {
-			startingMessageTs = 0
+			startingMessageTS = 0
 		}
 		codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
 		for _, c := range supportedCodecs {
@@ -180,10 +179,10 @@ func (t *TopicProvider) resourceYDBTopicCreate(ctx context.Context, d *schema.Re
 		consumers = append(consumers, topictypes.Consumer{
 			Name:            consumerName,
 			SupportedCodecs: codecs,
-			ReadFrom:        time.Unix(int64(startingMessageTs/1000), 0),
+			ReadFrom:        time.Unix(int64(startingMessageTS/1000), 0),
 		})
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("failed to create consumer %q: %s", consumerName, err))
+			return diag.FromErr(fmt.Errorf("failed to create consumer %q: %w", consumerName, err))
 		}
 	}
 
@@ -196,7 +195,7 @@ func (t *TopicProvider) resourceYDBTopicCreate(ctx context.Context, d *schema.Re
 		topicoptions.CreateWithConsumer(consumers...),
 	)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %w", err))
 	}
 
 	topicPath := d.Get("name").(string)
@@ -205,12 +204,11 @@ func (t *TopicProvider) resourceYDBTopicCreate(ctx context.Context, d *schema.Re
 	return t.resourceYDBTopicRead(ctx, d, nil)
 }
 
-func (t *TopicProvider) resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func (t *Provider) resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	return t.performYDBTopicUpdate(ctx, d)
 }
 
-func (t *TopicProvider) resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-
+func (t *Provider) resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	topic, err := parseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
@@ -218,7 +216,7 @@ func (t *TopicProvider) resourceYDBTopicDelete(ctx context.Context, d *schema.Re
 
 	client, err := t.createYDBConnection(ctx, d, topic)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %w", err))
 	}
 	defer func() {
 		_ = client.Close(ctx)
@@ -227,7 +225,7 @@ func (t *TopicProvider) resourceYDBTopicDelete(ctx context.Context, d *schema.Re
 	topicName := topic.getEntityPath()
 	err = client.Topic().Drop(ctx, topicName)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to delete topic: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to delete topic: %w", err))
 	}
 
 	return nil
@@ -250,7 +248,7 @@ type ResourceDataProxy interface {
 	Timeout(s string) time.Duration
 }
 
-func (t *TopicProvider) createYDBConnection(
+func (t *Provider) createYDBConnection(
 	ctx context.Context,
 	d ResourceDataProxy,
 	ydbEn *ydbEntity,
@@ -265,17 +263,17 @@ func (t *TopicProvider) createYDBConnection(
 
 	token, err := t.tokenCallback(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ydb token: %s", err)
+		return nil, fmt.Errorf("failed to get ydb token: %w", err)
 	}
 
 	sess, err := ydb.Open(ctx, databaseEndpoint, ydb.WithAccessTokenCredentials(token))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create control-plane client: %s", err)
+		return nil, fmt.Errorf("failed to create control-plane client: %w", err)
 	}
 	return sess, nil
 }
 
-func (t *TopicProvider) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+func (t *Provider) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	topic, err := parseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
@@ -283,7 +281,7 @@ func (t *TopicProvider) resourceYDBTopicRead(ctx context.Context, d *schema.Reso
 
 	ydbClient, err := t.createYDBConnection(ctx, d, topic)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %w", err))
 	}
 	defer func() {
 		_ = ydbClient.Close(ctx)
@@ -298,18 +296,18 @@ func (t *TopicProvider) resourceYDBTopicRead(ctx context.Context, d *schema.Reso
 			d.SetId("") // marking as non-existing resource.
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("resource: failed to describe topic: %s", err))
+		return diag.FromErr(fmt.Errorf("resource: failed to describe topic: %w", err))
 	}
 
 	err = flattenYDBTopicDescription(d, description)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to flatten topic description: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to flatten topic description: %w", err))
 	}
 
 	return nil
 }
 
-func (t *TopicProvider) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.Diagnostics {
+func (t *Provider) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.Diagnostics {
 	topic, err := parseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
@@ -317,7 +315,7 @@ func (t *TopicProvider) performYDBTopicUpdate(ctx context.Context, d *schema.Res
 
 	ydbClient, err := t.createYDBConnection(ctx, d, topic)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %w", err))
 	}
 	defer func() {
 		_ = ydbClient.Close(ctx)
@@ -343,7 +341,7 @@ func (t *TopicProvider) performYDBTopicUpdate(ctx context.Context, d *schema.Res
 
 	err = topicClient.Alter(ctx, topicName, opts...)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("got error when tried to alter topic: %s", err))
+		return diag.FromErr(fmt.Errorf("got error when tried to alter topic: %w", err))
 	}
 
 	return t.resourceYDBTopicRead(ctx, d, nil)

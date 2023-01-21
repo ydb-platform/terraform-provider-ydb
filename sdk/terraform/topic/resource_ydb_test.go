@@ -1,12 +1,13 @@
 package topic
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseYDBDatabaseEndpoint(t *testing.T) {
-	var testData = []struct {
+	testData := []struct {
 		testName             string
 		endpoint             string
 		expectedBaseEndpoint string
@@ -81,7 +82,7 @@ func TestParseYDBDatabaseEndpoint(t *testing.T) {
 }
 
 func TestParseYDBEntityID(t *testing.T) {
-	var testData = []struct {
+	testData := []struct {
 		testName    string
 		id          string
 		expected    *ydbEntity

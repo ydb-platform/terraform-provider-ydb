@@ -1,8 +1,9 @@
 package topic
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"time"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func defaultTimeouts() *schema.ResourceTimeout {
