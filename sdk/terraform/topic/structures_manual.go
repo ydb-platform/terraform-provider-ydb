@@ -2,11 +2,12 @@ package topic
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
-	"strings"
-	"time"
 )
 
 type ydbEntity struct {
@@ -88,7 +89,7 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 
 	err := d.Set("consumer", rules)
 	if err != nil {
-		return fmt.Errorf("failed to set consumer %+v: %s", rules, err)
+		return fmt.Errorf("failed to set consumer %+v: %w", rules, err)
 	}
 
 	err = d.Set("supported_codecs", supportedCodecs)
@@ -124,9 +125,9 @@ func mergeYDBTopicConsumerSettings(
 				supportedCodecs = append(supportedCodecs, vv)
 			}
 		}
-		startingMessageTs, ok := consumer["starting_message_timestamp_ms"].(int)
+		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
 		if !ok {
-			startingMessageTs = 0
+			startingMessageTS = 0
 		}
 
 		r, ok := rules[consumerName]
@@ -140,14 +141,14 @@ func mergeYDBTopicConsumerSettings(
 			opts = append(opts, topicoptions.AlterWithAddConsumers(
 				topictypes.Consumer{
 					Name:            consumerName,
-					ReadFrom:        time.UnixMilli(int64(startingMessageTs)),
+					ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
 					SupportedCodecs: codecs,
 				},
 			))
 			continue
 		}
 
-		readFrom := time.UnixMilli(int64(startingMessageTs))
+		readFrom := time.UnixMilli(int64(startingMessageTS))
 		if r.ReadFrom != readFrom {
 			opts = append(opts, topicoptions.AlterConsumerWithReadFrom(consumerName, readFrom))
 		}
@@ -161,7 +162,7 @@ func mergeYDBTopicConsumerSettings(
 			opts = append(opts, topicoptions.AlterConsumerWithSupportedCodecs(consumerName, newCodecs))
 		}
 	}
-	return
+	return opts
 }
 
 func prepareYDBTopicAlterSettings(
@@ -194,7 +195,7 @@ func prepareYDBTopicAlterSettings(
 		opts = append(opts, additionalOpts...)
 	}
 
-	return
+	return opts
 }
 
 func parseYDBEntityID(id string) (*ydbEntity, error) {
@@ -204,7 +205,7 @@ func parseYDBEntityID(id string) (*ydbEntity, error) {
 
 	endpoint, database, useTLS, err := parseYDBDatabaseEndpoint(id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse ydb_topic id: %s", err)
+		return nil, fmt.Errorf("failed to parse ydb_topic id: %w", err)
 	}
 
 	slashCount := 0

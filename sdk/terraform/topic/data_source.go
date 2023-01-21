@@ -8,14 +8,15 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
-type TopicProvider struct {
+type Provider struct {
 	tokenCallback auth.GetTokenCallback
 }
 
-func (t *TopicProvider) DataSource(deprecationMessage string) *schema.Resource {
+func (t *Provider) DataSource(deprecationMessage string) *schema.Resource {
 	r := &schema.Resource{
 		ReadContext: t.dataSourceYDBTopicRead,
 
@@ -90,16 +91,16 @@ func (t *TopicProvider) DataSource(deprecationMessage string) *schema.Resource {
 	return r
 }
 
-func NewProvider(cb auth.GetTokenCallback) *TopicProvider {
-	return &TopicProvider{
+func NewProvider(cb auth.GetTokenCallback) *Provider {
+	return &Provider{
 		tokenCallback: cb,
 	}
 }
 
-func (t *TopicProvider) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func (t *Provider) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client, err := t.createYDBConnection(ctx, d, nil)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to initialize ydb-stream control plane client: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to initialize ydb-stream control plane client: %w", err))
 	}
 	defer func() {
 		_ = client.Close(ctx)
@@ -112,12 +113,12 @@ func (t *TopicProvider) dataSourceYDBTopicRead(ctx context.Context, d *schema.Re
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("datasource: failed to describe stream: %s", err))
+		return diag.FromErr(fmt.Errorf("datasource: failed to describe stream: %w", err))
 	}
 
 	err = flattenYDBTopicDescription(d, description)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to flatten stream description: %s", err))
+		return diag.FromErr(fmt.Errorf("failed to flatten stream description: %w", err))
 	}
 
 	return nil
