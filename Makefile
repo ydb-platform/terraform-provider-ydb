@@ -7,3 +7,6 @@ all: local-build
 
 local-build:
 	go build -o $(HOME)/.terraform.d/plugins/terraform.storage.ydb.tech/provider/ydb/$(SEMVER)/$(shell go env GOOS)_$(shell go env GOARCH)/terraform-provider-ydb main.go
+
+build:
+	go build -o bin/terraform-provider-ydb main.go
