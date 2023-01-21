@@ -7,22 +7,22 @@ import (
 )
 
 func TestPrepareCreateRequest(t *testing.T) {
-	var testData = []struct {
+	testData := []struct {
 		testName string
-		resource *TableResource
+		resource *Resource
 		expected string
 	}{
 		{
 			testName: "table with one column as PK",
-			resource: &TableResource{
+			resource: &Resource{
 				Path: "privet",
-				Columns: []*TableColumn{
+				Columns: []*Column{
 					{
 						Name: "mir",
 						Type: "Utf8",
 					},
 				},
-				PrimaryKey: &TablePrimaryKey{
+				PrimaryKey: &PrimaryKey{
 					Columns: []string{
 						"mir",
 					},
@@ -36,9 +36,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 		},
 		{
 			testName: "table with two columns as PK and one as index",
-			resource: &TableResource{
+			resource: &Resource{
 				Path: "privet",
-				Columns: []*TableColumn{
+				Columns: []*Column{
 					{
 						Name: "mir",
 						Type: "Utf8",
@@ -48,12 +48,12 @@ func TestPrepareCreateRequest(t *testing.T) {
 						Type: "Utf8",
 					},
 				},
-				PrimaryKey: &TablePrimaryKey{
+				PrimaryKey: &PrimaryKey{
 					Columns: []string{
 						"mir", "vasya",
 					},
 				},
-				Indexes: []*TableIndex{
+				Indexes: []*Index{
 					{
 						Name: "indexname",
 						Type: "global_async",
@@ -72,9 +72,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 		},
 		{
 			testName: "table with three columns and index with cover",
-			resource: &TableResource{
+			resource: &Resource{
 				Path: "privet/hello",
-				Columns: []*TableColumn{
+				Columns: []*Column{
 					{
 						Name: "mir",
 						Type: "Utf8",
@@ -88,12 +88,12 @@ func TestPrepareCreateRequest(t *testing.T) {
 						Type: "Uint32",
 					},
 				},
-				PrimaryKey: &TablePrimaryKey{
+				PrimaryKey: &PrimaryKey{
 					Columns: []string{
 						"mir", "vasya",
 					},
 				},
-				Indexes: []*TableIndex{
+				Indexes: []*Index{
 					{
 						Name: "indexname",
 						Type: "global_async",
@@ -116,9 +116,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 		},
 		{
 			testName: "table with two columns and two column-families",
-			resource: &TableResource{
+			resource: &Resource{
 				Path: "hello/world",
-				Columns: []*TableColumn{
+				Columns: []*Column{
 					{
 						Name:   "mir",
 						Type:   "Utf8",
@@ -129,12 +129,12 @@ func TestPrepareCreateRequest(t *testing.T) {
 						Type: "Utf8",
 					},
 				},
-				PrimaryKey: &TablePrimaryKey{
+				PrimaryKey: &PrimaryKey{
 					Columns: []string{
 						"mir",
 					},
 				},
-				Family: []*TableFamily{
+				Family: []*Family{
 					{
 						Name:        "some_family",
 						Data:        "ssd",
@@ -163,9 +163,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 		},
 		{
 			testName: "table with two columns with one as ttl",
-			resource: &TableResource{
+			resource: &Resource{
 				Path: "hello/world",
-				Columns: []*TableColumn{
+				Columns: []*Column{
 					{
 						Name: "mir",
 						Type: "Utf8",
@@ -175,12 +175,12 @@ func TestPrepareCreateRequest(t *testing.T) {
 						Type: "Timestamp",
 					},
 				},
-				PrimaryKey: &TablePrimaryKey{
+				PrimaryKey: &PrimaryKey{
 					Columns: []string{
 						"mir",
 					},
 				},
-				TTL: &TableTTL{
+				TTL: &TTL{
 					ColumnName:     "ttl",
 					ExpireInterval: "PT0S",
 				},
@@ -196,9 +196,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 		},
 		{
 			testName: "table with two columns and partitioning settings",
-			resource: &TableResource{
+			resource: &Resource{
 				Path: "hello/world",
-				Columns: []*TableColumn{
+				Columns: []*Column{
 					{
 						Name: "mir",
 						Type: "Utf8",
@@ -209,12 +209,12 @@ func TestPrepareCreateRequest(t *testing.T) {
 						NotNull: true,
 					},
 				},
-				PrimaryKey: &TablePrimaryKey{
+				PrimaryKey: &PrimaryKey{
 					Columns: []string{
 						"mir",
 					},
 				},
-				PartitioningSettings: &TablePartitioningSettings{
+				PartitioningSettings: &PartitioningSettings{
 					PartitionsCount:    5,
 					MaxPartitionsCount: 42,
 					MinPartitionsCount: 10,
@@ -233,9 +233,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 		},
 		{
 			testName: "table with replica settings",
-			resource: &TableResource{
+			resource: &Resource{
 				Path: "hello/world",
-				Columns: []*TableColumn{
+				Columns: []*Column{
 					{
 						Name: "mir",
 						Type: "Utf8",
@@ -246,12 +246,12 @@ func TestPrepareCreateRequest(t *testing.T) {
 						NotNull: true,
 					},
 				},
-				PrimaryKey: &TablePrimaryKey{
+				PrimaryKey: &PrimaryKey{
 					Columns: []string{
 						"mir",
 					},
 				},
-				ReplicationSettings: &TableReplicationSettings{
+				ReplicationSettings: &ReplicationSettings{
 					ReadReplicasSettings: "PER_AZ",
 				},
 			},

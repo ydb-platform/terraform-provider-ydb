@@ -7,6 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func TableUpdate(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
+func Update(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
 	return nil
 }

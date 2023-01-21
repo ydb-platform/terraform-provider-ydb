@@ -24,7 +24,7 @@ func appendWithEscape(buf []byte, s string) []byte {
 	return buf
 }
 
-func PrepareCreateRequest(r *TableResource) string {
+func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req := make([]byte, 0, defaultRequestCapacity)
 
 	req = append(req, "CREATE TABLE `"...)
@@ -182,7 +182,7 @@ func PrepareCreateRequest(r *TableResource) string {
 		req = append(req, '`')
 		needComma = true
 	}
-	if r.PartitioningSettings != nil {
+	if r.PartitioningSettings != nil { //nolint:nestif
 		if r.PartitioningSettings.ByLoad != nil {
 			if needComma {
 				req = append(req, ',')

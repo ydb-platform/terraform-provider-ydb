@@ -5,10 +5,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	tbl "github.com/ydb/terraform-provider-ydb/internal/table"
+
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func TableCreate(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
+func Create(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
 	tableResource, err := tableResourceSchemaToTableResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -22,7 +23,7 @@ func TableCreate(ctx context.Context, d *schema.ResourceData, cfg interface{}) d
 		}
 	}
 	tableResource.Token = "mytoken" // TODO(shmel1k@):
-	db, err := tbl.CreateDBConnection(ctx, tbl.TableClientParams{
+	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
 		Token:            tableResource.Token,
 	})
@@ -64,5 +65,5 @@ func TableCreate(ctx context.Context, d *schema.ResourceData, cfg interface{}) d
 
 	d.SetId(tableResource.Path)
 
-	return TableRead(ctx, d, cfg)
+	return Read(ctx, d, cfg)
 }

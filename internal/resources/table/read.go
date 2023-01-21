@@ -7,10 +7,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	tbl "github.com/ydb/terraform-provider-ydb/internal/table"
+
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func TableRead(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
+func Read(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
 	tableResource, err := tableResourceSchemaToTableResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -24,7 +25,7 @@ func TableRead(ctx context.Context, d *schema.ResourceData, cfg interface{}) dia
 		}
 	}
 
-	db, err := tbl.CreateDBConnection(ctx, tbl.TableClientParams{
+	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
 		Token:            tableResource.Token,
 	})
@@ -34,7 +35,8 @@ func TableRead(ctx context.Context, d *schema.ResourceData, cfg interface{}) dia
 				Severity: diag.Error,
 				Summary:  "failed to initialize table client",
 				Detail:   err.Error(),
-			}}
+			},
+		}
 	}
 	defer func() {
 		_ = db.Close(ctx)

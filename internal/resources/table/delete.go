@@ -5,10 +5,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	tbl "github.com/ydb/terraform-provider-ydb/internal/table"
+
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func TableDelete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
+func Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
 	tableResource, err := tableResourceSchemaToTableResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -22,7 +23,7 @@ func TableDelete(ctx context.Context, d *schema.ResourceData, cfg interface{}) d
 		}
 	}
 
-	db, err := tbl.CreateDBConnection(ctx, tbl.TableClientParams{
+	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
 		Token:            tableResource.Token,
 	})

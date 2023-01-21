@@ -11,10 +11,10 @@ import (
 
 func ResourceYDBTable() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: TableCreate,
-		ReadContext:   TableRead,
-		UpdateContext: TableUpdate,
-		DeleteContext: TableDelete,
+		CreateContext: Create,
+		ReadContext:   Read,
+		UpdateContext: Update,
+		DeleteContext: Delete,
 		Schema: map[string]*schema.Schema{
 			"path": {
 				Type:     schema.TypeString,
@@ -198,31 +198,31 @@ func ResourceYDBTable() *schema.Resource {
 	}
 }
 
-type TableColumn struct {
+type Column struct {
 	Name    string
 	Type    string
 	Family  string
 	NotNull bool
 }
 
-type TablePrimaryKey struct {
+type PrimaryKey struct {
 	Columns []string
 }
 
-type TableIndex struct {
+type Index struct {
 	Name    string
 	Type    string
 	Columns []string
 	Cover   []string
 }
 
-type TableTTL struct {
+type TTL struct {
 	ColumnName     string
 	Mode           string
 	ExpireInterval string
 }
 
-type TablePartitioningSettings struct {
+type PartitioningSettings struct {
 	BySize             *int
 	ByLoad             *bool
 	PartitionAtKeys    []int
@@ -231,37 +231,37 @@ type TablePartitioningSettings struct {
 	MaxPartitionsCount int
 }
 
-type TableReplicationSettings struct {
+type ReplicationSettings struct {
 	ReadReplicasSettings string
 }
 
-type TableFamily struct {
+type Family struct {
 	Name        string
 	Data        string
 	Compression string
 }
 
-type TableChangeDataCaptureSettings struct {
+type ChangeDataCaptureSettings struct {
 	Mode   string
 	Format string
 }
 
-type TableResource struct {
+type Resource struct {
 	Path                 string
 	DatabaseEndpoint     string
 	Token                string
 	Attributes           map[string]string
-	Family               []*TableFamily
-	Columns              []*TableColumn
-	Indexes              []*TableIndex
-	PrimaryKey           *TablePrimaryKey
-	TTL                  *TableTTL
-	ReplicationSettings  *TableReplicationSettings
-	PartitioningSettings *TablePartitioningSettings
+	Family               []*Family
+	Columns              []*Column
+	Indexes              []*Index
+	PrimaryKey           *PrimaryKey
+	TTL                  *TTL
+	ReplicationSettings  *ReplicationSettings
+	PartitioningSettings *PartitioningSettings
 	EnableBloomFilter    *bool
 }
 
-func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
+func expandTableTTLSettings(d *schema.ResourceData) (ttl *TTL) {
 	v, ok := d.GetOk("ttl")
 	if !ok {
 		return
@@ -269,7 +269,7 @@ func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
 	ttlSet := v.(*schema.Set)
 	for _, l := range ttlSet.List() {
 		m := l.(map[string]interface{})
-		ttl = &TableTTL{}
+		ttl = &TTL{}
 		ttl.ColumnName = m["column_name"].(string)
 		//		ttl.Mode = m["mode"].(string)
 		ttl.ExpireInterval = m["expire_interval"].(string)
@@ -277,24 +277,24 @@ func expandTableTTLSettings(d *schema.ResourceData) (ttl *TableTTL) {
 	return
 }
 
-func expandTableReplicasSettings(d *schema.ResourceData) (p *TableReplicationSettings) {
+func expandTableReplicasSettings(d *schema.ResourceData) (p *ReplicationSettings) {
 	v, ok := d.GetOk("read_replicas_settings")
 	if !ok {
 		return
 	}
 
-	p = &TableReplicationSettings{}
+	p = &ReplicationSettings{}
 	p.ReadReplicasSettings = v.(string)
 	return
 }
 
-func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePartitioningSettings) {
+func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *PartitioningSettings) {
 	v, ok := d.GetOk("partitioning_policy")
 	if !ok {
 		return
 	}
 
-	p = &TablePartitioningSettings{}
+	p = &PartitioningSettings{}
 
 	pSet := v.(*schema.Set)
 	for _, l := range pSet.List() {
@@ -321,19 +321,19 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *TablePart
 		}
 	}
 
-	return
+	return p
 }
 
-func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource, error) {
+func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, error) {
 	columnsRaw := d.Get("column").([]interface{})
-	columns := make([]*TableColumn, 0, len(columnsRaw))
+	columns := make([]*Column, 0, len(columnsRaw))
 	for _, v := range columnsRaw {
 		mp := v.(map[string]interface{})
 		family := ""
 		if f, ok := mp["family"].(string); ok {
 			family = f
 		}
-		col := &TableColumn{
+		col := &Column{
 			Name:   mp["name"].(string),
 			Type:   mp["type"].(string),
 			Family: family,
@@ -351,7 +351,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 	}
 
 	indexesRaw := d.Get("index")
-	var indexes []*TableIndex
+	var indexes []*Index
 	if indexesRaw != nil {
 		raw := indexesRaw.([]interface{})
 		for _, rw := range raw {
@@ -371,7 +371,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 				}
 			}
 
-			indexes = append(indexes, &TableIndex{
+			indexes = append(indexes, &Index{
 				Name:    name,
 				Type:    typ,
 				Columns: colsArr,
@@ -380,7 +380,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 		}
 	}
 	familiesRaw := d.Get("family")
-	var families []*TableFamily
+	var families []*Family
 	if familiesRaw != nil {
 		raw := familiesRaw.([]interface{})
 		for _, rw := range raw {
@@ -388,7 +388,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 			name := r["name"].(string)
 			data := r["data"].(string)
 			compression := r["compression"].(string)
-			families = append(families, &TableFamily{
+			families = append(families, &Family{
 				Name:        name,
 				Data:        data,
 				Compression: compression,
@@ -416,7 +416,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 	databaseEndpoint := d.Get("database_endpoint").(string)
 	databaseURL, err := url.Parse(databaseEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse database endpoint: %s", err)
+		return nil, fmt.Errorf("failed to parse database endpoint: %w", err)
 	}
 
 	partitioningSettings := expandTablePartitioningPolicySettings(d)
@@ -428,14 +428,14 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 		bloomFilterEnabled = &b
 	}
 
-	return &TableResource{
+	return &Resource{
 		Path:             databaseURL.Query().Get("database") + "/" + d.Get("path").(string),
 		DatabaseEndpoint: d.Get("database_endpoint").(string),
 		Attributes:       attributes,
 		Family:           families,
 		Columns:          columns,
 		Indexes:          indexes,
-		PrimaryKey: &TablePrimaryKey{
+		PrimaryKey: &PrimaryKey{
 			Columns: pk,
 		},
 		TTL:                  ttl,
@@ -447,6 +447,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*TableResource,
 }
 
 func flattenTableDescription(d *schema.ResourceData, desc options.Description, database string) {
+	_ = database
 	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
 
 	cols := make([]interface{}, 0, len(desc.Columns))

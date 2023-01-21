@@ -6,12 +6,12 @@ import (
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 )
 
-type TableClientParams struct {
+type ClientParams struct {
 	DatabaseEndpoint string
 	Token            string
 }
 
-func CreateDBConnection(ctx context.Context, params TableClientParams) (ydb.Connection, error) {
+func CreateDBConnection(ctx context.Context, params ClientParams) (ydb.Connection, error) {
 	var opts []ydb.Option
 	if params.Token != "" {
 		opts = append(opts, ydb.WithAccessTokenCredentials(params.Token))
