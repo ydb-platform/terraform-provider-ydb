@@ -7,98 +7,33 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
-type Provider struct {
-	tokenCallback auth.GetTokenCallback
-}
-
-func (t *Provider) DataSource(deprecationMessage string) *schema.Resource {
-	r := &schema.Resource{
-		ReadContext: t.dataSourceYDBTopicRead,
-
-		SchemaVersion: 0,
-		Schema: map[string]*schema.Schema{
-			"database_endpoint": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"stream_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"name": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"description": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"partitions_count": {
-				Type:     schema.TypeInt,
-				Optional: true,
-			},
-			"supported_codecs": {
-				Type:     schema.TypeList,
-				Optional: true,
-				Elem: &schema.Schema{
-					Type:         schema.TypeString,
-					ValidateFunc: validation.StringInSlice(ydbTopicAllowedCodecs, false),
+func DataSourceReadFunc(cb auth.GetTokenCallback) TerraformCRUD {
+	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		token, err := cb(ctx)
+		if err != nil {
+			return diag.Diagnostics{
+				{
+					Severity: diag.Error,
+					Summary:  "failed to create token for YDB request",
+					Detail:   err.Error(),
 				},
-			},
-			"retention_period_ms": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				Default:  1000 * 60 * 60 * 24, // 1 day
-			},
-			"consumer": {
-				Type:     schema.TypeList,
-				Optional: true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"name": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ValidateFunc: validation.NoZeroValues,
-						},
-						"supported_codecs": {
-							Type:     schema.TypeList,
-							Optional: true,
-							Elem: &schema.Schema{
-								Type:         schema.TypeString,
-								ValidateFunc: validation.StringInSlice(ydbTopicAllowedCodecs, false),
-							},
-						},
-						"starting_message_timestamp_ms": {
-							Type:     schema.TypeInt,
-							Optional: true,
-						},
-						"service_type": {
-							Type:     schema.TypeString,
-							Optional: true,
-						},
-					},
-				},
-			},
-		},
-	}
-	r.DeprecationMessage = deprecationMessage
-
-	return r
-}
-
-func NewProvider(cb auth.GetTokenCallback) *Provider {
-	return &Provider{
-		tokenCallback: cb,
+			}
+		}
+		c := &caller{
+			token: token,
+		}
+		return c.dataSourceYDBTopicRead(ctx, d, meta)
 	}
 }
 
-func (t *Provider) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client, err := t.createYDBConnection(ctx, d, nil)
+func (c *caller) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	_ = meta
+
+	client, err := c.createYDBConnection(ctx, d, nil)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-stream control plane client: %w", err))
 	}
