@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
@@ -34,15 +35,9 @@ func Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.D
 		_ = db.Close(ctx)
 	}()
 
-	tableSession, err := db.Table().CreateSession(ctx)
-	if err != nil {
-		return diag.Errorf("failed to create table session: %s", err)
-	}
-	defer func() {
-		_ = tableSession.Close(ctx)
-	}()
-
-	err = tableSession.DropTable(ctx, tableResource.Path)
+	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
+		return s.DropTable(ctx, tableResource.Path)
+	})
 	if err != nil {
 		return diag.Errorf("failed to drop table %q: %s", tableResource.Path, err)
 	}

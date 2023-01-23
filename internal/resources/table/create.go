@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
@@ -40,19 +41,10 @@ func Create(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.D
 		_ = db.Close(ctx)
 	}()
 
-	// panic(q)
-	sess, err := db.Table().CreateSession(ctx)
-	if err != nil {
-		return diag.Diagnostics{
-			diag.Diagnostic{
-				Severity: diag.Error,
-				Summary:  "failed to initialize table session",
-				Detail:   err.Error(),
-			},
-		}
-	}
 	q := PrepareCreateRequest(tableResource)
-	err = sess.ExecuteSchemeQuery(ctx, q)
+	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		return s.ExecuteSchemeQuery(ctx, q)
+	})
 	if err != nil {
 		return diag.Diagnostics{
 			{

@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
@@ -42,21 +43,11 @@ func Read(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Dia
 		_ = db.Close(ctx)
 	}()
 
-	tableSession, err := db.Table().CreateSession(ctx)
-	if err != nil {
-		return diag.Diagnostics{
-			diag.Diagnostic{
-				Severity: diag.Error,
-				Summary:  "failed to create table-client session",
-				Detail:   err.Error(),
-			},
-		}
-	}
-	defer func() {
-		_ = tableSession.Close(ctx)
-	}()
-
-	description, err := tableSession.DescribeTable(ctx, tableResource.Path, options.WithPartitionStats(), options.WithShardKeyBounds(), options.WithTableStats())
+	var description options.Description
+	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
+		description, err = s.DescribeTable(ctx, tableResource.Path, options.WithPartitionStats(), options.WithShardKeyBounds(), options.WithTableStats())
+		return err
+	})
 	if err != nil {
 		if strings.Contains(err.Error(), "SCHEME_ERROR") {
 			// NOTE(shmel1k@): marking as non-existing resource
