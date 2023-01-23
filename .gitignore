@@ -1,6 +1,11 @@
 # vim files
 *.swp
 *.swo
+
+.terraform*
+terraform-provider-ydb
+*.tfstate
+
 *.DS_Store
 bin/
 *.idea
