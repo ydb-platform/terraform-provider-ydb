@@ -1,4 +1,4 @@
-package table
+package helpers
 
 import (
 	"context"
@@ -7,6 +7,4 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
-	return nil
-}
+type TerraformCRUD func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics

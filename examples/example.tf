@@ -38,7 +38,6 @@ resource "ydb_table" "table1" {
     type = "Timestamp" // YQL types
     # not_null = true
   }
-  // DynamoDB?
   column {
     name = "e"
     type = "Bytes"
@@ -105,10 +104,10 @@ resource "ydb_table" "table1" {
     auto_partitioning_min_partitions_count = 1
     auto_partitioning_max_partitions_count = 2
     uniform_partitions = 2
-    partition_at_keys = [
-      // [100, 1000]
-      // [[100, "abc"], [1000, "cde"]]
-    ] // can be set only on create
+    partition_at_keys {
+      keys = [100, "1000"]
+    }
+    // can be set only on create
     // PARTITION_AT_KEYS - ONLY ON CREATE
     // UNIFORM_PARTITIONS - ONLY ON CREATE
     // Остальное -- изменяем, как нам скажут.
@@ -126,34 +125,3 @@ resource "ydb_table" "table1" {
     ]
   }
 }
-
-# Старое описание
-// resource "ydb_stream" "stream1" {
-//   name                = "streams/my/stream-path" # Will create stream at /streams/my directory.
-//   retention_period_ms = 1000 * 60 * 60 * 24 * 1  # длительность хранения данных в стриме
-//   partitions_count    = 2                        # количество партиций
-//   supported_codecs = [                           # поддерживаемые кодеки
-//     "raw",
-//   ]
-// }
-
-// resource "ydb_queue" "queue1" {
-//   # YMQ should be enabled in any ydb database, just like streams.
-//   name = "sqs/my/queue/path" # Will create queue at "sqs/my/queue/path" // SQS path?..
-//   database_endpoint = "grpcs://..."
-//
-//   visibility_timeout_seconds  = var.visibility_timeout_seconds
-//   message_retention_seconds   = var.message_retention_seconds
-//   max_message_size            = var.max_message_size
-//   delay_seconds               = var.delay_seconds
-//   receive_wait_time_seconds   = var.receive_wait_time_seconds
-//   policy                      = var.policy
-//   redrive_policy              = var.redrive_policy
-//   redrive_allow_policy        = var.redrive_allow_policy
-//   fifo_queue                  = var.fifo_queue
-//   content_based_deduplication = var.content_based_deduplication
-//   deduplication_scope         = var.deduplication_scope
-//   fifo_throughput_limit       = var.fifo_throughput_limit
-//
-//   tags = var.tags
-// }

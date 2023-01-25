@@ -10,7 +10,7 @@ import (
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
+func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
 	tableResource, err := tableResourceSchemaToTableResource(d)
 	if err != nil {
 		return diag.FromErr(err)

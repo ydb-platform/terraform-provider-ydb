@@ -8,10 +8,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
-func DataSourceReadFunc(cb auth.GetTokenCallback) TerraformCRUD {
+func DataSourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		token, err := cb(ctx)
 		if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
@@ -50,9 +51,7 @@ var (
 	}
 )
 
-type TerraformCRUD func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
-
-func ResourceCreateFunc(cb auth.GetTokenCallback) TerraformCRUD {
+func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		token, err := cb(ctx)
 		if err != nil {
@@ -71,7 +70,7 @@ func ResourceCreateFunc(cb auth.GetTokenCallback) TerraformCRUD {
 	}
 }
 
-func ResourceReadFunc(cb auth.GetTokenCallback) TerraformCRUD {
+func ResourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		token, err := cb(ctx)
 		if err != nil {
@@ -90,7 +89,7 @@ func ResourceReadFunc(cb auth.GetTokenCallback) TerraformCRUD {
 	}
 }
 
-func ResourceUpdateFunc(cb auth.GetTokenCallback) TerraformCRUD {
+func ResourceUpdateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		token, err := cb(ctx)
 		if err != nil {
@@ -109,7 +108,7 @@ func ResourceUpdateFunc(cb auth.GetTokenCallback) TerraformCRUD {
 	}
 }
 
-func ResourceDeleteFunc(cb auth.GetTokenCallback) TerraformCRUD {
+func ResourceDeleteFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		token, err := cb(ctx)
 		if err != nil {

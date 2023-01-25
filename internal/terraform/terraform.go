@@ -7,8 +7,8 @@ import (
 )
 
 type Config struct {
-	YDBEndpoint string
-	YDBToken    string
+	Endpoint string
+	Token    string
 }
 
 func Provider() *schema.Provider {
@@ -25,9 +25,11 @@ func Provider() *schema.Provider {
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"ydb_topic": ydbTopicDataSource(),
+			"ydb_table": ydbTableDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"ydb_topic": ydbTopicResource(),
+			"ydb_table": ydbTableResource(),
 		},
 	}
 }
