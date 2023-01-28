@@ -222,6 +222,7 @@ func ResourceSchema() map[string]*schema.Schema {
 					"uniform_partitions": {
 						Type:     schema.TypeInt,
 						Optional: true,
+						// TODO(shmel1k@): add conflicts with partition_at_keys
 					},
 					"partition_at_keys": {
 						Type:     schema.TypeList,
@@ -231,11 +232,10 @@ func ResourceSchema() map[string]*schema.Schema {
 							Schema: map[string]*schema.Schema{
 								"keys": {
 									Type:     schema.TypeList,
-									Optional: true,
+									Required: true,
 									Elem: &schema.Schema{
 										Type: schema.TypeString, // TODO(shmel1k@): interface type?
 									},
-									Computed: true,
 								},
 							},
 						},

@@ -185,7 +185,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	if r.PartitioningSettings != nil { //nolint:nestif
 		if r.PartitioningSettings.ByLoad != nil {
 			if needComma {
-				req = append(req, ',')
+				req = append(req, ',', '\n')
 			}
 			req = appendIndent(req, indent)
 			if *r.PartitioningSettings.ByLoad {
@@ -193,13 +193,11 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 			} else {
 				req = append(req, "AUTO_PARTITIONING_BY_LOAD = DISABLED"...)
 			}
-			req = append(req, ',')
-			req = append(req, '\n')
 			needComma = true
 		}
 		if r.PartitioningSettings.BySize != nil {
 			if needComma {
-				req = append(req, ',')
+				req = append(req, ',', '\n')
 			}
 			req = appendIndent(req, indent)
 			req = append(req, "AUTO_PARTITIONING_BY_SIZE_ENABLED = ENABLED"...)
@@ -225,6 +223,38 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 			if needComma {
 				req = append(req, ',', '\n')
 			}
+			req = appendIndent(req, indent)
+			req = append(req, "PARTITION_AT_KEYS = "...)
+			if len(r.PartitioningSettings.PartitionAtKeys) > 1 {
+				req = append(req, '(')
+			}
+			for i, v := range r.PartitioningSettings.PartitionAtKeys {
+				req = append(req, '(')
+				for ii, vv := range v.Keys {
+					switch t := vv.(type) {
+					case uint64:
+						req = strconv.AppendUint(req, t, 10)
+					case int64:
+						req = strconv.AppendInt(req, t, 10)
+					case bool:
+						req = strconv.AppendBool(req, t)
+					case string:
+						req = append(req, '"')
+						req = appendWithEscape(req, t)
+						req = append(req, '"')
+					}
+					if ii < len(v.Keys)-1 {
+						req = append(req, ',')
+					}
+				}
+				req = append(req, ')')
+				if i < len(r.PartitioningSettings.PartitionAtKeys)-1 {
+					req = append(req, ',')
+				}
+			}
+			if len(r.PartitioningSettings.PartitionAtKeys) > 1 {
+				req = append(req, ')')
+			}
 			needComma = true
 		}
 		if r.PartitioningSettings.MinPartitionsCount != 0 {
@@ -248,7 +278,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	}
 	if r.ReplicationSettings != nil && r.ReplicationSettings.ReadReplicasSettings != "" {
 		if needComma {
-			req = append(req, ',')
+			req = append(req, ',', '\n')
 		}
 		req = appendIndent(req, indent)
 		req = append(req, "READ_REPLICAS_SETTINGS = \""...)

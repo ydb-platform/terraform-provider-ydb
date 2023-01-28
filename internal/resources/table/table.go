@@ -32,10 +32,14 @@ type TTL struct {
 	ExpireInterval string
 }
 
+type PartitionAtKeys struct {
+	Keys []interface{}
+}
+
 type PartitioningSettings struct {
 	BySize             *int
 	ByLoad             *bool
-	PartitionAtKeys    []interface{}
+	PartitionAtKeys    []*PartitionAtKeys
 	PartitionsCount    int
 	MinPartitionsCount int
 	MaxPartitionsCount int
@@ -98,8 +102,33 @@ func expandTableReplicasSettings(d *schema.ResourceData) (p *ReplicationSettings
 	return
 }
 
-func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *PartitioningSettings) {
-	v, ok := d.GetOk("partitioning_policy")
+func expandPartitionAtKeys(p []interface{}, primaryKeyColumns []*Column) ([]*PartitionAtKeys, error) {
+	if len(p) == 0 {
+		return nil, nil
+	}
+
+	res := make([]*PartitionAtKeys, 0, len(p))
+	for _, v := range p {
+		vv := v.(map[string]interface{})
+		keys := vv["keys"].([]interface{})
+		pp := &PartitionAtKeys{}
+		for i, k := range keys {
+			if i == len(primaryKeyColumns) {
+				return nil, fmt.Errorf("can not be more partition keys than primary key columns")
+			}
+			got, err := parsePartitionKey(k.(string), primaryKeyColumns[i].Type)
+			if err != nil {
+				return nil, err
+			}
+			pp.Keys = append(pp.Keys, got)
+		}
+		res = append(res, pp)
+	}
+	return res, nil
+}
+
+func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Column) (p *PartitioningSettings, err error) {
+	v, ok := d.GetOk("partitioning_settings")
 	if !ok {
 		return
 	}
@@ -113,8 +142,9 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *Partition
 			p.PartitionsCount = partitionsCount
 		}
 		if explicitPartitions, ok := m["partition_at_keys"].([]interface{}); ok {
-			for _, v := range explicitPartitions {
-				p.PartitionAtKeys = append(p.PartitionAtKeys, v.(int)) // TODO(shmel1k@): improve.
+			p.PartitionAtKeys, err = expandPartitionAtKeys(explicitPartitions, columns)
+			if err != nil {
+				return nil, err
 			}
 		}
 		if minPartitionsCount, ok := m["auto_partitioning_min_partitions_count"].(int); ok {
@@ -131,7 +161,7 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData) (p *Partition
 		}
 	}
 
-	return p
+	return
 }
 
 func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, error) {
@@ -229,7 +259,11 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		return nil, fmt.Errorf("failed to parse database endpoint: %w", err)
 	}
 
-	partitioningSettings := expandTablePartitioningPolicySettings(d)
+	partitioningSettings, err := expandTablePartitioningPolicySettings(d, columns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand table partitioning settings: %s", err)
+	}
+
 	replicasSettings := expandTableReplicasSettings(d)
 
 	var bloomFilterEnabled *bool
