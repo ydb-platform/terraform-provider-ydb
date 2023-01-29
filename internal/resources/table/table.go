@@ -160,7 +160,7 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 		}
 	}
 
-	return
+	return p, nil
 }
 
 func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, error) {
@@ -283,6 +283,32 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 	}, nil
 }
 
+func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.PartitioningSettings) []interface{} {
+	output := make([]interface{}, 0, 1)
+	partitioningSettings := make(map[string]interface{})
+	if d.HasChange("partitioning_settings.partition_at_keys") {
+		oldPartitionAtKeys, _ := d.GetChange("partitioning_settings.partition_at_keys")
+		partitioningSettings["partition_at_keys"] = oldPartitionAtKeys
+	} else {
+		partitioningSettings["partition_at_keys"] = d.Get("partitioning_settings.partition_at_keys")
+	}
+
+	if d.HasChange("partitioning_settings.uniform_partitions") {
+		oldUniformPartitions, _ := d.GetChange("partitioning_settings.uniform_partitions")
+		partitioningSettings["uniform_partitions"] = oldUniformPartitions
+	} else {
+		partitioningSettings["uniform_partitions"] = d.Get("partitioning_settings.uniform_partitions")
+	}
+	partitioningSettings["auto_partitioning_by_size_enabled"] = settings.PartitioningBySize == options.FeatureEnabled
+	partitioningSettings["auto_partitioning_by_load"] = settings.PartitioningByLoad == options.FeatureEnabled
+	partitioningSettings["auto_partitioning_size_mb"] = settings.PartitionSizeMb
+	partitioningSettings["auto_partitioning_min_partitions_count"] = settings.MinPartitionsCount
+	partitioningSettings["auto_partitioning_max_partitions_count"] = settings.MaxPartitionsCount
+
+	output = append(output, partitioningSettings)
+	return output
+}
+
 func flattenTableDescription(d *schema.ResourceData, desc options.Description, database string) {
 	_ = database
 	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
@@ -339,24 +365,7 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 		attributes[k] = v
 	}
 	_ = d.Set("attributes", attributes)
-
-	var autoPartitioningSettings []interface{}
-	autoPartitioningSettings = append(autoPartitioningSettings, map[string]interface{}{
-		"by_load": desc.PartitioningSettings.PartitioningByLoad == options.FeatureEnabled,
-		"by_size": desc.PartitioningSettings.PartitioningBySize == options.FeatureEnabled,
-	})
-	_ = d.Set("auto_partitioning", autoPartitioningSettings)
-
-	var partitioningPolicy []interface{}
-	pol := map[string]interface{}{
-		"max_partitions_count": desc.PartitioningSettings.MaxPartitionsCount,
-		"min_partitions_count": desc.PartitioningSettings.MinPartitionsCount,
-	}
-	if desc.Stats != nil {
-		pol["partitions_count"] = desc.Stats.Partitions
-	}
-	partitioningPolicy = append(partitioningPolicy, pol)
-	_ = d.Set("partitioning_policy", partitioningPolicy)
+	_ = d.Set("partitioning_settings", flattenTablePartitioningSettings(d, desc.PartitioningSettings))
 
 	_ = d.Set("primary_key_bloom_filter", desc.KeyBloomFilter == options.FeatureEnabled)
 }
