@@ -28,7 +28,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req := make([]byte, 0, defaultRequestCapacity)
 
 	req = append(req, "CREATE TABLE `"...)
-	req = appendWithEscape(req, r.Path)
+	req = appendWithEscape(req, r.FullPath)
 	req = append(req, "`("...)
 	req = append(req, '\n')
 

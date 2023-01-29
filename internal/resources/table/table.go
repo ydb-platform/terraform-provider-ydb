@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 )
 
@@ -61,6 +62,9 @@ type ChangeDataCaptureSettings struct {
 }
 
 type Resource struct {
+	Entity *helpers.YDBEntity
+
+	FullPath             string
 	Path                 string
 	DatabaseEndpoint     string
 	Attributes           map[string]string
@@ -164,6 +168,15 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 }
 
 func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, error) {
+	var entity *helpers.YDBEntity
+	var err error
+	if d.Id() != "" {
+		entity, err = helpers.ParseYDBEntityID(d.Id())
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse table entity: %w", err)
+		}
+	}
+
 	columnsRaw := d.Get("column").([]interface{})
 	columns := make([]*Column, 0, len(columnsRaw))
 	for _, v := range columnsRaw {
@@ -266,9 +279,21 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		bloomFilterEnabled = &b
 	}
 
+	var path string
+	if entity != nil {
+		path = entity.GetEntityPath()
+		databaseEndpoint = entity.PrepareFullYDBEndpoint()
+		path = databaseEndpoint + "/" + path
+	} else {
+		path = databaseURL.Query().Get("database") + "/" + d.Get("path").(string)
+		databaseEndpoint = d.Get("database_endpoint").(string)
+	}
+
 	return &Resource{
-		Path:             databaseURL.Query().Get("database") + "/" + d.Get("path").(string),
-		DatabaseEndpoint: d.Get("database_endpoint").(string),
+		Entity:           entity,
+		FullPath:         path,
+		Path:             d.Get("path").(string),
+		DatabaseEndpoint: databaseEndpoint,
 		Attributes:       attributes,
 		Family:           families,
 		Columns:          columns,
@@ -309,9 +334,9 @@ func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.P
 	return output
 }
 
-func flattenTableDescription(d *schema.ResourceData, desc options.Description, database string) {
-	_ = database
+func flattenTableDescription(d *schema.ResourceData, desc options.Description, databaseEndpoint string) {
 	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
+	_ = d.Set("database_endpoint", databaseEndpoint)
 
 	cols := make([]interface{}, 0, len(desc.Columns))
 	for _, col := range desc.Columns {

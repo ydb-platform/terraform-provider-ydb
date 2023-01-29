@@ -5,8 +5,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -53,7 +54,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 
-	d.SetId(tableResource.Path)
+	d.SetId(tableResource.DatabaseEndpoint + "/" + tableResource.Path)
 
 	return h.Read(ctx, d, meta)
 }

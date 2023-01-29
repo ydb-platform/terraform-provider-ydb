@@ -15,7 +15,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 		{
 			testName: "table with one column as PK",
 			resource: &Resource{
-				Path: "privet",
+				FullPath: "privet",
 				Columns: []*Column{
 					{
 						Name: "mir",
@@ -37,7 +37,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 		{
 			testName: "table with two columns as PK and one as index",
 			resource: &Resource{
-				Path: "privet",
+				FullPath: "privet",
 				Columns: []*Column{
 					{
 						Name: "mir",
@@ -73,7 +73,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 		{
 			testName: "table with three columns and index with cover",
 			resource: &Resource{
-				Path: "privet/hello",
+				FullPath: "privet/hello",
 				Columns: []*Column{
 					{
 						Name: "mir",
@@ -117,7 +117,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 		{
 			testName: "table with two columns and two column-families",
 			resource: &Resource{
-				Path: "hello/world",
+				FullPath: "hello/world",
 				Columns: []*Column{
 					{
 						Name:   "mir",
@@ -164,7 +164,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 		{
 			testName: "table with two columns with one as ttl",
 			resource: &Resource{
-				Path: "hello/world",
+				FullPath: "hello/world",
 				Columns: []*Column{
 					{
 						Name: "mir",
@@ -197,7 +197,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 		{
 			testName: "table with two columns and partitioning settings",
 			resource: &Resource{
-				Path: "hello/world",
+				FullPath: "hello/world",
 				Columns: []*Column{
 					{
 						Name: "mir",
@@ -234,7 +234,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 		{
 			testName: "table with replica settings",
 			resource: &Resource{
-				Path: "hello/world",
+				FullPath: "hello/world",
 				Columns: []*Column{
 					{
 						Name: "mir",

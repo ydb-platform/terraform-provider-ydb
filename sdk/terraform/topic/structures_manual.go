@@ -10,53 +10,8 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
 
-type ydbEntity struct {
-	databaseEndpoint string
-	database         string
-	entityPath       string
-	useTLS           bool
-}
-
-func (y *ydbEntity) prepareFullYDBEndpoint() string {
-	prefix := "grpc://"
-	if y.useTLS {
-		prefix = "grpcs://"
-	}
-	return prefix + y.databaseEndpoint + "/?database=" + y.database
-}
-
-func (y *ydbEntity) getEntityPath() string {
-	return y.entityPath
-}
-
-func parseYDBDatabaseEndpoint(endpoint string) (baseEP, databasePath string, useTLS bool, err error) {
-	dbSplit := strings.Split(endpoint, "/?database=")
-	if len(dbSplit) != 2 {
-		return "", "", false, fmt.Errorf("cannot parse endpoint %q", endpoint)
-	}
-	parts := strings.SplitN(dbSplit[0], "/", 3)
-	if len(parts) < 3 {
-		return "", "", false, fmt.Errorf("cannot parse endpoint schema %q", dbSplit[0])
-	}
-
-	const (
-		protocolGRPCS = "grpcs:"
-		protocolGRPC  = "grpc:"
-	)
-
-	switch protocol := parts[0]; protocol {
-	case protocolGRPCS:
-		useTLS = true
-	case protocolGRPC:
-		useTLS = false
-	default:
-		return "", "", false, fmt.Errorf("unknown protocol %q", protocol)
-	}
-	return parts[2], dbSplit[1], useTLS, nil
-}
-
 func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
-	_ = d.Set("name", d.Get("name").(string)) // NOTE(shmel1k@): PQ SDK does not return path for stream.
+	_ = d.Set("name", d.Get("name").(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
 	_ = d.Set("partitions_count", desc.PartitionSettings.MinActivePartitions)
 	_ = d.Set("retention_period_ms", desc.RetentionPeriod.Milliseconds())
 
@@ -196,37 +151,4 @@ func prepareYDBTopicAlterSettings(
 	}
 
 	return opts
-}
-
-func parseYDBEntityID(id string) (*ydbEntity, error) {
-	if id == "" {
-		return nil, fmt.Errorf("failed to parse ydb_topic id: %s", "got empty id")
-	}
-
-	endpoint, database, useTLS, err := parseYDBDatabaseEndpoint(id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse ydb_topic id: %w", err)
-	}
-
-	slashCount := 0
-	i := 0
-	for i = 0; i < len(database); i++ {
-		if database[i] == '/' {
-			slashCount++
-		}
-		// NOTE(shmel1k@): /pre-prod_ydb_public/abacaba/babacaba/
-		if slashCount == 4 {
-			break
-		}
-	}
-	if i == len(database) || i == len(database)-1 || slashCount < 4 {
-		return nil, fmt.Errorf("failed to parse ydb_topic id: %s", "got empty topic path")
-	}
-
-	return &ydbEntity{
-		databaseEndpoint: endpoint,
-		database:         database[:i],
-		entityPath:       database[i+1:],
-		useTLS:           useTLS,
-	}, nil
 }

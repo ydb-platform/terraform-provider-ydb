@@ -45,7 +45,13 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 
 	var description options.Description
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		description, err = s.DescribeTable(ctx, tableResource.Path, options.WithPartitionStats(), options.WithShardKeyBounds(), options.WithTableStats())
+		description, err = s.DescribeTable(
+			ctx,
+			tableResource.Entity.GetFullEntityPath(),
+			options.WithPartitionStats(),
+			options.WithShardKeyBounds(),
+			options.WithTableStats(),
+		)
 		return err
 	})
 	if err != nil {
@@ -57,6 +63,10 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 		return diag.Errorf("failed to describe table %q: %s", tableResource.Path, err)
 	}
 
-	flattenTableDescription(d, description, db.Name())
+	prefix := "grpc://"
+	if db.Secure() {
+		prefix = "grpcs://"
+	}
+	flattenTableDescription(d, description, prefix+db.Endpoint()+"/?database="+db.Name())
 	return nil
 }
