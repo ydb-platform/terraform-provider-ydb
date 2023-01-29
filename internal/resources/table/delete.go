@@ -26,7 +26,7 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interf
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
-		Token:            tableResource.Token,
+		Token:            h.token,
 	})
 	if err != nil {
 		return diag.Errorf("failed to initialize table client: %s", err)

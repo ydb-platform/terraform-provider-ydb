@@ -63,7 +63,6 @@ type ChangeDataCaptureSettings struct {
 type Resource struct {
 	Path                 string
 	DatabaseEndpoint     string
-	Token                string
 	Attributes           map[string]string
 	Family               []*Family
 	Columns              []*Column
@@ -248,11 +247,6 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 
 	ttl := expandTableTTLSettings(d)
 
-	token := ""
-	if tok, ok := d.GetOk("token"); ok {
-		token = tok.(string)
-	}
-
 	databaseEndpoint := d.Get("database_endpoint").(string)
 	databaseURL, err := url.Parse(databaseEndpoint)
 	if err != nil {
@@ -285,7 +279,6 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		TTL:                  ttl,
 		PartitioningSettings: partitioningSettings,
 		ReplicationSettings:  replicasSettings,
-		Token:                token,
 		EnableBloomFilter:    bloomFilterEnabled,
 	}, nil
 }
@@ -299,7 +292,7 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 		mp := make(map[string]interface{})
 		mp["name"] = col.Name
 		mp["type"] = col.Type.String() // TODO(shmel1k@): why optional?
-		// mp["family"] = col.Family
+		mp["family"] = col.Family
 		cols = append(cols, mp)
 	}
 	_ = d.Set("column", cols)
@@ -320,6 +313,12 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 			cols = append(cols, c)
 		}
 		mp["columns"] = cols
+
+		covers := make([]interface{}, 0, len(idx.DataColumns))
+		for _, c := range idx.DataColumns {
+			covers = append(covers, c)
+		}
+		mp["covers"] = covers
 		indexes = append(indexes, mp)
 	}
 	_ = d.Set("index", indexes)

@@ -22,10 +22,9 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 			},
 		}
 	}
-	tableResource.Token = h.token // TODO(shmel1k@):
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
-		Token:            tableResource.Token,
+		Token:            h.token,
 	})
 	if err != nil {
 		return diag.Diagnostics{
