@@ -21,7 +21,7 @@ type caller struct {
 
 func (c *caller) createYDBConnection(
 	ctx context.Context,
-	d ResourceDataProxy,
+	d helpers.ResourceDataProxy,
 	ydbEn *helpers.YDBEntity,
 ) (ydb.Connection, error) {
 	// TODO(shmel1k@): move to other level.

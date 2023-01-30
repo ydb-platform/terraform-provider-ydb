@@ -177,87 +177,11 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		}
 	}
 
-	columnsRaw := d.Get("column").([]interface{})
-	columns := make([]*Column, 0, len(columnsRaw))
-	for _, v := range columnsRaw {
-		mp := v.(map[string]interface{})
-		family := ""
-		if f, ok := mp["family"].(string); ok {
-			family = f
-		}
-		col := &Column{
-			Name:   mp["name"].(string),
-			Type:   mp["type"].(string),
-			Family: family,
-		}
-		if notNull, ok := mp["not_null"]; ok {
-			col.NotNull = notNull.(bool)
-		}
-		columns = append(columns, col)
-	}
-
-	pkRaw := d.Get("primary_key").([]interface{})
-	pk := make([]string, 0, len(pkRaw))
-	for _, v := range pkRaw {
-		pk = append(pk, v.(string))
-	}
-
-	indexesRaw := d.Get("index")
-	var indexes []*Index
-	if indexesRaw != nil {
-		raw := indexesRaw.([]interface{})
-		for _, rw := range raw {
-			r := rw.(map[string]interface{})
-			name := r["name"].(string)
-			typ := r["type"].(string)
-			colsRaw := r["columns"].([]interface{})
-			colsArr := make([]string, 0, len(colsRaw))
-			for _, c := range colsRaw {
-				colsArr = append(colsArr, c.(string))
-			}
-
-			var coverArr []string
-			if r["covers"] != nil {
-				for _, c := range r["covers"].([]interface{}) {
-					coverArr = append(coverArr, c.(string))
-				}
-			}
-
-			indexes = append(indexes, &Index{
-				Name:    name,
-				Type:    typ,
-				Columns: colsArr,
-				Cover:   coverArr,
-			})
-		}
-	}
-	familiesRaw := d.Get("family")
-	var families []*Family
-	if familiesRaw != nil {
-		raw := familiesRaw.([]interface{})
-		for _, rw := range raw {
-			r := rw.(map[string]interface{})
-			name := r["name"].(string)
-			data := r["data"].(string)
-			compression := r["compression"].(string)
-			families = append(families, &Family{
-				Name:        name,
-				Data:        data,
-				Compression: compression,
-			})
-		}
-	}
-
-	attributesRaw := d.Get("attributes")
-	attributes := make(map[string]string)
-	// TODO(shmel1k@): add sorting.
-	if attributesRaw != nil {
-		raw := attributesRaw.(map[string]interface{})
-		for k, v := range raw {
-			attributes[k] = v.(string)
-		}
-	}
-
+	columns := expandColumns(d)
+	indexes := expandIndexes(d)
+	pk := expandPrimaryKey(d)
+	families := expandColumnFamilies(d)
+	attributes := expandAttributes(d)
 	ttl := expandTableTTLSettings(d)
 
 	databaseEndpoint := d.Get("database_endpoint").(string)
@@ -268,7 +192,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 
 	partitioningSettings, err := expandTablePartitioningPolicySettings(d, columns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand table partitioning settings: %s", err)
+		return nil, fmt.Errorf("failed to expand table partitioning settings: %w", err)
 	}
 
 	replicasSettings := expandTableReplicasSettings(d)
