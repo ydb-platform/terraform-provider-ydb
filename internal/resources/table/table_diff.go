@@ -89,6 +89,21 @@ func checkIndexDiff(rindexes []*Index, dindexes []options.IndexDescription) (toD
 		resourceIndexes[v.Name] = v
 	}
 
+	for k := range existingIndexes {
+		if _, ok := resourceIndexes[k]; !ok {
+			toDrop = append(toDrop, k)
+		}
+	}
+
+	for k, v := range resourceIndexes {
+		if _, ok := existingIndexes[k]; !ok {
+			toAdd = append(toAdd, v)
+		} else {
+			toAdd = append(toAdd, v)
+			toDrop = append(toDrop, v.Name)
+		}
+	}
+
 	return
 }
 

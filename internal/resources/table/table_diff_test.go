@@ -1,6 +1,7 @@
 package table
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -214,6 +215,116 @@ func TestCompareIndexes(t *testing.T) {
 		t.Run(v.testName, func(t *testing.T) {
 			got := compareIndexes(&v.ridx, v.didx)
 			assert.Equal(t, v.expected, got)
+		})
+	}
+}
+
+func TestCheckIndexDiff(t *testing.T) {
+	testData := []struct {
+		testName       string
+		rindexes       []*Index
+		dindexes       []options.IndexDescription
+		expectedToDrop []string
+		expectedToAdd  []*Index
+	}{
+		{
+			testName: "drop all indexes",
+			rindexes: nil,
+			dindexes: []options.IndexDescription{
+				{
+					Name: "a",
+				},
+				{
+					Name: "b",
+				},
+			},
+			expectedToDrop: []string{
+				"a", "b",
+			},
+		},
+		{
+			testName: "add indexes without drop",
+			rindexes: []*Index{
+				{
+					Name: "a",
+				},
+				{
+					Name: "b",
+				},
+			},
+			dindexes:       nil,
+			expectedToDrop: nil,
+			expectedToAdd: []*Index{
+				{
+					Name: "a",
+				},
+				{
+					Name: "b",
+				},
+			},
+		},
+		{
+			testName: "update indexes",
+			rindexes: []*Index{
+				{
+					Name: "a",
+					Columns: []string{
+						"aa",
+					},
+				},
+				{
+					Name: "b",
+					Columns: []string{
+						"bb",
+					},
+				},
+			},
+			dindexes: []options.IndexDescription{
+				{
+					Name: "a",
+					IndexColumns: []string{
+						"bb",
+					},
+				},
+				{
+					Name: "b",
+					IndexColumns: []string{
+						"aa",
+					},
+				},
+			},
+			expectedToDrop: []string{
+				"a", "b",
+			},
+			expectedToAdd: []*Index{
+				{
+					Name: "a",
+					Columns: []string{
+						"aa",
+					},
+				},
+				{
+					Name: "b",
+					Columns: []string{
+						"bb",
+					},
+				},
+			},
+		},
+	}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			gotToDrop, gotToAdd := checkIndexDiff(v.rindexes, v.dindexes)
+
+			sort.Strings(gotToDrop)
+			sort.Slice(gotToAdd, func(i, j int) bool {
+				return gotToAdd[i].Name < gotToAdd[j].Name
+			})
+
+			assert.Equal(t, v.expectedToDrop, gotToDrop)
+			assert.Equal(t, v.expectedToAdd, gotToAdd)
 		})
 	}
 }
