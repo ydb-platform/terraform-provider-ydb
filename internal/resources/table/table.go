@@ -106,7 +106,7 @@ func expandTableReplicasSettings(d *schema.ResourceData) (p *ReplicationSettings
 }
 
 func expandPartitionAtKeys(p []interface{}, primaryKeyColumns []*Column) ([]*PartitionAtKeys, error) {
-	if len(p) == 0 {
+	if len(p) == 0 || len(primaryKeyColumns) == 0 {
 		return nil, nil
 	}
 

@@ -65,6 +65,7 @@ func expandColumns(d *schema.ResourceData) []*Column {
 		}
 		columns = append(columns, col)
 	}
+
 	return columns
 }
 

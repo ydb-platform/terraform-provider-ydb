@@ -221,11 +221,11 @@ func TestCompareIndexes(t *testing.T) {
 
 func TestCheckIndexDiff(t *testing.T) {
 	testData := []struct {
-		testName       string
-		rindexes       []*Index
-		dindexes       []options.IndexDescription
-		expectedToDrop []string
-		expectedToAdd  []*Index
+		testName         string
+		rindexes         []*Index
+		dindexes         []options.IndexDescription
+		expectedToDrop   []string
+		expectedToCreate []*Index
 	}{
 		{
 			testName: "drop all indexes",
@@ -254,7 +254,7 @@ func TestCheckIndexDiff(t *testing.T) {
 			},
 			dindexes:       nil,
 			expectedToDrop: nil,
-			expectedToAdd: []*Index{
+			expectedToCreate: []*Index{
 				{
 					Name: "a",
 				},
@@ -296,7 +296,7 @@ func TestCheckIndexDiff(t *testing.T) {
 			expectedToDrop: []string{
 				"a", "b",
 			},
-			expectedToAdd: []*Index{
+			expectedToCreate: []*Index{
 				{
 					Name: "a",
 					Columns: []string{
@@ -316,15 +316,15 @@ func TestCheckIndexDiff(t *testing.T) {
 	for _, v := range testData {
 		v := v
 		t.Run(v.testName, func(t *testing.T) {
-			gotToDrop, gotToAdd := checkIndexDiff(v.rindexes, v.dindexes)
+			gotToDrop, gotToCreate := checkIndexDiff(v.rindexes, v.dindexes)
 
 			sort.Strings(gotToDrop)
-			sort.Slice(gotToAdd, func(i, j int) bool {
-				return gotToAdd[i].Name < gotToAdd[j].Name
+			sort.Slice(gotToCreate, func(i, j int) bool {
+				return gotToCreate[i].Name < gotToCreate[j].Name
 			})
 
 			assert.Equal(t, v.expectedToDrop, gotToDrop)
-			assert.Equal(t, v.expectedToAdd, gotToAdd)
+			assert.Equal(t, v.expectedToCreate, gotToCreate)
 		})
 	}
 }

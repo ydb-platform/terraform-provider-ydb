@@ -10,13 +10,15 @@ import (
 )
 
 type tableDiff struct {
-	ColumnsToAdd            []*Column
-	IndexToDrop             []*Index
-	IndexToCreate           []*Index
-	TTL                     *TTL
-	NewPartitioningSettings *PartitioningSettings
-	AddChangeFeed           bool
-	DropChangeFeed          bool
+	ColumnsToAdd              []*Column
+	IndexToDrop               []string
+	IndexToCreate             []*Index
+	NewTTLSettings            *TTL
+	NewPartitioningSettings   *PartitioningSettings
+	NewKeyBloomFilterSettings *bool
+	ReadReplicasSettings      string
+	AddChangeFeed             bool
+	DropChangeFeed            bool
 }
 
 func checkColumnDiff(rcolumns []*Column, dcolumns []options.Column) ([]*Column, error) {
@@ -78,7 +80,7 @@ func compareIndexes(ridx *Index, didx options.IndexDescription) bool {
 	return reflect.DeepEqual(mp1, mp2)
 }
 
-func checkIndexDiff(rindexes []*Index, dindexes []options.IndexDescription) (toDrop []string, toAdd []*Index) {
+func checkIndexDiff(rindexes []*Index, dindexes []options.IndexDescription) (toDrop []string, toCreate []*Index) {
 	existingIndexes := make(map[string]struct{})
 	for _, v := range dindexes {
 		existingIndexes[v.Name] = struct{}{}
@@ -97,9 +99,9 @@ func checkIndexDiff(rindexes []*Index, dindexes []options.IndexDescription) (toD
 
 	for k, v := range resourceIndexes {
 		if _, ok := existingIndexes[k]; !ok {
-			toAdd = append(toAdd, v)
+			toCreate = append(toCreate, v)
 		} else {
-			toAdd = append(toAdd, v)
+			toCreate = append(toCreate, v)
 			toDrop = append(toDrop, v.Name)
 		}
 	}
@@ -116,6 +118,36 @@ func prepareTableDiff(d *schema.ResourceData, desc options.Description) (*tableD
 			return nil, err
 		}
 		diff.ColumnsToAdd = newColumns
+	}
+	if d.HasChange("index") {
+		rIndexes := expandIndexes(d)
+		indexesToDrop, indexesToCreate := checkIndexDiff(rIndexes, desc.Indexes)
+		diff.IndexToDrop = indexesToDrop
+		diff.IndexToCreate = indexesToCreate
+	}
+	if d.HasChange("ttl") {
+		// TODO(shmel1k@): add option like 'just delete ttl'
+		diff.NewTTLSettings = expandTableTTLSettings(d)
+	}
+	if d.HasChange("partitioning_settings") {
+		var err error
+		diff.NewPartitioningSettings, err = expandTablePartitioningPolicySettings(d, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand new partitioning settings: %w", err)
+		}
+	}
+	if d.HasChange("key_bloom_filter") {
+		val := false
+		v, ok := d.GetOk("key_bloom_filter")
+		if ok {
+			val = v.(bool)
+		}
+		diff.NewKeyBloomFilterSettings = &val
+	}
+	if d.HasChange("read_replicas_settings") {
+		if v, ok := d.GetOk("read_replicas_settings"); ok {
+			diff.ReadReplicasSettings = v.(string)
+		}
 	}
 
 	return diff, nil
