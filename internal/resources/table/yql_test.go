@@ -30,7 +30,7 @@ func TestPrepareCreateRequest(t *testing.T) {
 			},
 			expected: "CREATE TABLE `privet`(" +
 				"\n" +
-				"\tmir Utf8," + "\n" +
+				"\t`mir` Utf8," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
 				")\n",
 		},
@@ -64,8 +64,8 @@ func TestPrepareCreateRequest(t *testing.T) {
 				},
 			},
 			expected: "CREATE TABLE `privet`(" + "\n" +
-				"\tmir Utf8" + "," + "\n" +
-				"\tvasya Utf8" + "," + "\n" +
+				"\t`mir` Utf8" + "," + "\n" +
+				"\t`vasya` Utf8" + "," + "\n" +
 				"\tINDEX `indexname` GLOBAL ASYNC ON (`vasya`)," + "\n" +
 				"\tPRIMARY KEY (`mir`,`vasya`)" + "\n" +
 				")\n",
@@ -107,9 +107,9 @@ func TestPrepareCreateRequest(t *testing.T) {
 				},
 			},
 			expected: "CREATE TABLE `privet\\/hello`(" + "\n" +
-				"\tmir Utf8" + "," + "\n" +
-				"\tvasya Utf8" + "," + "\n" +
-				"\tcover Uint32" + "," + "\n" +
+				"\t`mir` Utf8" + "," + "\n" +
+				"\t`vasya` Utf8" + "," + "\n" +
+				"\t`cover` Uint32" + "," + "\n" +
 				"\tINDEX `indexname` GLOBAL ASYNC ON (`vasya`) COVER (`cover`)," + "\n" +
 				"\tPRIMARY KEY (`mir`,`vasya`)" + "\n" +
 				")\n",
@@ -148,8 +148,8 @@ func TestPrepareCreateRequest(t *testing.T) {
 				},
 			},
 			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
-				"\tmir Utf8 FAMILY `some_family`," + "\n" +
-				"\tvasya Utf8," + "\n" +
+				"\t`mir` Utf8 FAMILY `some_family`," + "\n" +
+				"\t`vasya` Utf8," + "\n" +
 				"\tPRIMARY KEY (`mir`)," + "\n" +
 				"\tFAMILY `some_family`(" + "\n" +
 				"\t\tDATA = \"ssd\"," + "\n" +
@@ -186,8 +186,8 @@ func TestPrepareCreateRequest(t *testing.T) {
 				},
 			},
 			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
-				"\tmir Utf8," + "\n" +
-				"\tttl Timestamp," + "\n" +
+				"\t`mir` Utf8," + "\n" +
+				"\t`ttl` Timestamp," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
 				")" + "\n" +
 				"WITH (" + "\n" +
@@ -221,8 +221,8 @@ func TestPrepareCreateRequest(t *testing.T) {
 				},
 			},
 			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
-				"\tmir Utf8," + "\n" +
-				"\tttl Timestamp NOT NULL," + "\n" +
+				"\t`mir` Utf8," + "\n" +
+				"\t`ttl` Timestamp NOT NULL," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
 				")" + "\n" +
 				"WITH (" + "\n" +
@@ -256,8 +256,8 @@ func TestPrepareCreateRequest(t *testing.T) {
 				},
 			},
 			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
-				"\tmir Utf8," + "\n" +
-				"\tttl Timestamp NOT NULL," + "\n" +
+				"\t`mir` Utf8," + "\n" +
+				"\t`ttl` Timestamp NOT NULL," + "\n" +
 				"\tPRIMARY KEY (`mir`)" + "\n" +
 				")" + "\n" +
 				"WITH (" + "\n" +
@@ -270,6 +270,213 @@ func TestPrepareCreateRequest(t *testing.T) {
 		v := v
 		t.Run(v.testName, func(t *testing.T) {
 			got := PrepareCreateRequest(v.resource)
+			assert.Equal(t, v.expected, got)
+		})
+	}
+}
+
+func TestPrepareDropIndexQuery(t *testing.T) {
+	testData := []struct {
+		testName    string
+		tableName   string
+		indexToDrop string
+		expected    string
+	}{
+		{
+			testName:    "index to drop without escape symbols",
+			tableName:   "table",
+			indexToDrop: "privet",
+			expected:    "ALTER TABLE `table` DROP INDEX `privet`",
+		},
+		{
+			testName:    "index to drop with escape symbols",
+			tableName:   "table",
+			indexToDrop: "\"privet",
+			expected:    "ALTER TABLE `table` DROP INDEX `\\\"privet`",
+		},
+	}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			got := prepareDropIndexQuery(v.tableName, v.indexToDrop)
+			assert.Equal(t, v.expected, got)
+		})
+	}
+}
+
+func TestPrepareAddIndexQuery(t *testing.T) {
+	testData := []struct {
+		testName  string
+		tableName string
+		index     Index
+		expected  string
+	}{
+		{
+			testName:  "async index without covers",
+			tableName: "table",
+			index: Index{
+				Name: "index_name",
+				Type: "global_async",
+				Columns: []string{
+					"a", "b", "c",
+				},
+			},
+			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL ASYNC ON (`a`, `b`, `c`)",
+		},
+		{
+			testName:  "sync index without covers",
+			tableName: "table",
+			index: Index{
+				Name: "index_name",
+				Type: "global_sync",
+				Columns: []string{
+					"a", "b", "c",
+				},
+			},
+			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL SYNC ON (`a`, `b`, `c`)",
+		},
+		{
+			testName:  "async index with covers",
+			tableName: "table",
+			index: Index{
+				Name: "index_name",
+				Type: "global_async",
+				Columns: []string{
+					"a", "b", "c",
+				},
+				Cover: []string{
+					"d", "e", "f",
+				},
+			},
+			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL ASYNC ON (`a`, `b`, `c`) COVER (`d`, `e`, `f`)",
+		},
+		{
+			testName:  "sync index with covers",
+			tableName: "table",
+			index: Index{
+				Name: "index_name",
+				Type: "global_sync",
+				Columns: []string{
+					"a", "b", "c",
+				},
+				Cover: []string{
+					"d", "e", "f",
+				},
+			},
+			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL SYNC ON (`a`, `b`, `c`) COVER (`d`, `e`, `f`)",
+		},
+	}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			got := prepareAddIndexQuery(v.tableName, &v.index)
+			assert.Equal(t, v.expected, got)
+		})
+	}
+}
+
+func TestPrepareAddColumnsQuery(t *testing.T) {
+	testData := []struct {
+		testName  string
+		tableName string
+		columns   []*Column
+		expected  string
+	}{
+		{
+			testName:  "single column without family",
+			tableName: "abacaba",
+			columns: []*Column{
+				{
+					Name:    "a",
+					Type:    "Bool",
+					NotNull: true,
+				},
+			},
+			expected: "ALTER TABLE `abacaba` ADD COLUMN `a` Bool NOT NULL",
+		},
+		{
+			testName:  "single column with family",
+			tableName: "abacaba",
+			columns: []*Column{
+				{
+					Name:    "a",
+					Type:    "Bool",
+					Family:  "family",
+					NotNull: true,
+				},
+			},
+			expected: "ALTER TABLE `abacaba` ADD COLUMN `a` Bool FAMILY `family` NOT NULL",
+		},
+		{
+			testName:  "multiple columns with family",
+			tableName: "abacaba",
+			columns: []*Column{
+				{
+					Name:    "a",
+					Type:    "Bool",
+					Family:  "some_family",
+					NotNull: true,
+				},
+				{
+					Name:    "b",
+					Type:    "Uint8",
+					Family:  "some_family_2",
+					NotNull: true,
+				},
+				{
+					Name:    "c",
+					Type:    "Uint16",
+					Family:  "some_family_3",
+					NotNull: false,
+				},
+			},
+			expected: "ALTER TABLE `abacaba` ADD COLUMN" +
+				" `a` Bool FAMILY `some_family` NOT NULL," +
+				" ADD COLUMN `b` Uint8 FAMILY `some_family_2` NOT NULL," +
+				" ADD COLUMN `c` Uint16 FAMILY `some_family_3`",
+		},
+	}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			got := prepareAddColumnsQuery(v.tableName, v.columns)
+			assert.Equal(t, v.expected, got)
+		})
+	}
+}
+
+func TestPrepareDropColumnsQuery(t *testing.T) {
+	testData := []struct {
+		testName  string
+		tableName string
+		columns   []string
+		expected  string
+	}{
+		{
+			testName:  "single column",
+			tableName: "abacaba",
+			columns: []string{
+				"a",
+			},
+			expected: "ALTER TABLE `abacaba` DROP COLUMN `a`",
+		},
+		{
+			testName:  "multiple columns",
+			tableName: "abacaba",
+			columns: []string{
+				"ab", "ba",
+			},
+			expected: "ALTER TABLE `abacaba` DROP COLUMN `ab`, DROP COLUMN `ba`",
+		},
+	}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			got := prepareDropColumnsQuery(v.tableName, v.columns)
 			assert.Equal(t, v.expected, got)
 		})
 	}

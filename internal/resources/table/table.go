@@ -16,6 +16,26 @@ type Column struct {
 	NotNull bool
 }
 
+func (c *Column) ToYQL() string {
+	buf := make([]byte, 0, 128)
+	buf = append(buf, '`')
+	buf = appendWithEscape(buf, c.Name)
+	buf = append(buf, '`')
+	buf = append(buf, ' ')
+	buf = appendWithEscape(buf, c.Type)
+	if c.Family != "" {
+		buf = append(buf, ' ')
+		buf = append(buf, "FAMILY "...)
+		buf = append(buf, '`')
+		buf = appendWithEscape(buf, c.Family)
+		buf = append(buf, '`')
+	}
+	if c.NotNull {
+		buf = append(buf, " NOT NULL"...)
+	}
+	return string(buf)
+}
+
 type PrimaryKey struct {
 	Columns []string
 }

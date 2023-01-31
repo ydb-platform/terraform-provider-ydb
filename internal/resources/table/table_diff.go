@@ -10,6 +10,7 @@ import (
 )
 
 type tableDiff struct {
+	TableName                 string
 	ColumnsToAdd              []*Column
 	IndexToDrop               []string
 	IndexToCreate             []*Index

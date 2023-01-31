@@ -35,19 +35,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	indent := 1
 	for _, v := range r.Columns {
 		req = appendIndent(req, indent)
-		req = appendWithEscape(req, v.Name) // TODO(shmel1k@): escape
-		req = append(req, ' ')
-		req = appendWithEscape(req, v.Type) // TODO(shmel1k@): escape
-		if v.Family != "" {
-			req = append(req, ' ')
-			req = append(req, "FAMILY "...)
-			req = append(req, '`')
-			req = appendWithEscape(req, v.Family)
-			req = append(req, '`')
-		}
-		if v.NotNull {
-			req = append(req, " NOT NULL"...)
-		}
+		req = append(req, v.ToYQL()...)
 		req = append(req, ',')
 		req = append(req, '\n')
 	}
@@ -288,7 +276,97 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	}
 	// indent--
 
+	// TODO(shmel1k@): add KEY_BLOOM_FILTER
 	req = append(req, '\n', ')')
 
 	return string(req)
+}
+
+func prepareDropIndexQuery(tableName string, indexToDrop string) string {
+	req := []byte("ALTER TABLE `")
+	req = appendWithEscape(req, tableName)
+	req = append(req, '`', ' ')
+	req = append(req, "DROP INDEX `"...)
+	req = appendWithEscape(req, indexToDrop)
+	req = append(req, '`')
+	return string(req)
+}
+
+func prepareAddIndexQuery(tableName string, indexToAdd *Index) string {
+	req := []byte("ALTER TABLE `")
+	req = appendWithEscape(req, tableName)
+	req = append(req, '`', ' ')
+	req = append(req, "ADD INDEX `"...)
+	req = appendWithEscape(req, indexToAdd.Name)
+	req = append(req, '`', ' ')
+	// TODO(shmel1k@): add ToYQL for index
+	if indexToAdd.Type == "global_async" { // TODO(shmel1k@): move to consts
+		req = append(req, "GLOBAL ASYNC ON ("...)
+	} else {
+		req = append(req, "GLOBAL SYNC ON ("...)
+	}
+	for i := 0; i < len(indexToAdd.Columns); i++ {
+		req = append(req, '`')
+		req = appendWithEscape(req, indexToAdd.Columns[i])
+		req = append(req, '`')
+		if i != len(indexToAdd.Columns)-1 {
+			req = append(req, ',', ' ')
+		}
+	}
+	req = append(req, ')')
+	if len(indexToAdd.Cover) > 0 {
+		req = append(req, " COVER ("...)
+		for i := 0; i < len(indexToAdd.Cover); i++ {
+			req = append(req, '`')
+			req = appendWithEscape(req, indexToAdd.Cover[i])
+			req = append(req, '`')
+			if i != len(indexToAdd.Cover)-1 {
+				req = append(req, ',', ' ')
+			}
+		}
+		req = append(req, ')')
+	}
+
+	return string(req)
+}
+
+func prepareAddColumnsQuery(tableName string, columnsToAdd []*Column) string {
+	req := []byte("ALTER TABLE `")
+	req = appendWithEscape(req, tableName)
+	req = append(req, '`', ' ')
+	for i := 0; i < len(columnsToAdd); i++ {
+		req = append(req, "ADD COLUMN "...)
+		req = append(req, columnsToAdd[i].ToYQL()...)
+		if i != len(columnsToAdd)-1 {
+			req = append(req, ',', ' ')
+		}
+	}
+
+	return string(req)
+}
+
+func prepareDropColumnsQuery(tableName string, columnsToDrop []string) string {
+	req := make([]byte, 0, defaultRequestCapacity)
+	req = append(req, "ALTER TABLE `"...)
+	req = appendWithEscape(req, tableName)
+	req = append(req, '`', ' ')
+	for i := 0; i < len(columnsToDrop); i++ {
+		req = append(req, "DROP COLUMN `"...)
+		req = appendWithEscape(req, columnsToDrop[i])
+		req = append(req, '`')
+		if i != len(columnsToDrop)-1 {
+			req = append(req, ',', ' ')
+		}
+	}
+
+	return string(req)
+}
+
+func PrepareAlterRequest(diff *tableDiff) (string, error) {
+	req := make([]byte, 0, defaultRequestCapacity)
+	if len(diff.IndexToDrop) > 0 {
+
+	}
+
+	return string(req), nil
 }
