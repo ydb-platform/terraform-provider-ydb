@@ -481,3 +481,77 @@ func TestPrepareDropColumnsQuery(t *testing.T) {
 		})
 	}
 }
+
+func TestPrepareResetTTLQuery(t *testing.T) {
+	testData := []struct {
+		testName  string
+		tableName string
+		expected  string
+	}{
+		{
+			testName:  "simple test",
+			tableName: "table",
+			expected:  "ALTER TABLE `table` RESET (TTL)",
+		},
+	}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			got := prepareResetTTLQuery(v.tableName)
+			assert.Equal(t, v.expected, got)
+		})
+	}
+}
+
+func TestPrepareSetNewTTLSettingsQuery(t *testing.T) {
+	testData := []struct {
+		testName    string
+		tableName   string
+		ttlSettings *TTL
+		expected    string
+	}{
+		{
+			testName:  "simple test",
+			tableName: "table",
+			ttlSettings: &TTL{
+				ColumnName:     "abacaba",
+				ExpireInterval: "Never",
+			},
+			expected: "ALTER TABLE `table` SET (TTL = Interval(\"Never\") ON `abacaba`)",
+		},
+	}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+			got := prepareSetNewTTLSettingsQuery(v.tableName, v.ttlSettings)
+			assert.Equal(t, v.expected, got)
+		})
+	}
+}
+
+func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
+	testData := []struct {
+		testName string
+	}{}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+		})
+	}
+}
+
+func TestPrepareAlterRequest(t *testing.T) {
+	testData := []struct {
+		testName string
+	}{}
+
+	for _, v := range testData {
+		v := v
+		t.Run(v.testName, func(t *testing.T) {
+
+		})
+	}
+}

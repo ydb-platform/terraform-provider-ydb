@@ -49,8 +49,20 @@ type Index struct {
 
 type TTL struct {
 	ColumnName     string
-	Mode           string
 	ExpireInterval string
+}
+
+func (t *TTL) ToYQL() string {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "TTL = Interval(\""...)
+	buf = appendWithEscape(buf, t.ExpireInterval)
+	buf = append(buf, '"')
+	buf = append(buf, ')')
+	buf = append(buf, " ON "...)
+	buf = append(buf, '`')
+	buf = appendWithEscape(buf, t.ColumnName)
+	buf = append(buf, '`')
+	return string(buf)
 }
 
 type PartitionAtKeys struct {

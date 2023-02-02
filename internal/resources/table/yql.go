@@ -188,11 +188,11 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 				req = append(req, ',', '\n')
 			}
 			req = appendIndent(req, indent)
-			req = append(req, "AUTO_PARTITIONING_BY_SIZE_ENABLED = ENABLED"...)
+			req = append(req, "AUTO_PARTITIONING_BY_SIZE = ENABLED"...)
 			req = append(req, ',')
 			req = append(req, '\n')
 			req = appendIndent(req, indent)
-			req = append(req, "AUTO_PARTITIONING_BY_SIZE = "...)
+			req = append(req, "AUTO_PARTITIONING_BY_SIZE_MB = "...)
 			req = strconv.AppendInt(req, int64(*r.PartitioningSettings.BySize), 10)
 			req = append(req, ',')
 			req = append(req, '\n')
@@ -362,11 +362,137 @@ func prepareDropColumnsQuery(tableName string, columnsToDrop []string) string {
 	return string(req)
 }
 
+func prepareResetTTLQuery(tableName string) string {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "ALTER TABLE `"...)
+	buf = appendWithEscape(buf, tableName)
+	buf = append(buf, '`', ' ')
+	buf = append(buf, "RESET (TTL)"...)
+	return string(buf)
+}
+
+func prepareSetNewTTLSettingsQuery(tableName string, settings *TTL) string {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "ALTER TABLE `"...)
+	buf = appendWithEscape(buf, tableName)
+	buf = append(buf, '`', ' ')
+	buf = append(buf, "SET ("...)
+	buf = append(buf, settings.ToYQL()...)
+	buf = append(buf, ')')
+	return string(buf)
+}
+
+func prepareNewPartitioningSettingsQuery(
+	tableName string,
+	settings *PartitioningSettings,
+	readReplicaSettings string,
+) string {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "ALTER TABLE `"...)
+	buf = appendWithEscape(buf, tableName)
+	buf = append(buf, '`', ' ')
+	buf = append(buf, "SET (\n"...)
+
+	// TODO(shmel1k@): remove copypaste.
+	needComma := false
+	if settings.ByLoad != nil {
+		buf = append(buf, "AUTO_PARTITIONING_BY_LOAD = "...)
+		val := *settings.ByLoad
+		if val {
+			buf = append(buf, "ENABLED"...)
+		} else {
+			buf = append(buf, "DISABLED"...)
+		}
+		needComma = true
+	}
+	if settings.BySize != nil {
+		if needComma {
+			buf = append(buf, ',', '\n')
+		}
+		needComma = true
+		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE_ENABLED = ENABLED"...)
+		buf = append(buf, ',', '\n')
+		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE_MB = "...)
+		buf = strconv.AppendInt(buf, int64(*settings.BySize), 10)
+		buf = append(buf, ',', '\n')
+	}
+	if settings.MinPartitionsCount != 0 {
+		if needComma {
+			buf = append(buf, ',', '\n')
+		}
+		buf = append(buf, "AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = "...)
+		buf = strconv.AppendInt(buf, int64(settings.MinPartitionsCount), 10)
+		needComma = true
+	}
+	if settings.MaxPartitionsCount != 0 {
+		if needComma {
+			buf = append(buf, ',', '\n')
+		}
+		buf = append(buf, "AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = "...)
+		buf = strconv.AppendInt(buf, int64(settings.MaxPartitionsCount), 10)
+	}
+	if readReplicaSettings != "" {
+		if needComma {
+			buf = append(buf, ',', '\n')
+		}
+		buf = append(buf, "READ_REPLICAS_SETTINGS = \""...)
+		buf = appendWithEscape(buf, readReplicaSettings)
+		buf = append(buf, '"')
+	}
+
+	return string(buf)
+}
+
 func PrepareAlterRequest(diff *tableDiff) (string, error) {
 	req := make([]byte, 0, defaultRequestCapacity)
+	needSemiColon := false
 	if len(diff.IndexToDrop) > 0 {
-
+		needSemiColon = true
+		for i, v := range diff.IndexToDrop {
+			req = append(req, prepareDropIndexQuery(diff.TableName, v)...)
+			if i != len(diff.IndexToDrop) {
+				req = append(req, ';', '\n')
+			}
+		}
 	}
+	if len(diff.IndexToCreate) > 0 {
+		if needSemiColon {
+			req = append(req, ';', '\n')
+		}
+		needSemiColon = true
+		for i, v := range diff.IndexToCreate {
+			req = append(req, prepareAddIndexQuery(diff.TableName, v)...)
+			if i != len(diff.IndexToCreate) {
+				req = append(req, ';', '\n')
+			}
+		}
+	}
+	if len(diff.ColumnsToAdd) > 0 {
+		if needSemiColon {
+			req = append(req, ';', '\n')
+		}
+		needSemiColon = true
+		req = append(req, prepareAddColumnsQuery(diff.TableName, diff.ColumnsToAdd)...)
+	}
+	if diff.NewTTLSettings != nil {
+		if needSemiColon {
+			req = append(req, ';', '\n')
+		}
+		needSemiColon = true
+		req = append(req, prepareResetTTLQuery(diff.TableName)...)
+		req = append(req, ';', '\n')
+		req = append(req, prepareSetNewTTLSettingsQuery(diff.TableName, diff.NewTTLSettings)...)
+		req = append(req, diff.NewTTLSettings.ToYQL()...)
+	}
+	if diff.NewPartitioningSettings != nil {
+		if needSemiColon {
+			req = append(req, ';', '\n')
+		}
+		req = append(req, prepareNewPartitioningSettingsQuery(diff.TableName, diff.NewPartitioningSettings, diff.ReadReplicasSettings)...)
+		needSemiColon = true
+	}
+
+	_ = needSemiColon
 
 	return string(req), nil
 }
