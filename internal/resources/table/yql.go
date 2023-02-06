@@ -289,8 +289,12 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	// indent--
 	_ = needComma
 
-	// TODO(shmel1k@): add KEY_BLOOM_FILTER
 	req = append(req, '\n', ')')
+
+	if len(r.ChangeFeeds) > 0 {
+		req = append(req, ';', '\n')
+		req = append(req, prepareCDCAlterQuery(r.Path, r.ChangeFeeds)...)
+	}
 
 	return string(req)
 }
@@ -469,6 +473,49 @@ func prepareNewPartitioningSettingsQuery(
 	}
 	buf = append(buf, '\n', ')')
 
+	return string(buf)
+}
+
+func prepareCDCAlterQuery(tableName string, cdc []*ChangeDataCaptureSettings) string {
+	buf := make([]byte, 0, defaultRequestCapacity)
+	for i := 0; i < len(cdc); i++ {
+		buf = append(buf, "ALTER TABLE `"...)
+		buf = appendWithEscape(buf, tableName)
+		buf = append(buf, '`', ' ')
+		buf = append(buf, "ADD CHANGEFEED `"...)
+		buf = appendWithEscape(buf, cdc[i].Name)
+		buf = append(buf, '`', ' ')
+		buf = append(buf, "WITH ("...)
+		buf = append(buf, '\n')
+		buf = append(buf, "MODE = \""...)
+		buf = append(buf, cdc[i].Mode...)
+		buf = append(buf, '"')
+		if cdc[i].Format != nil {
+			buf = append(buf, ',', '\n')
+			buf = append(buf, "FORMAT = \""...)
+			buf = append(buf, (*cdc[i].Format)...)
+			buf = append(buf, '"')
+		}
+		if cdc[i].VirtualTimestamps != nil {
+			buf = append(buf, ',', '\n')
+			buf = append(buf, "VIRTUAL_TIMESTAMPS = "...)
+			if *cdc[i].VirtualTimestamps {
+				buf = append(buf, "true"...)
+			} else {
+				buf = append(buf, "false"...)
+			}
+		}
+		if cdc[i].RetentionPeriod != nil {
+			buf = append(buf, ',', '\n')
+			buf = append(buf, "RETENTION_PERIOD = Interval(\""...)
+			buf = appendWithEscape(buf, *cdc[i].RetentionPeriod)
+			buf = append(buf, '"', ')')
+		}
+		buf = append(buf, '\n', ')')
+		if i != len(cdc)-1 {
+			buf = append(buf, ';', '\n')
+		}
+	}
 	return string(buf)
 }
 
