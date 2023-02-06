@@ -192,10 +192,8 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 			req = append(req, ',')
 			req = append(req, '\n')
 			req = appendIndent(req, indent)
-			req = append(req, "AUTO_PARTITIONING_BY_SIZE_MB = "...)
+			req = append(req, "AUTO_PARTITIONING_PARTITION_SIZE_MB = "...)
 			req = strconv.AppendInt(req, int64(*r.PartitioningSettings.BySize), 10)
-			req = append(req, ',')
-			req = append(req, '\n')
 			needComma = true
 		}
 		if r.PartitioningSettings.PartitionsCount != 0 {
@@ -272,9 +270,24 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 		req = append(req, "READ_REPLICAS_SETTINGS = \""...)
 		req = appendWithEscape(req, r.ReplicationSettings.ReadReplicasSettings)
 		req = append(req, '"')
-		//			needComma = true
+		needComma = true
 	}
+	if r.EnableBloomFilter != nil {
+		if needComma {
+			req = append(req, ',', '\n')
+		}
+		needComma = true
+		req = appendIndent(req, indent)
+		req = append(req, "KEY_BLOOM_FILTER = "...)
+		if *r.EnableBloomFilter {
+			req = append(req, "ENABLED"...)
+		} else {
+			req = append(req, "DISABLED"...)
+		}
+	}
+
 	// indent--
+	_ = needComma
 
 	// TODO(shmel1k@): add KEY_BLOOM_FILTER
 	req = append(req, '\n', ')')
@@ -382,6 +395,22 @@ func prepareSetNewTTLSettingsQuery(tableName string, settings *TTL) string {
 	return string(buf)
 }
 
+func prepareKeyBloomFilterQuery(tableName string, enabled bool) string {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "ALTER TABLE `"...)
+	buf = appendWithEscape(buf, tableName)
+	buf = append(buf, '`', ' ')
+	buf = append(buf, "SET (\n"...)
+	buf = append(buf, "KEY_BLOOM_FILTER = "...)
+	if enabled {
+		buf = append(buf, "ENABLED"...)
+	} else {
+		buf = append(buf, "DISABLED"...)
+	}
+	buf = append(buf, ')')
+	return string(buf)
+}
+
 func prepareNewPartitioningSettingsQuery(
 	tableName string,
 	settings *PartitioningSettings,
@@ -412,7 +441,7 @@ func prepareNewPartitioningSettingsQuery(
 		needComma = true
 		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE = ENABLED"...)
 		buf = append(buf, ',', '\n')
-		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE_MB = "...)
+		buf = append(buf, "AUTO_PARTITIONING_PARTITION_SIZE_MB = "...)
 		buf = strconv.AppendInt(buf, int64(*settings.BySize), 10)
 	}
 	if settings != nil && settings.MinPartitionsCount != 0 {
@@ -495,7 +524,23 @@ func PrepareAlterRequest(diff *tableDiff) string {
 		needSemiColon = true
 	}
 
+	if diff.NewKeyBloomFilterSettings != nil {
+		if needSemiColon {
+			req = append(req, ';', '\n')
+		}
+		req = append(req, prepareKeyBloomFilterQuery(diff.TableName, *diff.NewKeyBloomFilterSettings)...)
+		needSemiColon = true
+	}
+
 	_ = needSemiColon
 
 	return string(req)
+}
+
+func PrepareDropTableRequest(tableName string) string {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "DROP TABLE `"...)
+	buf = appendWithEscape(buf, tableName)
+	buf = append(buf, '`')
+	return string(buf)
 }

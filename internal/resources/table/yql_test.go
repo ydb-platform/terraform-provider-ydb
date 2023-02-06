@@ -558,7 +558,7 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 			},
 			expected: "ALTER TABLE `abacaba` SET (\n" +
 				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
-				"AUTO_PARTITIONING_BY_SIZE_MB = 42\n)",
+				"AUTO_PARTITIONING_PARTITION_SIZE_MB = 42\n)",
 		},
 		{
 			testName:  "enable only partitioning_by_load",
@@ -611,7 +611,7 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 			expected: "ALTER TABLE `abacaba` SET (\n" +
 				"AUTO_PARTITIONING_BY_LOAD = ENABLED,\n" +
 				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
-				"AUTO_PARTITIONING_BY_SIZE_MB = 42,\n" +
+				"AUTO_PARTITIONING_PARTITION_SIZE_MB = 42,\n" +
 				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 4,\n" +
 				"AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 42,\n" +
 				"READ_REPLICAS_SETTINGS = \"abacaba\"\n)",
@@ -732,7 +732,7 @@ func TestPrepareAlterRequest(t *testing.T) {
 			},
 			expected: "ALTER TABLE `abacaba` SET (\n" +
 				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
-				"AUTO_PARTITIONING_BY_SIZE_MB = 42,\n" +
+				"AUTO_PARTITIONING_PARTITION_SIZE_MB = 42,\n" +
 				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 1,\n" +
 				"AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 5\n)",
 		},
@@ -823,7 +823,7 @@ func TestPrepareAlterRequest(t *testing.T) {
 				"ALTER TABLE `abacaba` SET (\n" +
 				"AUTO_PARTITIONING_BY_LOAD = DISABLED,\n" +
 				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
-				"AUTO_PARTITIONING_BY_SIZE_MB = 42,\n" +
+				"AUTO_PARTITIONING_PARTITION_SIZE_MB = 42,\n" +
 				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 4,\n" +
 				"AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 42,\n" +
 				"READ_REPLICAS_SETTINGS = \"abacaba\"\n)",

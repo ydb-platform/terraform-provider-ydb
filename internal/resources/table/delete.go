@@ -36,7 +36,8 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interf
 	}()
 
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		return s.DropTable(ctx, tableResource.Path)
+		query := PrepareDropTableRequest(tableResource.Path)
+		return s.ExecuteSchemeQuery(ctx, query)
 	})
 	if err != nil {
 		return diag.Errorf("failed to drop table %q: %s", tableResource.Path, err)

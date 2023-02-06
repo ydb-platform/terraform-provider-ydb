@@ -7,13 +7,21 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func prepareAlterRequests(res *Resource, desc options.Description) ([]string, error) {
-	return nil, nil
+func prepareAlterRequest(tableName string, d *schema.ResourceData, desc options.Description) (string, error) {
+	diff, err := prepareTableDiff(d, desc)
+	if err != nil {
+		return "", err
+	}
+	diff.TableName = tableName
+
+	query := PrepareAlterRequest(diff)
+	return query, nil
 }
 
 func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
@@ -59,11 +67,22 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 		return diag.FromErr(fmt.Errorf("failed to describe table %q: %w", tableResource.Path, err))
 	}
 
-	requests, err := prepareAlterRequests(tableResource, description)
+	request, err := prepareAlterRequest(tableResource.Path, d, description)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	_ = requests
 
+	// NOTE(shmel1k@): no query after all checks.
+	if request == "" {
+		return nil
+	}
+
+	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
+		err = s.ExecuteSchemeQuery(ctx, request)
+		return err
+	})
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	return nil
 }

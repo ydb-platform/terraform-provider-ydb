@@ -192,7 +192,7 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 		if byLoad, ok := m["auto_partitioning_by_load"].(bool); ok {
 			p.ByLoad = &byLoad
 		}
-		if bySize, ok := m["auto_partitioning_by_size_enabled"].(int); ok {
+		if bySize, ok := m["auto_partitioning_partition_size_mb"].(int); ok {
 			p.BySize = &bySize
 		}
 	}
@@ -231,7 +231,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 	replicasSettings := expandTableReplicasSettings(d)
 
 	var bloomFilterEnabled *bool
-	if v, ok := d.GetOk("primary_key_bloom_filter"); ok {
+	if v, ok := d.GetOk("key_bloom_filter"); ok {
 		b := v.(bool)
 		bloomFilterEnabled = &b
 	}
@@ -281,9 +281,8 @@ func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.P
 	} else {
 		partitioningSettings["uniform_partitions"] = d.Get("partitioning_settings.uniform_partitions")
 	}
-	partitioningSettings["auto_partitioning_by_size_enabled"] = settings.PartitioningBySize == options.FeatureEnabled
 	partitioningSettings["auto_partitioning_by_load"] = settings.PartitioningByLoad == options.FeatureEnabled
-	partitioningSettings["auto_partitioning_size_mb"] = settings.PartitionSizeMb
+	partitioningSettings["auto_partitioning_partition_size_mb"] = settings.PartitionSizeMb
 	partitioningSettings["auto_partitioning_min_partitions_count"] = settings.MinPartitionsCount
 	partitioningSettings["auto_partitioning_max_partitions_count"] = settings.MaxPartitionsCount
 
@@ -349,5 +348,10 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 	_ = d.Set("attributes", attributes)
 	_ = d.Set("partitioning_settings", flattenTablePartitioningSettings(d, desc.PartitioningSettings))
 
-	_ = d.Set("primary_key_bloom_filter", desc.KeyBloomFilter == options.FeatureEnabled)
+	_ = d.Set("key_bloom_filter", desc.KeyBloomFilter == options.FeatureEnabled)
+	if desc.ReadReplicaSettings.Type == options.ReadReplicasAnyAzReadReplicas {
+		_ = d.Set("read_replicas_settings", fmt.Sprintf("ANY_AZ:%d", desc.ReadReplicaSettings.Count))
+	} else {
+		_ = d.Set("read_replicas_settings", fmt.Sprintf("PER_AZ:%d", desc.ReadReplicaSettings.Count))
+	}
 }
