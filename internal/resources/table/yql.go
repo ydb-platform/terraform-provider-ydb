@@ -395,7 +395,7 @@ func prepareNewPartitioningSettingsQuery(
 
 	// TODO(shmel1k@): remove copypaste.
 	needComma := false
-	if settings.ByLoad != nil {
+	if settings != nil && settings.ByLoad != nil {
 		buf = append(buf, "AUTO_PARTITIONING_BY_LOAD = "...)
 		val := *settings.ByLoad
 		if val {
@@ -405,18 +405,17 @@ func prepareNewPartitioningSettingsQuery(
 		}
 		needComma = true
 	}
-	if settings.BySize != nil {
+	if settings != nil && settings.BySize != nil {
 		if needComma {
 			buf = append(buf, ',', '\n')
 		}
 		needComma = true
-		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE_ENABLED = ENABLED"...)
+		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE = ENABLED"...)
 		buf = append(buf, ',', '\n')
 		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE_MB = "...)
 		buf = strconv.AppendInt(buf, int64(*settings.BySize), 10)
-		buf = append(buf, ',', '\n')
 	}
-	if settings.MinPartitionsCount != 0 {
+	if settings != nil && settings.MinPartitionsCount != 0 {
 		if needComma {
 			buf = append(buf, ',', '\n')
 		}
@@ -424,7 +423,7 @@ func prepareNewPartitioningSettingsQuery(
 		buf = strconv.AppendInt(buf, int64(settings.MinPartitionsCount), 10)
 		needComma = true
 	}
-	if settings.MaxPartitionsCount != 0 {
+	if settings != nil && settings.MaxPartitionsCount != 0 {
 		if needComma {
 			buf = append(buf, ',', '\n')
 		}
@@ -439,30 +438,23 @@ func prepareNewPartitioningSettingsQuery(
 		buf = appendWithEscape(buf, readReplicaSettings)
 		buf = append(buf, '"')
 	}
+	buf = append(buf, '\n', ')')
 
 	return string(buf)
 }
 
-func PrepareAlterRequest(diff *tableDiff) (string, error) {
+func PrepareAlterRequest(diff *tableDiff) string {
+	if diff == nil {
+		return ""
+	}
+
 	req := make([]byte, 0, defaultRequestCapacity)
 	needSemiColon := false
 	if len(diff.IndexToDrop) > 0 {
 		needSemiColon = true
 		for i, v := range diff.IndexToDrop {
 			req = append(req, prepareDropIndexQuery(diff.TableName, v)...)
-			if i != len(diff.IndexToDrop) {
-				req = append(req, ';', '\n')
-			}
-		}
-	}
-	if len(diff.IndexToCreate) > 0 {
-		if needSemiColon {
-			req = append(req, ';', '\n')
-		}
-		needSemiColon = true
-		for i, v := range diff.IndexToCreate {
-			req = append(req, prepareAddIndexQuery(diff.TableName, v)...)
-			if i != len(diff.IndexToCreate) {
+			if i != len(diff.IndexToDrop)-1 {
 				req = append(req, ';', '\n')
 			}
 		}
@@ -474,6 +466,18 @@ func PrepareAlterRequest(diff *tableDiff) (string, error) {
 		needSemiColon = true
 		req = append(req, prepareAddColumnsQuery(diff.TableName, diff.ColumnsToAdd)...)
 	}
+	if len(diff.IndexToCreate) > 0 {
+		if needSemiColon {
+			req = append(req, ';', '\n')
+		}
+		needSemiColon = true
+		for i, v := range diff.IndexToCreate {
+			req = append(req, prepareAddIndexQuery(diff.TableName, v)...)
+			if i != len(diff.IndexToCreate)-1 {
+				req = append(req, ';', '\n')
+			}
+		}
+	}
 	if diff.NewTTLSettings != nil {
 		if needSemiColon {
 			req = append(req, ';', '\n')
@@ -482,9 +486,8 @@ func PrepareAlterRequest(diff *tableDiff) (string, error) {
 		req = append(req, prepareResetTTLQuery(diff.TableName)...)
 		req = append(req, ';', '\n')
 		req = append(req, prepareSetNewTTLSettingsQuery(diff.TableName, diff.NewTTLSettings)...)
-		req = append(req, diff.NewTTLSettings.ToYQL()...)
 	}
-	if diff.NewPartitioningSettings != nil {
+	if diff.NewPartitioningSettings != nil || diff.ReadReplicasSettings != "" {
 		if needSemiColon {
 			req = append(req, ';', '\n')
 		}
@@ -494,5 +497,5 @@ func PrepareAlterRequest(diff *tableDiff) (string, error) {
 
 	_ = needSemiColon
 
-	return string(req), nil
+	return string(req)
 }

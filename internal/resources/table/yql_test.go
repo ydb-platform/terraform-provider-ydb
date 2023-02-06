@@ -532,26 +532,309 @@ func TestPrepareSetNewTTLSettingsQuery(t *testing.T) {
 }
 
 func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
+	partitioningBySize := 42
+	partitioningByLoadFalse := false
+	partitioningByLoadTrue := true
+
 	testData := []struct {
-		testName string
-	}{}
+		testName            string
+		tableName           string
+		settings            *PartitioningSettings
+		readReplicaSettings string
+		expected            string
+	}{
+		{
+			testName:            "only read_replica_settings are changed",
+			tableName:           "abacaba",
+			readReplicaSettings: "abacaba",
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"READ_REPLICAS_SETTINGS = \"abacaba\"\n)",
+		},
+		{
+			testName:  "enable only partitioning_by_size",
+			tableName: "abacaba",
+			settings: &PartitioningSettings{
+				BySize: &partitioningBySize,
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
+				"AUTO_PARTITIONING_BY_SIZE_MB = 42\n)",
+		},
+		{
+			testName:  "enable only partitioning_by_load",
+			tableName: "abacaba",
+			settings: &PartitioningSettings{
+				ByLoad: &partitioningByLoadTrue,
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_BY_LOAD = ENABLED\n)",
+		},
+		{
+			testName:  "disable only partitioning_by_load",
+			tableName: "abacaba",
+			settings: &PartitioningSettings{
+				ByLoad: &partitioningByLoadFalse,
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_BY_LOAD = DISABLED\n)",
+		},
+		{
+			testName:  "set only min_partitions_count",
+			tableName: "abacaba",
+			settings: &PartitioningSettings{
+				MinPartitionsCount: 42,
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 42\n)",
+		},
+		{
+			testName:  "set min_partitions_count and max_partitions_count",
+			tableName: "abacaba",
+			settings: &PartitioningSettings{
+				MinPartitionsCount: 5,
+				MaxPartitionsCount: 42,
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 5,\n" +
+				"AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 42\n)",
+		},
+		{
+			testName:  "all settings set",
+			tableName: "abacaba",
+			settings: &PartitioningSettings{
+				BySize:             &partitioningBySize,
+				ByLoad:             &partitioningByLoadTrue,
+				MinPartitionsCount: 4,
+				MaxPartitionsCount: 42,
+			},
+			readReplicaSettings: "abacaba",
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_BY_LOAD = ENABLED,\n" +
+				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
+				"AUTO_PARTITIONING_BY_SIZE_MB = 42,\n" +
+				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 4,\n" +
+				"AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 42,\n" +
+				"READ_REPLICAS_SETTINGS = \"abacaba\"\n)",
+		},
+	}
 
 	for _, v := range testData {
 		v := v
 		t.Run(v.testName, func(t *testing.T) {
+			got := prepareNewPartitioningSettingsQuery(v.tableName, v.settings, v.readReplicaSettings)
+			assert.Equal(t, v.expected, got)
 		})
 	}
 }
 
 func TestPrepareAlterRequest(t *testing.T) {
+	newPartitioningBySize := 42
+	newPartitioningByLoad := false
 	testData := []struct {
 		testName string
-	}{}
+		diff     *tableDiff
+		expected string
+	}{
+		{
+			testName: "no diff",
+			diff:     nil,
+			expected: "",
+		},
+		{
+			testName: "only drop indexes",
+			diff: &tableDiff{
+				TableName: "abacaba",
+				IndexToDrop: []string{
+					"a",
+				},
+			},
+			expected: "ALTER TABLE `abacaba` DROP INDEX `a`",
+		},
+		{
+			testName: "only create indexes",
+			diff: &tableDiff{
+				TableName: "abacaba",
+				IndexToCreate: []*Index{
+					{
+						Name: "a",
+						Type: "global_sync",
+						Columns: []string{
+							"a", "b", "c",
+						},
+						Cover: []string{
+							"d", "e", "f",
+						},
+					},
+					{
+						Name: "b",
+						Type: "global_async",
+						Columns: []string{
+							"b", "a", "c",
+						},
+						Cover: []string{
+							"d", "e", "f",
+						},
+					},
+				},
+			},
+			expected: "ALTER TABLE `abacaba` ADD INDEX `a` GLOBAL SYNC ON (`a`, `b`, `c`) COVER (`d`, `e`, `f`);\n" +
+				"ALTER TABLE `abacaba` ADD INDEX `b` GLOBAL ASYNC ON (`b`, `a`, `c`) COVER (`d`, `e`, `f`)",
+		},
+		{
+			testName: "only add columns",
+			diff: &tableDiff{
+				TableName: "abacaba",
+				ColumnsToAdd: []*Column{
+					{
+						Name:    "a",
+						Type:    "Bool",
+						Family:  "my_very_own_family",
+						NotNull: true,
+					},
+					{
+						Name:    "b",
+						Type:    "Utf8",
+						Family:  "my_very_own_family",
+						NotNull: true,
+					},
+				},
+			},
+			expected: "ALTER TABLE `abacaba` ADD COLUMN `a` Bool FAMILY `my_very_own_family` NOT NULL, ADD COLUMN `b` Utf8 FAMILY `my_very_own_family` NOT NULL",
+		},
+		{
+			testName: "add columns with index drop",
+			diff: &tableDiff{
+				TableName: "abacaba",
+				ColumnsToAdd: []*Column{
+					{
+						Name:    "a",
+						Type:    "Utf8",
+						Family:  "my_family",
+						NotNull: true,
+					},
+				},
+				IndexToDrop: []string{
+					"b",
+				},
+			},
+			expected: "ALTER TABLE `abacaba` DROP INDEX `b`;\n" +
+				"ALTER TABLE `abacaba` ADD COLUMN `a` Utf8 FAMILY `my_family` NOT NULL",
+		},
+		{
+			testName: "change only partitioning settings",
+			diff: &tableDiff{
+				TableName: "abacaba",
+				NewPartitioningSettings: &PartitioningSettings{
+					BySize:             &newPartitioningBySize,
+					MinPartitionsCount: 1,
+					MaxPartitionsCount: 5,
+				},
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
+				"AUTO_PARTITIONING_BY_SIZE_MB = 42,\n" +
+				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 1,\n" +
+				"AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 5\n)",
+		},
+		{
+			testName: "change only read_replicas_settings",
+			diff: &tableDiff{
+				TableName:            "abacaba",
+				ReadReplicasSettings: "abacaba",
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"READ_REPLICAS_SETTINGS = \"abacaba\"\n)",
+		},
+		{
+			testName: "change only ttl settings",
+			diff: &tableDiff{
+				TableName: "abacaba",
+				NewTTLSettings: &TTL{
+					ColumnName:     "d",
+					ExpireInterval: "PT0S",
+				},
+			},
+			expected: "ALTER TABLE `abacaba` RESET (TTL);\n" +
+				"ALTER TABLE `abacaba` SET (TTL = Interval(\"PT0S\") ON `d`)",
+		},
+		{
+			testName: "change all settings",
+			diff: &tableDiff{
+				TableName: "abacaba",
+				ColumnsToAdd: []*Column{
+					{
+						Name:    "a",
+						Type:    "Bool",
+						Family:  "my_family",
+						NotNull: true,
+					},
+					{
+						Name:    "b",
+						Type:    "Utf8",
+						Family:  "my_family",
+						NotNull: true,
+					},
+				},
+				IndexToDrop: []string{
+					"d", "e", "f",
+				},
+				IndexToCreate: []*Index{
+					{
+						Name: "idx",
+						Type: "global_sync",
+						Columns: []string{
+							"a", "b",
+						},
+						Cover: []string{
+							"d", "e", "f",
+						},
+					},
+					{
+						Name: "idx_2",
+						Type: "global_async",
+						Columns: []string{
+							"b", "a",
+						},
+						Cover: []string{
+							"d", "e", "f",
+						},
+					},
+				},
+				NewTTLSettings: &TTL{
+					ColumnName:     "d",
+					ExpireInterval: "PT0S",
+				},
+				NewPartitioningSettings: &PartitioningSettings{
+					BySize:             &newPartitioningBySize,
+					ByLoad:             &newPartitioningByLoad,
+					MinPartitionsCount: 4,
+					MaxPartitionsCount: 42,
+				},
+				ReadReplicasSettings: "abacaba",
+			},
+			expected: "ALTER TABLE `abacaba` DROP INDEX `d`;\n" +
+				"ALTER TABLE `abacaba` DROP INDEX `e`;\n" +
+				"ALTER TABLE `abacaba` DROP INDEX `f`;\n" +
+				"ALTER TABLE `abacaba` ADD COLUMN `a` Bool FAMILY `my_family` NOT NULL, ADD COLUMN `b` Utf8 FAMILY `my_family` NOT NULL;\n" +
+				"ALTER TABLE `abacaba` ADD INDEX `idx` GLOBAL SYNC ON (`a`, `b`) COVER (`d`, `e`, `f`);\n" +
+				"ALTER TABLE `abacaba` ADD INDEX `idx_2` GLOBAL ASYNC ON (`b`, `a`) COVER (`d`, `e`, `f`);\n" +
+				"ALTER TABLE `abacaba` RESET (TTL);\n" +
+				"ALTER TABLE `abacaba` SET (TTL = Interval(\"PT0S\") ON `d`);\n" +
+				"ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_BY_LOAD = DISABLED,\n" +
+				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
+				"AUTO_PARTITIONING_BY_SIZE_MB = 42,\n" +
+				"AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 4,\n" +
+				"AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = 42,\n" +
+				"READ_REPLICAS_SETTINGS = \"abacaba\"\n)",
+		},
+	}
 
 	for _, v := range testData {
 		v := v
 		t.Run(v.testName, func(t *testing.T) {
-
+			got := PrepareAlterRequest(v.diff)
+			assert.Equal(t, v.expected, got)
 		})
 	}
 }
