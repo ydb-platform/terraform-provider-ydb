@@ -45,7 +45,7 @@ func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*Chan
 	if d.Id() != "" {
 		entity, err = helpers.ParseYDBEntityID(d.Id())
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse changefeed entity: %s", err)
+			return nil, fmt.Errorf("failed to parse changefeed entity: %w", err)
 		}
 	}
 

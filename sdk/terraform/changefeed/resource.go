@@ -109,7 +109,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"format": {
 			Type:     schema.TypeString,
-			Optional: true,
+			Required: true,
 		},
 		"virtual_timestamps": {
 			Type:     schema.TypeBool,

@@ -15,7 +15,7 @@ func PrepareCreateRequest(cdc *ChangeDataCaptureSettings) string {
 	buf = append(buf, "MODE = \""...)
 	buf = append(buf, cdc.Mode...)
 	buf = append(buf, '"')
-	if cdc.Format != nil {
+	if cdc.Format != nil && *cdc.Format != "" {
 		buf = append(buf, ',', '\n')
 		buf = append(buf, "FORMAT = \""...)
 		buf = append(buf, *cdc.Format...)
@@ -30,7 +30,7 @@ func PrepareCreateRequest(cdc *ChangeDataCaptureSettings) string {
 			buf = append(buf, "false"...)
 		}
 	}
-	if cdc.RetentionPeriod != nil {
+	if cdc.RetentionPeriod != nil && *cdc.RetentionPeriod != "" {
 		buf = append(buf, ',', '\n')
 		buf = append(buf, "RETENTION_PERIOD = Interval(\""...)
 		buf = helpers.AppendWithEscape(buf, *cdc.RetentionPeriod)

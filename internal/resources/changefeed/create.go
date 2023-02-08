@@ -6,15 +6,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
-)
 
-func prepareCDCAlterQuery(tablePath string, cdc *ChangeDataCaptureSettings) string {
-	return ""
-}
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
+)
 
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
