@@ -20,15 +20,15 @@ type Column struct {
 func (c *Column) ToYQL() string {
 	buf := make([]byte, 0, 128)
 	buf = append(buf, '`')
-	buf = appendWithEscape(buf, c.Name)
+	buf = helpers.AppendWithEscape(buf, c.Name)
 	buf = append(buf, '`')
 	buf = append(buf, ' ')
-	buf = appendWithEscape(buf, c.Type)
+	buf = helpers.AppendWithEscape(buf, c.Type)
 	if c.Family != "" {
 		buf = append(buf, ' ')
 		buf = append(buf, "FAMILY "...)
 		buf = append(buf, '`')
-		buf = appendWithEscape(buf, c.Family)
+		buf = helpers.AppendWithEscape(buf, c.Family)
 		buf = append(buf, '`')
 	}
 	if c.NotNull {
@@ -56,12 +56,12 @@ type TTL struct {
 func (t *TTL) ToYQL() string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, "TTL = Interval(\""...)
-	buf = appendWithEscape(buf, t.ExpireInterval)
+	buf = helpers.AppendWithEscape(buf, t.ExpireInterval)
 	buf = append(buf, '"')
 	buf = append(buf, ')')
 	buf = append(buf, " ON "...)
 	buf = append(buf, '`')
-	buf = appendWithEscape(buf, t.ColumnName)
+	buf = helpers.AppendWithEscape(buf, t.ColumnName)
 	buf = append(buf, '`')
 	return string(buf)
 }
@@ -89,14 +89,6 @@ type Family struct {
 	Compression string
 }
 
-type ChangeDataCaptureSettings struct {
-	Name              string
-	Mode              string
-	Format            *string
-	RetentionPeriod   *string
-	VirtualTimestamps *bool
-}
-
 type Resource struct {
 	Entity *helpers.YDBEntity
 
@@ -111,7 +103,6 @@ type Resource struct {
 	TTL                  *TTL
 	ReplicationSettings  *ReplicationSettings
 	PartitioningSettings *PartitioningSettings
-	ChangeFeeds          []*ChangeDataCaptureSettings
 	EnableBloomFilter    *bool
 }
 
@@ -204,38 +195,6 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 	return p, nil
 }
 
-func expandChangeDataCaptureSettings(d *schema.ResourceData) []*ChangeDataCaptureSettings {
-	v, ok := d.GetOk("changefeed")
-	if !ok {
-		return nil
-	}
-	changeFeedRaw := v.([]interface{})
-
-	res := make([]*ChangeDataCaptureSettings, 0, len(changeFeedRaw))
-	for _, l := range changeFeedRaw {
-		m := l.(map[string]interface{})
-		c := &ChangeDataCaptureSettings{}
-		if name, ok := m["name"].(string); ok {
-			c.Name = name
-		}
-		if mode, ok := m["mode"].(string); ok {
-			c.Mode = mode
-		}
-		if format, ok := m["format"].(string); ok && format != "" {
-			c.Format = &format
-		}
-		if retentionPeriod, ok := m["retention_period"].(string); ok && retentionPeriod != "" {
-			c.RetentionPeriod = &retentionPeriod
-		}
-		if virtualTimestamps, ok := m["virtual_timestamps"].(bool); ok {
-			c.VirtualTimestamps = &virtualTimestamps
-		}
-		res = append(res, c)
-	}
-
-	return res
-}
-
 func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, error) {
 	var entity *helpers.YDBEntity
 	var err error
@@ -264,7 +223,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		return nil, fmt.Errorf("failed to expand table partitioning settings: %w", err)
 	}
 
-	cdcSettings := expandChangeDataCaptureSettings(d)
+	// cdcSettings := expandChangeDataCaptureSettings(d)
 
 	replicasSettings := expandTableReplicasSettings(d)
 
@@ -291,9 +250,9 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		DatabaseEndpoint: databaseEndpoint,
 		Attributes:       attributes,
 		Family:           families,
-		ChangeFeeds:      cdcSettings,
-		Columns:          columns,
-		Indexes:          indexes,
+		// ChangeFeeds:      cdcSettings,
+		Columns: columns,
+		Indexes: indexes,
 		PrimaryKey: &PrimaryKey{
 			Columns: pk,
 		},

@@ -13,6 +13,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 )
 
 type caller struct {
@@ -125,42 +126,15 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 
 	var supportedCodecs []topictypes.Codec
 	if gotCodecs, ok := d.GetOk("supported_codecs"); !ok {
-		supportedCodecs = ydbTopicDefaultCodecs
+		supportedCodecs = topic.YDBTopicDefaultCodecs
 	} else {
 		for _, c := range gotCodecs.([]interface{}) {
 			cod := c.(string)
-			supportedCodecs = append(supportedCodecs, ydbTopicCodecNameToCodec[cod])
+			supportedCodecs = append(supportedCodecs, topic.YDBTopicCodecNameToCodec[cod])
 		}
 	}
 
-	consumers := make([]topictypes.Consumer, 0, 4)
-	for _, v := range d.Get("consumer").([]interface{}) {
-		consumer := v.(map[string]interface{})
-		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
-		if !ok {
-			for _, vv := range ydbTopicAllowedCodecs {
-				supportedCodecs = append(supportedCodecs, vv)
-			}
-		}
-		consumerName := consumer["name"].(string)
-		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
-		if !ok {
-			startingMessageTS = 0
-		}
-		codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
-		for _, c := range supportedCodecs {
-			codec := c.(string)
-			codecs = append(codecs, ydbTopicCodecNameToCodec[strings.ToLower(codec)])
-		}
-		consumers = append(consumers, topictypes.Consumer{
-			Name:            consumerName,
-			SupportedCodecs: codecs,
-			ReadFrom:        time.Unix(int64(startingMessageTS/1000), 0),
-		})
-		if err != nil {
-			return diag.FromErr(fmt.Errorf("failed to create consumer %q: %w", consumerName, err))
-		}
-	}
+	consumers := topic.ExpandConsumers(d.Get("consumers").([]interface{}))
 
 	err = client.Topic().Create(ctx, d.Get("name").(string),
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),

@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 )
 
 func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
@@ -27,24 +29,10 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 		}
 	}
 
-	rules := make([]map[string]interface{}, 0, len(desc.Consumers))
-	for _, r := range desc.Consumers {
-		var codecs []string
-		for _, codec := range r.SupportedCodecs {
-			if c, ok := ydbTopicCodecToCodecName[codec]; ok {
-				codecs = append(codecs, c)
-			}
-		}
-		rules = append(rules, map[string]interface{}{
-			"name":                          r.Name,
-			"starting_message_timestamp_ms": r.ReadFrom.UnixMilli(),
-			"supported_codecs":              codecs,
-		})
-	}
-
-	err := d.Set("consumer", rules)
+	consumers := topic.FlattenConsumersDescription(desc.Consumers)
+	err := d.Set("consumer", consumers)
 	if err != nil {
-		return fmt.Errorf("failed to set consumer %+v: %w", rules, err)
+		return fmt.Errorf("failed to set consumer %+v: %w", consumers, err)
 	}
 
 	err = d.Set("supported_codecs", supportedCodecs)
@@ -53,71 +41,6 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 	}
 
 	return d.Set("database_endpoint", d.Get("database_endpoint").(string))
-}
-
-func mergeYDBTopicConsumerSettings(
-	consumers []interface{},
-	readRules []topictypes.Consumer,
-) (opts []topicoptions.AlterOption) {
-	rules := make(map[string]topictypes.Consumer, len(readRules))
-	for i := 0; i < len(readRules); i++ {
-		rules[readRules[i].Name] = readRules[i]
-	}
-
-	consumersMap := make(map[string]struct{})
-	for _, v := range consumers {
-		consumer := v.(map[string]interface{})
-		consumerName, ok := consumer["name"].(string)
-		if !ok {
-			continue
-		}
-
-		consumersMap[consumerName] = struct{}{}
-
-		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
-		if !ok {
-			for _, vv := range ydbTopicAllowedCodecs {
-				supportedCodecs = append(supportedCodecs, vv)
-			}
-		}
-		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
-		if !ok {
-			startingMessageTS = 0
-		}
-
-		r, ok := rules[consumerName]
-		if !ok {
-			// consumer was deleted by someone outside terraform or does not exist.
-			codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
-			for _, c := range supportedCodecs {
-				codec := c.(string)
-				codecs = append(codecs, ydbTopicCodecNameToCodec[strings.ToLower(codec)])
-			}
-			opts = append(opts, topicoptions.AlterWithAddConsumers(
-				topictypes.Consumer{
-					Name:            consumerName,
-					ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
-					SupportedCodecs: codecs,
-				},
-			))
-			continue
-		}
-
-		readFrom := time.UnixMilli(int64(startingMessageTS))
-		if r.ReadFrom != readFrom {
-			opts = append(opts, topicoptions.AlterConsumerWithReadFrom(consumerName, readFrom))
-		}
-
-		newCodecs := make([]topictypes.Codec, 0, len(supportedCodecs))
-		for _, codec := range supportedCodecs {
-			c := ydbTopicCodecNameToCodec[strings.ToLower(codec.(string))]
-			newCodecs = append(newCodecs, c)
-		}
-		if len(newCodecs) != 0 {
-			opts = append(opts, topicoptions.AlterConsumerWithSupportedCodecs(consumerName, newCodecs))
-		}
-	}
-	return opts
 }
 
 func prepareYDBTopicAlterSettings(
@@ -133,7 +56,7 @@ func prepareYDBTopicAlterSettings(
 		updatedCodecs := make([]topictypes.Codec, 0, len(codecs))
 
 		for _, c := range codecs {
-			cc, ok := ydbTopicCodecNameToCodec[strings.ToLower(c.(string))]
+			cc, ok := topic.YDBTopicCodecNameToCodec[strings.ToLower(c.(string))]
 			if !ok {
 				panic(fmt.Sprintf("Unsupported codec %q found after validation", cc))
 			}
@@ -146,7 +69,7 @@ func prepareYDBTopicAlterSettings(
 	}
 
 	if d.HasChange("consumer") {
-		additionalOpts := mergeYDBTopicConsumerSettings(d.Get("consumer").([]interface{}), settings.Consumers)
+		additionalOpts := topic.MergeConsumerSettings(d.Get("consumer").([]interface{}), settings.Consumers)
 		opts = append(opts, additionalOpts...)
 	}
 

@@ -6,9 +6,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
@@ -22,32 +22,6 @@ const (
 	ydbTopicDefaultPartitionsCount        = 2
 	ydbTopicDefaultRetentionPeriod        = 1000 * 60 * 60 * 18 // 24 hours
 	ydbTopicDefaultMaxPartitionWriteSpeed = 1048576
-)
-
-var (
-	ydbTopicAllowedCodecs = []string{
-		ydbTopicCodecRAW,
-		ydbTopicCodecGZIP,
-		ydbTopicCodecZSTD,
-	}
-
-	ydbTopicDefaultCodecs = []topictypes.Codec{
-		topictypes.CodecRaw,
-		topictypes.CodecGzip,
-		topictypes.CodecZstd,
-	}
-
-	ydbTopicCodecNameToCodec = map[string]topictypes.Codec{
-		ydbTopicCodecRAW:  topictypes.CodecRaw,
-		ydbTopicCodecGZIP: topictypes.CodecGzip,
-		ydbTopicCodecZSTD: topictypes.CodecZstd,
-	}
-
-	ydbTopicCodecToCodecName = map[topictypes.Codec]string{
-		topictypes.CodecRaw:  ydbTopicCodecRAW,
-		topictypes.CodecGzip: ydbTopicCodecGZIP,
-		topictypes.CodecZstd: ydbTopicCodecZSTD,
-	}
 )
 
 func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
@@ -153,7 +127,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
-				ValidateFunc: validation.StringInSlice(ydbTopicAllowedCodecs, false),
+				ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
 			},
 		},
 		"retention_period_ms": {
@@ -176,7 +150,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,
-							ValidateFunc: validation.StringInSlice(ydbTopicAllowedCodecs, false),
+							ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
 						},
 					},
 					"starting_message_timestamp_ms": {
@@ -217,7 +191,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
-				ValidateFunc: validation.StringInSlice(ydbTopicAllowedCodecs, false),
+				ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
 			},
 			Computed: true,
 		},
@@ -242,7 +216,7 @@ func ResourceSchema() map[string]*schema.Schema {
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,
-							ValidateFunc: validation.StringInSlice(ydbTopicAllowedCodecs, false),
+							ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
 						},
 						Computed: true,
 					},

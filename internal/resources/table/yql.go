@@ -3,6 +3,8 @@ package table
 import (
 	"bytes"
 	"strconv"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 )
 
 const (
@@ -14,21 +16,11 @@ func appendIndent(req []byte, indent int) []byte {
 	return req
 }
 
-func appendWithEscape(buf []byte, s string) []byte {
-	for i := 0; i < len(s); i++ {
-		if s[i] == '"' || s[i] == '/' {
-			buf = append(buf, '\\')
-		}
-		buf = append(buf, s[i])
-	}
-	return buf
-}
-
 func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req := make([]byte, 0, defaultRequestCapacity)
 
 	req = append(req, "CREATE TABLE `"...)
-	req = appendWithEscape(req, r.FullPath)
+	req = helpers.AppendWithEscape(req, r.FullPath)
 	req = append(req, "`("...)
 	req = append(req, '\n')
 
@@ -51,7 +43,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 		req = append(req, "INDEX"...)
 		req = append(req, ' ')
 		req = append(req, '`')
-		req = appendWithEscape(req, v.Name)
+		req = helpers.AppendWithEscape(req, v.Name)
 		req = append(req, '`')
 		req = append(req, ' ')
 		req = append(req, "GLOBAL"...)
@@ -64,7 +56,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 		req = append(req, '(')
 		for _, c := range v.Columns {
 			req = append(req, '`')
-			req = appendWithEscape(req, c)
+			req = helpers.AppendWithEscape(req, c)
 			req = append(req, '`', ',')
 		}
 		req[len(req)-1] = ')' // NOTE(shmel1k@): remove last column
@@ -75,7 +67,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 			req = append(req, '(')
 			for _, c := range v.Cover {
 				req = append(req, '`')
-				req = appendWithEscape(req, c)
+				req = helpers.AppendWithEscape(req, c)
 				req = append(req, '`')
 				req = append(req, ',')
 			}
@@ -93,7 +85,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req = append(req, '(')
 	for _, v := range r.PrimaryKey.Columns {
 		req = append(req, '`')
-		req = appendWithEscape(req, v)
+		req = helpers.AppendWithEscape(req, v)
 		req = append(req, '`')
 		req = append(req, ',')
 	}
@@ -107,7 +99,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 			req = append(req, "FAMILY"...)
 			req = append(req, ' ')
 			req = append(req, '`')
-			req = appendWithEscape(req, v.Name)
+			req = helpers.AppendWithEscape(req, v.Name)
 			req = append(req, '`')
 			req = append(req, '(')
 			req = append(req, '\n')
@@ -115,14 +107,14 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 			req = appendIndent(req, indent)
 			req = append(req, "DATA = "...)
 			req = append(req, '"')
-			req = appendWithEscape(req, v.Data)
+			req = helpers.AppendWithEscape(req, v.Data)
 			req = append(req, '"')
 			req = append(req, ',')
 			req = append(req, '\n')
 			req = appendIndent(req, indent)
 			req = append(req, "COMPRESSION = "...)
 			req = append(req, '"')
-			req = appendWithEscape(req, v.Compression)
+			req = helpers.AppendWithEscape(req, v.Compression)
 			req = append(req, '"')
 			req = append(req, '\n')
 			indent--
@@ -161,12 +153,12 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	if r.TTL != nil {
 		req = appendIndent(req, indent)
 		req = append(req, "TTL = Interval(\""...)
-		req = appendWithEscape(req, r.TTL.ExpireInterval)
+		req = helpers.AppendWithEscape(req, r.TTL.ExpireInterval)
 		req = append(req, '"')
 		req = append(req, ')')
 		req = append(req, " ON "...)
 		req = append(req, '`')
-		req = appendWithEscape(req, r.TTL.ColumnName)
+		req = helpers.AppendWithEscape(req, r.TTL.ColumnName)
 		req = append(req, '`')
 		needComma = true
 	}
@@ -226,7 +218,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 						req = strconv.AppendBool(req, t)
 					case string:
 						req = append(req, '"')
-						req = appendWithEscape(req, t)
+						req = helpers.AppendWithEscape(req, t)
 						req = append(req, '"')
 					}
 					if ii < len(v.Keys)-1 {
@@ -268,7 +260,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 		}
 		req = appendIndent(req, indent)
 		req = append(req, "READ_REPLICAS_SETTINGS = \""...)
-		req = appendWithEscape(req, r.ReplicationSettings.ReadReplicasSettings)
+		req = helpers.AppendWithEscape(req, r.ReplicationSettings.ReadReplicasSettings)
 		req = append(req, '"')
 		needComma = true
 	}
@@ -291,30 +283,30 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 
 	req = append(req, '\n', ')')
 
-	if len(r.ChangeFeeds) > 0 {
-		req = append(req, ';', '\n')
-		req = append(req, prepareCDCAlterQuery(r.Path, r.ChangeFeeds)...)
-	}
+	//	if len(r.ChangeFeeds) > 0 {
+	//		req = append(req, ';', '\n')
+	//		req = append(req, prepareCDCAlterQuery(r.Path, r.ChangeFeeds)...)
+	//	}
 
 	return string(req)
 }
 
 func prepareDropIndexQuery(tableName string, indexToDrop string) string {
 	req := []byte("ALTER TABLE `")
-	req = appendWithEscape(req, tableName)
+	req = helpers.AppendWithEscape(req, tableName)
 	req = append(req, '`', ' ')
 	req = append(req, "DROP INDEX `"...)
-	req = appendWithEscape(req, indexToDrop)
+	req = helpers.AppendWithEscape(req, indexToDrop)
 	req = append(req, '`')
 	return string(req)
 }
 
 func prepareAddIndexQuery(tableName string, indexToAdd *Index) string {
 	req := []byte("ALTER TABLE `")
-	req = appendWithEscape(req, tableName)
+	req = helpers.AppendWithEscape(req, tableName)
 	req = append(req, '`', ' ')
 	req = append(req, "ADD INDEX `"...)
-	req = appendWithEscape(req, indexToAdd.Name)
+	req = helpers.AppendWithEscape(req, indexToAdd.Name)
 	req = append(req, '`', ' ')
 	// TODO(shmel1k@): add ToYQL for index
 	if indexToAdd.Type == "global_async" { // TODO(shmel1k@): move to consts
@@ -324,7 +316,7 @@ func prepareAddIndexQuery(tableName string, indexToAdd *Index) string {
 	}
 	for i := 0; i < len(indexToAdd.Columns); i++ {
 		req = append(req, '`')
-		req = appendWithEscape(req, indexToAdd.Columns[i])
+		req = helpers.AppendWithEscape(req, indexToAdd.Columns[i])
 		req = append(req, '`')
 		if i != len(indexToAdd.Columns)-1 {
 			req = append(req, ',', ' ')
@@ -335,7 +327,7 @@ func prepareAddIndexQuery(tableName string, indexToAdd *Index) string {
 		req = append(req, " COVER ("...)
 		for i := 0; i < len(indexToAdd.Cover); i++ {
 			req = append(req, '`')
-			req = appendWithEscape(req, indexToAdd.Cover[i])
+			req = helpers.AppendWithEscape(req, indexToAdd.Cover[i])
 			req = append(req, '`')
 			if i != len(indexToAdd.Cover)-1 {
 				req = append(req, ',', ' ')
@@ -349,7 +341,7 @@ func prepareAddIndexQuery(tableName string, indexToAdd *Index) string {
 
 func prepareAddColumnsQuery(tableName string, columnsToAdd []*Column) string {
 	req := []byte("ALTER TABLE `")
-	req = appendWithEscape(req, tableName)
+	req = helpers.AppendWithEscape(req, tableName)
 	req = append(req, '`', ' ')
 	for i := 0; i < len(columnsToAdd); i++ {
 		req = append(req, "ADD COLUMN "...)
@@ -365,11 +357,11 @@ func prepareAddColumnsQuery(tableName string, columnsToAdd []*Column) string {
 func prepareDropColumnsQuery(tableName string, columnsToDrop []string) string {
 	req := make([]byte, 0, defaultRequestCapacity)
 	req = append(req, "ALTER TABLE `"...)
-	req = appendWithEscape(req, tableName)
+	req = helpers.AppendWithEscape(req, tableName)
 	req = append(req, '`', ' ')
 	for i := 0; i < len(columnsToDrop); i++ {
 		req = append(req, "DROP COLUMN `"...)
-		req = appendWithEscape(req, columnsToDrop[i])
+		req = helpers.AppendWithEscape(req, columnsToDrop[i])
 		req = append(req, '`')
 		if i != len(columnsToDrop)-1 {
 			req = append(req, ',', ' ')
@@ -382,7 +374,7 @@ func prepareDropColumnsQuery(tableName string, columnsToDrop []string) string {
 func prepareResetTTLQuery(tableName string) string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, "ALTER TABLE `"...)
-	buf = appendWithEscape(buf, tableName)
+	buf = helpers.AppendWithEscape(buf, tableName)
 	buf = append(buf, '`', ' ')
 	buf = append(buf, "RESET (TTL)"...)
 	return string(buf)
@@ -391,7 +383,7 @@ func prepareResetTTLQuery(tableName string) string {
 func prepareSetNewTTLSettingsQuery(tableName string, settings *TTL) string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, "ALTER TABLE `"...)
-	buf = appendWithEscape(buf, tableName)
+	buf = helpers.AppendWithEscape(buf, tableName)
 	buf = append(buf, '`', ' ')
 	buf = append(buf, "SET ("...)
 	buf = append(buf, settings.ToYQL()...)
@@ -402,7 +394,7 @@ func prepareSetNewTTLSettingsQuery(tableName string, settings *TTL) string {
 func prepareKeyBloomFilterQuery(tableName string, enabled bool) string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, "ALTER TABLE `"...)
-	buf = appendWithEscape(buf, tableName)
+	buf = helpers.AppendWithEscape(buf, tableName)
 	buf = append(buf, '`', ' ')
 	buf = append(buf, "SET (\n"...)
 	buf = append(buf, "KEY_BLOOM_FILTER = "...)
@@ -422,7 +414,7 @@ func prepareNewPartitioningSettingsQuery(
 ) string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, "ALTER TABLE `"...)
-	buf = appendWithEscape(buf, tableName)
+	buf = helpers.AppendWithEscape(buf, tableName)
 	buf = append(buf, '`', ' ')
 	buf = append(buf, "SET (\n"...)
 
@@ -468,7 +460,7 @@ func prepareNewPartitioningSettingsQuery(
 			buf = append(buf, ',', '\n')
 		}
 		buf = append(buf, "READ_REPLICAS_SETTINGS = \""...)
-		buf = appendWithEscape(buf, readReplicaSettings)
+		buf = helpers.AppendWithEscape(buf, readReplicaSettings)
 		buf = append(buf, '"')
 	}
 	buf = append(buf, '\n', ')')
@@ -476,48 +468,9 @@ func prepareNewPartitioningSettingsQuery(
 	return string(buf)
 }
 
-func prepareCDCAlterQuery(tableName string, cdc []*ChangeDataCaptureSettings) string {
-	buf := make([]byte, 0, defaultRequestCapacity)
-	for i := 0; i < len(cdc); i++ {
-		buf = append(buf, "ALTER TABLE `"...)
-		buf = appendWithEscape(buf, tableName)
-		buf = append(buf, '`', ' ')
-		buf = append(buf, "ADD CHANGEFEED `"...)
-		buf = appendWithEscape(buf, cdc[i].Name)
-		buf = append(buf, '`', ' ')
-		buf = append(buf, "WITH ("...)
-		buf = append(buf, '\n')
-		buf = append(buf, "MODE = \""...)
-		buf = append(buf, cdc[i].Mode...)
-		buf = append(buf, '"')
-		if cdc[i].Format != nil {
-			buf = append(buf, ',', '\n')
-			buf = append(buf, "FORMAT = \""...)
-			buf = append(buf, (*cdc[i].Format)...)
-			buf = append(buf, '"')
-		}
-		if cdc[i].VirtualTimestamps != nil {
-			buf = append(buf, ',', '\n')
-			buf = append(buf, "VIRTUAL_TIMESTAMPS = "...)
-			if *cdc[i].VirtualTimestamps {
-				buf = append(buf, "true"...)
-			} else {
-				buf = append(buf, "false"...)
-			}
-		}
-		if cdc[i].RetentionPeriod != nil {
-			buf = append(buf, ',', '\n')
-			buf = append(buf, "RETENTION_PERIOD = Interval(\""...)
-			buf = appendWithEscape(buf, *cdc[i].RetentionPeriod)
-			buf = append(buf, '"', ')')
-		}
-		buf = append(buf, '\n', ')')
-		if i != len(cdc)-1 {
-			buf = append(buf, ';', '\n')
-		}
-	}
-	return string(buf)
-}
+//func prepareCDCAlterQuery(tableName string, cdc []*ChangeDataCaptureSettings) string {
+
+//}
 
 func PrepareAlterRequest(diff *tableDiff) string {
 	if diff == nil {
@@ -587,7 +540,7 @@ func PrepareAlterRequest(diff *tableDiff) string {
 func PrepareDropTableRequest(tableName string) string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, "DROP TABLE `"...)
-	buf = appendWithEscape(buf, tableName)
+	buf = helpers.AppendWithEscape(buf, tableName)
 	buf = append(buf, '`')
 	return string(buf)
 }

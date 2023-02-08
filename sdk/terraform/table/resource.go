@@ -269,36 +269,5 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:     schema.TypeString,
 			Optional: true,
 		},
-		"changefeed": {
-			Type:     schema.TypeList,
-			Optional: true,
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"name": {
-						Type:         schema.TypeString,
-						Required:     true,
-						ValidateFunc: validation.NoZeroValues,
-					},
-					"mode": {
-						Type:         schema.TypeString,
-						Required:     true,
-						ValidateFunc: validation.NoZeroValues,
-					},
-					"format": {
-						Type:     schema.TypeString,
-						Optional: true,
-					},
-					"virtual_timestamps": {
-						Type:     schema.TypeBool,
-						Optional: true,
-					},
-					"retention_period": {
-						Type:         schema.TypeString,
-						Optional:     true,
-						ValidateFunc: validation.NoZeroValues,
-					},
-				},
-			},
-		},
 	}
 }

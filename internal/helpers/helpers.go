@@ -36,3 +36,13 @@ func ParseYDBDatabaseEndpoint(endpoint string) (baseEP, databasePath string, use
 	}
 	return parts[2], dbSplit[1], useTLS, nil
 }
+
+func AppendWithEscape(buf []byte, s string) []byte {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '"' || s[i] == '/' {
+			buf = append(buf, '\\')
+		}
+		buf = append(buf, s[i])
+	}
+	return buf
+}

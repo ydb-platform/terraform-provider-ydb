@@ -30,8 +30,9 @@ func Provider() *schema.Provider {
 			"ydb_table": ydbTableDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"ydb_topic": ydbTopicResource(),
-			"ydb_table": ydbTableResource(),
+			"ydb_topic":            ydbTopicResource(),
+			"ydb_table":            ydbTableResource(),
+			"ydb_table_changefeed": ydbChangeFeedResource(),
 		},
 	}
 
