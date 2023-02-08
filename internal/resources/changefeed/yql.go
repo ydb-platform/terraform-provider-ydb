@@ -39,3 +39,15 @@ func PrepareCreateRequest(cdc *ChangeDataCaptureSettings) string {
 	buf = append(buf, '\n', ')')
 	return string(buf)
 }
+
+func PrepareDropRequest(tablePath, cdcName string) string {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "ALTER TABLE `"...)
+	buf = helpers.AppendWithEscape(buf, tablePath)
+	buf = append(buf, '`', ' ')
+	buf = append(buf, "DROP CHANGEFEED `"...)
+	buf = helpers.AppendWithEscape(buf, cdcName)
+	buf = append(buf, '`')
+
+	return string(buf)
+}
