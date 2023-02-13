@@ -152,40 +152,6 @@ func ResourceSchema() map[string]*schema.Schema {
 				ValidateFunc: validation.NoZeroValues, // TODO(shmel1k@): think about validate func
 			},
 		},
-		"index": {
-			Type:     schema.TypeList,
-			Optional: true,
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"name": {
-						Type:         schema.TypeString,
-						Required:     true,
-						ValidateFunc: validation.NoZeroValues,
-					},
-					"type": {
-						Type:         schema.TypeString,
-						Optional:     true,
-						ValidateFunc: validation.NoZeroValues,
-					},
-					"columns": {
-						Type:     schema.TypeList,
-						Required: true,
-						Elem: &schema.Schema{
-							Type:         schema.TypeString,
-							ValidateFunc: validation.NoZeroValues,
-						},
-					},
-					"cover": {
-						Type:     schema.TypeList,
-						Optional: true,
-						Elem: &schema.Schema{
-							Type:         schema.TypeString,
-							ValidateFunc: validation.NoZeroValues,
-						},
-					},
-				},
-			},
-		},
 		"ttl": {
 			Type:     schema.TypeSet,
 			Optional: true,

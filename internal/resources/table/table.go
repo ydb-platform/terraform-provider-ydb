@@ -98,7 +98,6 @@ type Resource struct {
 	Attributes           map[string]string
 	Family               []*Family
 	Columns              []*Column
-	Indexes              []*Index
 	PrimaryKey           *PrimaryKey
 	TTL                  *TTL
 	ReplicationSettings  *ReplicationSettings
@@ -206,7 +205,6 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 	}
 
 	columns := expandColumns(d)
-	indexes := expandIndexes(d)
 	pk := expandPrimaryKey(d)
 	families := expandColumnFamilies(d)
 	attributes := expandAttributes(d)
@@ -222,8 +220,6 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand table partitioning settings: %w", err)
 	}
-
-	// cdcSettings := expandChangeDataCaptureSettings(d)
 
 	replicasSettings := expandTableReplicasSettings(d)
 
@@ -252,7 +248,6 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		Family:           families,
 		// ChangeFeeds:      cdcSettings,
 		Columns: columns,
-		Indexes: indexes,
 		PrimaryKey: &PrimaryKey{
 			Columns: pk,
 		},
@@ -307,26 +302,6 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 		pk = append(pk, p)
 	}
 	_ = d.Set("primary_key", pk)
-
-	indexes := make([]interface{}, 0, len(desc.Indexes))
-	for _, idx := range desc.Indexes {
-		mp := make(map[string]interface{})
-		mp["name"] = idx.Name
-		// TODO(shmel1k@): index type?
-		cols := make([]interface{}, 0, len(idx.IndexColumns))
-		for _, c := range idx.IndexColumns {
-			cols = append(cols, c)
-		}
-		mp["columns"] = cols
-
-		covers := make([]interface{}, 0, len(idx.DataColumns))
-		for _, c := range idx.DataColumns {
-			covers = append(covers, c)
-		}
-		mp["covers"] = covers
-		indexes = append(indexes, mp)
-	}
-	_ = d.Set("index", indexes)
 
 	if desc.TimeToLiveSettings != nil {
 		var ttlSettings []interface{}

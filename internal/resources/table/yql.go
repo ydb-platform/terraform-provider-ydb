@@ -32,53 +32,6 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 		req = append(req, '\n')
 	}
 
-	haveIndex := false
-	for _, v := range r.Indexes {
-		if haveIndex {
-			req = append(req, ',')
-			req = append(req, '\n')
-		}
-		haveIndex = true
-		req = appendIndent(req, indent)
-		req = append(req, "INDEX"...)
-		req = append(req, ' ')
-		req = append(req, '`')
-		req = helpers.AppendWithEscape(req, v.Name)
-		req = append(req, '`')
-		req = append(req, ' ')
-		req = append(req, "GLOBAL"...)
-		if v.Type == "global_async" { // TODO(shmel1k@): to consts
-			req = append(req, " ASYNC"...)
-		} else {
-			req = append(req, " SYNC"...)
-		}
-		req = append(req, " ON "...)
-		req = append(req, '(')
-		for _, c := range v.Columns {
-			req = append(req, '`')
-			req = helpers.AppendWithEscape(req, c)
-			req = append(req, '`', ',')
-		}
-		req[len(req)-1] = ')' // NOTE(shmel1k@): remove last column
-		if len(v.Cover) > 0 {
-			req = append(req, ' ')
-			req = append(req, "COVER"...)
-			req = append(req, ' ')
-			req = append(req, '(')
-			for _, c := range v.Cover {
-				req = append(req, '`')
-				req = helpers.AppendWithEscape(req, c)
-				req = append(req, '`')
-				req = append(req, ',')
-			}
-			req[len(req)-1] = ')'
-		}
-	}
-	if len(r.Indexes) > 0 {
-		req = append(req, ',')
-		req = append(req, '\n')
-	}
-
 	req = appendIndent(req, indent)
 	req = append(req, "PRIMARY KEY"...)
 	req = append(req, ' ')
@@ -291,54 +244,6 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	return string(req)
 }
 
-func prepareDropIndexQuery(tableName string, indexToDrop string) string {
-	req := []byte("ALTER TABLE `")
-	req = helpers.AppendWithEscape(req, tableName)
-	req = append(req, '`', ' ')
-	req = append(req, "DROP INDEX `"...)
-	req = helpers.AppendWithEscape(req, indexToDrop)
-	req = append(req, '`')
-	return string(req)
-}
-
-func prepareAddIndexQuery(tableName string, indexToAdd *Index) string {
-	req := []byte("ALTER TABLE `")
-	req = helpers.AppendWithEscape(req, tableName)
-	req = append(req, '`', ' ')
-	req = append(req, "ADD INDEX `"...)
-	req = helpers.AppendWithEscape(req, indexToAdd.Name)
-	req = append(req, '`', ' ')
-	// TODO(shmel1k@): add ToYQL for index
-	if indexToAdd.Type == "global_async" { // TODO(shmel1k@): move to consts
-		req = append(req, "GLOBAL ASYNC ON ("...)
-	} else {
-		req = append(req, "GLOBAL SYNC ON ("...)
-	}
-	for i := 0; i < len(indexToAdd.Columns); i++ {
-		req = append(req, '`')
-		req = helpers.AppendWithEscape(req, indexToAdd.Columns[i])
-		req = append(req, '`')
-		if i != len(indexToAdd.Columns)-1 {
-			req = append(req, ',', ' ')
-		}
-	}
-	req = append(req, ')')
-	if len(indexToAdd.Cover) > 0 {
-		req = append(req, " COVER ("...)
-		for i := 0; i < len(indexToAdd.Cover); i++ {
-			req = append(req, '`')
-			req = helpers.AppendWithEscape(req, indexToAdd.Cover[i])
-			req = append(req, '`')
-			if i != len(indexToAdd.Cover)-1 {
-				req = append(req, ',', ' ')
-			}
-		}
-		req = append(req, ')')
-	}
-
-	return string(req)
-}
-
 func prepareAddColumnsQuery(tableName string, columnsToAdd []*Column) string {
 	req := []byte("ALTER TABLE `")
 	req = helpers.AppendWithEscape(req, tableName)
@@ -479,33 +384,12 @@ func PrepareAlterRequest(diff *tableDiff) string {
 
 	req := make([]byte, 0, defaultRequestCapacity)
 	needSemiColon := false
-	if len(diff.IndexToDrop) > 0 {
-		needSemiColon = true
-		for i, v := range diff.IndexToDrop {
-			req = append(req, prepareDropIndexQuery(diff.TableName, v)...)
-			if i != len(diff.IndexToDrop)-1 {
-				req = append(req, ';', '\n')
-			}
-		}
-	}
 	if len(diff.ColumnsToAdd) > 0 {
 		if needSemiColon {
 			req = append(req, ';', '\n')
 		}
 		needSemiColon = true
 		req = append(req, prepareAddColumnsQuery(diff.TableName, diff.ColumnsToAdd)...)
-	}
-	if len(diff.IndexToCreate) > 0 {
-		if needSemiColon {
-			req = append(req, ';', '\n')
-		}
-		needSemiColon = true
-		for i, v := range diff.IndexToCreate {
-			req = append(req, prepareAddIndexQuery(diff.TableName, v)...)
-			if i != len(diff.IndexToCreate)-1 {
-				req = append(req, ';', '\n')
-			}
-		}
 	}
 	if diff.NewTTLSettings != nil {
 		if needSemiColon {

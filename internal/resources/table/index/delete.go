@@ -1,4 +1,4 @@
-package changefeed
+package index
 
 import (
 	"context"
@@ -10,13 +10,13 @@ import (
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-type dropCDCParams struct {
+type dropIndexParams struct {
 	name             string
 	databaseEndpoint string
 	tablePath        string
 }
 
-func (h *handler) dropCDC(ctx context.Context, params dropCDCParams) diag.Diagnostics {
+func (h *handler) dropIndex(ctx context.Context, params dropIndexParams) diag.Diagnostics {
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: params.databaseEndpoint,
 		Token:            h.token,
@@ -35,7 +35,7 @@ func (h *handler) dropCDC(ctx context.Context, params dropCDCParams) diag.Diagno
 	}()
 
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		return s.ExecuteSchemeQuery(ctx, PrepareDropRequest(params.tablePath, params.name))
+		return s.ExecuteSchemeQuery(ctx, prepareDropRequest(params.tablePath, params.name))
 	})
 	if err != nil {
 		return diag.FromErr(err)
@@ -44,14 +44,13 @@ func (h *handler) dropCDC(ctx context.Context, params dropCDCParams) diag.Diagno
 }
 
 func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
+	indexResource, err := indexResourceSchemaToIndexResource(d)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-
-	return h.dropCDC(ctx, dropCDCParams{
-		name:             cdcResource.Name,
-		databaseEndpoint: cdcResource.DatabaseEndpoint,
-		tablePath:        cdcResource.TablePath,
+	return h.dropIndex(ctx, dropIndexParams{
+		name:             indexResource.Name,
+		databaseEndpoint: indexResource.ConnectionString,
+		tablePath:        indexResource.TablePath,
 	})
 }

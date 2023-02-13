@@ -65,7 +65,7 @@ func dataSourceYDBTableChangefeedRead(ctx context.Context, d *schema.ResourceDat
 	return changefeed.ResourceReadFunc(cb)(ctx, d, meta)
 }
 
-func ydbChangeFeedResource() *schema.Resource {
+func ydbTableChangeFeedResource() *schema.Resource {
 	return &schema.Resource{
 		Schema:        changefeed.ResourceSchema(),
 		SchemaVersion: 0,

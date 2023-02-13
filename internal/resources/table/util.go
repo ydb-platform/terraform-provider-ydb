@@ -23,8 +23,12 @@ func isFloatColumn(typ string) bool {
 	return typ == "Float" || typ == "Decimal" || typ == "Double"
 }
 
+func isUTF8Column(typ string) bool {
+	return typ == "Utf8"
+}
+
 func isStringColumn(typ string) bool {
-	return typ == "Utf8" || typ == "Bytes"
+	return typ == "String" || typ == "Bytes" || typ == "Optional<String>"
 }
 
 func parsePartitionKey(k string, typ string) (interface{}, error) {
@@ -37,7 +41,7 @@ func parsePartitionKey(k string, typ string) (interface{}, error) {
 	if isFloatColumn(typ) {
 		return strconv.ParseFloat(k, 64)
 	}
-	if isStringColumn(typ) {
+	if isStringColumn(typ) || isUTF8Column(typ) {
 		return k, nil
 	}
 	if isBoolColumn(typ) {
@@ -67,42 +71,6 @@ func expandColumns(d *schema.ResourceData) []*Column {
 	}
 
 	return columns
-}
-
-func expandIndexes(d *schema.ResourceData) []*Index {
-	indexesRaw := d.Get("index")
-	if indexesRaw == nil {
-		return nil
-	}
-
-	raw := indexesRaw.([]interface{})
-	indexes := make([]*Index, 0, len(raw))
-	for _, rw := range raw {
-		r := rw.(map[string]interface{})
-		name := r["name"].(string)
-		typ := r["type"].(string)
-		colsRaw := r["columns"].([]interface{})
-		colsArr := make([]string, 0, len(colsRaw))
-		for _, c := range colsRaw {
-			colsArr = append(colsArr, c.(string))
-		}
-
-		var coverArr []string
-		if r["covers"] != nil {
-			for _, c := range r["covers"].([]interface{}) {
-				coverArr = append(coverArr, c.(string))
-			}
-		}
-
-		indexes = append(indexes, &Index{
-			Name:    name,
-			Type:    typ,
-			Columns: colsArr,
-			Cover:   coverArr,
-		})
-	}
-
-	return indexes
 }
 
 func expandPrimaryKey(d *schema.ResourceData) []string {

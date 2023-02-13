@@ -53,20 +53,10 @@ func TestPrepareCreateRequest(t *testing.T) {
 						"mir", "vasya",
 					},
 				},
-				Indexes: []*Index{
-					{
-						Name: "indexname",
-						Type: "global_async",
-						Columns: []string{
-							"vasya",
-						},
-					},
-				},
 			},
 			expected: "CREATE TABLE `privet`(" + "\n" +
 				"\t`mir` Utf8" + "," + "\n" +
 				"\t`vasya` Utf8" + "," + "\n" +
-				"\tINDEX `indexname` GLOBAL ASYNC ON (`vasya`)," + "\n" +
 				"\tPRIMARY KEY (`mir`,`vasya`)" + "\n" +
 				")\n",
 		},
@@ -93,24 +83,11 @@ func TestPrepareCreateRequest(t *testing.T) {
 						"mir", "vasya",
 					},
 				},
-				Indexes: []*Index{
-					{
-						Name: "indexname",
-						Type: "global_async",
-						Columns: []string{
-							"vasya",
-						},
-						Cover: []string{
-							"cover",
-						},
-					},
-				},
 			},
 			expected: "CREATE TABLE `privet\\/hello`(" + "\n" +
 				"\t`mir` Utf8" + "," + "\n" +
 				"\t`vasya` Utf8" + "," + "\n" +
 				"\t`cover` Uint32" + "," + "\n" +
-				"\tINDEX `indexname` GLOBAL ASYNC ON (`vasya`) COVER (`cover`)," + "\n" +
 				"\tPRIMARY KEY (`mir`,`vasya`)" + "\n" +
 				")\n",
 		},
@@ -270,108 +247,6 @@ func TestPrepareCreateRequest(t *testing.T) {
 		v := v
 		t.Run(v.testName, func(t *testing.T) {
 			got := PrepareCreateRequest(v.resource)
-			assert.Equal(t, v.expected, got)
-		})
-	}
-}
-
-func TestPrepareDropIndexQuery(t *testing.T) {
-	testData := []struct {
-		testName    string
-		tableName   string
-		indexToDrop string
-		expected    string
-	}{
-		{
-			testName:    "index to drop without escape symbols",
-			tableName:   "table",
-			indexToDrop: "privet",
-			expected:    "ALTER TABLE `table` DROP INDEX `privet`",
-		},
-		{
-			testName:    "index to drop with escape symbols",
-			tableName:   "table",
-			indexToDrop: "\"privet",
-			expected:    "ALTER TABLE `table` DROP INDEX `\\\"privet`",
-		},
-	}
-
-	for _, v := range testData {
-		v := v
-		t.Run(v.testName, func(t *testing.T) {
-			got := prepareDropIndexQuery(v.tableName, v.indexToDrop)
-			assert.Equal(t, v.expected, got)
-		})
-	}
-}
-
-func TestPrepareAddIndexQuery(t *testing.T) {
-	testData := []struct {
-		testName  string
-		tableName string
-		index     Index
-		expected  string
-	}{
-		{
-			testName:  "async index without covers",
-			tableName: "table",
-			index: Index{
-				Name: "index_name",
-				Type: "global_async",
-				Columns: []string{
-					"a", "b", "c",
-				},
-			},
-			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL ASYNC ON (`a`, `b`, `c`)",
-		},
-		{
-			testName:  "sync index without covers",
-			tableName: "table",
-			index: Index{
-				Name: "index_name",
-				Type: "global_sync",
-				Columns: []string{
-					"a", "b", "c",
-				},
-			},
-			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL SYNC ON (`a`, `b`, `c`)",
-		},
-		{
-			testName:  "async index with covers",
-			tableName: "table",
-			index: Index{
-				Name: "index_name",
-				Type: "global_async",
-				Columns: []string{
-					"a", "b", "c",
-				},
-				Cover: []string{
-					"d", "e", "f",
-				},
-			},
-			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL ASYNC ON (`a`, `b`, `c`) COVER (`d`, `e`, `f`)",
-		},
-		{
-			testName:  "sync index with covers",
-			tableName: "table",
-			index: Index{
-				Name: "index_name",
-				Type: "global_sync",
-				Columns: []string{
-					"a", "b", "c",
-				},
-				Cover: []string{
-					"d", "e", "f",
-				},
-			},
-			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL SYNC ON (`a`, `b`, `c`) COVER (`d`, `e`, `f`)",
-		},
-	}
-
-	for _, v := range testData {
-		v := v
-		t.Run(v.testName, func(t *testing.T) {
-			got := prepareAddIndexQuery(v.tableName, &v.index)
 			assert.Equal(t, v.expected, got)
 		})
 	}
@@ -696,46 +571,6 @@ func TestPrepareAlterRequest(t *testing.T) {
 			expected: "",
 		},
 		{
-			testName: "only drop indexes",
-			diff: &tableDiff{
-				TableName: "abacaba",
-				IndexToDrop: []string{
-					"a",
-				},
-			},
-			expected: "ALTER TABLE `abacaba` DROP INDEX `a`",
-		},
-		{
-			testName: "only create indexes",
-			diff: &tableDiff{
-				TableName: "abacaba",
-				IndexToCreate: []*Index{
-					{
-						Name: "a",
-						Type: "global_sync",
-						Columns: []string{
-							"a", "b", "c",
-						},
-						Cover: []string{
-							"d", "e", "f",
-						},
-					},
-					{
-						Name: "b",
-						Type: "global_async",
-						Columns: []string{
-							"b", "a", "c",
-						},
-						Cover: []string{
-							"d", "e", "f",
-						},
-					},
-				},
-			},
-			expected: "ALTER TABLE `abacaba` ADD INDEX `a` GLOBAL SYNC ON (`a`, `b`, `c`) COVER (`d`, `e`, `f`);\n" +
-				"ALTER TABLE `abacaba` ADD INDEX `b` GLOBAL ASYNC ON (`b`, `a`, `c`) COVER (`d`, `e`, `f`)",
-		},
-		{
 			testName: "only add columns",
 			diff: &tableDiff{
 				TableName: "abacaba",
@@ -755,25 +590,6 @@ func TestPrepareAlterRequest(t *testing.T) {
 				},
 			},
 			expected: "ALTER TABLE `abacaba` ADD COLUMN `a` Bool FAMILY `my_very_own_family` NOT NULL, ADD COLUMN `b` Utf8 FAMILY `my_very_own_family` NOT NULL",
-		},
-		{
-			testName: "add columns with index drop",
-			diff: &tableDiff{
-				TableName: "abacaba",
-				ColumnsToAdd: []*Column{
-					{
-						Name:    "a",
-						Type:    "Utf8",
-						Family:  "my_family",
-						NotNull: true,
-					},
-				},
-				IndexToDrop: []string{
-					"b",
-				},
-			},
-			expected: "ALTER TABLE `abacaba` DROP INDEX `b`;\n" +
-				"ALTER TABLE `abacaba` ADD COLUMN `a` Utf8 FAMILY `my_family` NOT NULL",
 		},
 		{
 			testName: "change only partitioning settings",
@@ -830,31 +646,6 @@ func TestPrepareAlterRequest(t *testing.T) {
 						NotNull: true,
 					},
 				},
-				IndexToDrop: []string{
-					"d", "e", "f",
-				},
-				IndexToCreate: []*Index{
-					{
-						Name: "idx",
-						Type: "global_sync",
-						Columns: []string{
-							"a", "b",
-						},
-						Cover: []string{
-							"d", "e", "f",
-						},
-					},
-					{
-						Name: "idx_2",
-						Type: "global_async",
-						Columns: []string{
-							"b", "a",
-						},
-						Cover: []string{
-							"d", "e", "f",
-						},
-					},
-				},
 				NewTTLSettings: &TTL{
 					ColumnName:     "d",
 					ExpireInterval: "PT0S",
@@ -867,12 +658,7 @@ func TestPrepareAlterRequest(t *testing.T) {
 				},
 				ReadReplicasSettings: "abacaba",
 			},
-			expected: "ALTER TABLE `abacaba` DROP INDEX `d`;\n" +
-				"ALTER TABLE `abacaba` DROP INDEX `e`;\n" +
-				"ALTER TABLE `abacaba` DROP INDEX `f`;\n" +
-				"ALTER TABLE `abacaba` ADD COLUMN `a` Bool FAMILY `my_family` NOT NULL, ADD COLUMN `b` Utf8 FAMILY `my_family` NOT NULL;\n" +
-				"ALTER TABLE `abacaba` ADD INDEX `idx` GLOBAL SYNC ON (`a`, `b`) COVER (`d`, `e`, `f`);\n" +
-				"ALTER TABLE `abacaba` ADD INDEX `idx_2` GLOBAL ASYNC ON (`b`, `a`) COVER (`d`, `e`, `f`);\n" +
+			expected: "ALTER TABLE `abacaba` ADD COLUMN `a` Bool FAMILY `my_family` NOT NULL, ADD COLUMN `b` Utf8 FAMILY `my_family` NOT NULL;\n" +
 				"ALTER TABLE `abacaba` RESET (TTL);\n" +
 				"ALTER TABLE `abacaba` SET (TTL = Interval(\"PT0S\") ON `d`);\n" +
 				"ALTER TABLE `abacaba` SET (\n" +

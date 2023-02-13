@@ -12,8 +12,6 @@ import (
 type tableDiff struct {
 	TableName                 string
 	ColumnsToAdd              []*Column
-	IndexToDrop               []string
-	IndexToCreate             []*Index
 	NewTTLSettings            *TTL
 	NewPartitioningSettings   *PartitioningSettings
 	NewKeyBloomFilterSettings *bool
@@ -119,12 +117,6 @@ func prepareTableDiff(d *schema.ResourceData, desc options.Description) (*tableD
 			return nil, err
 		}
 		diff.ColumnsToAdd = newColumns
-	}
-	if d.HasChange("index") {
-		rIndexes := expandIndexes(d)
-		indexesToDrop, indexesToCreate := checkIndexDiff(rIndexes, desc.Indexes)
-		diff.IndexToDrop = indexesToDrop
-		diff.IndexToCreate = indexesToCreate
 	}
 	if d.HasChange("ttl") {
 		// TODO(shmel1k@): add option like 'just delete ttl'
