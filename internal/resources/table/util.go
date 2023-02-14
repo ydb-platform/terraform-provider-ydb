@@ -50,8 +50,8 @@ func parsePartitionKey(k string, typ string) (interface{}, error) {
 	return nil, fmt.Errorf("unknown column type %q", typ)
 }
 
-func expandColumns(d *schema.ResourceData) []*Column {
-	columnsRaw := d.Get("column").([]interface{})
+func expandColumns(cols interface{}) []*Column {
+	columnsRaw := cols.([]interface{})
 	columns := make([]*Column, 0, len(columnsRaw))
 	for _, v := range columnsRaw {
 		mp := v.(map[string]interface{})

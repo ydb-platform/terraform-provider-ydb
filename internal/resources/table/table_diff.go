@@ -20,7 +20,7 @@ type tableDiff struct {
 	DropChangeFeed            bool
 }
 
-func checkColumnDiff(rcolumns []*Column, dcolumns []options.Column) ([]*Column, error) {
+func checkColumnDiff(rcolumns []*Column, dcolumns []*Column) ([]*Column, error) {
 	existingColumns := make(map[string]struct{})
 	for _, v := range dcolumns {
 		existingColumns[v.Name] = struct{}{}
@@ -108,11 +108,13 @@ func checkIndexDiff(rindexes []*Index, dindexes []options.IndexDescription) (toD
 	return
 }
 
-func prepareTableDiff(d *schema.ResourceData, desc options.Description) (*tableDiff, error) {
+func prepareTableDiff(d *schema.ResourceData) (*tableDiff, error) {
 	diff := &tableDiff{}
 	if d.HasChange("column") {
-		rColumns := expandColumns(d)
-		newColumns, err := checkColumnDiff(rColumns, desc.Columns)
+		o, n := d.GetChange("column")
+		oColumns := expandColumns(o)
+		nColumns := expandColumns(n)
+		newColumns, err := checkColumnDiff(oColumns, nColumns)
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +126,7 @@ func prepareTableDiff(d *schema.ResourceData, desc options.Description) (*tableD
 	}
 	if d.HasChange("partitioning_settings") {
 		var err error
-		diff.NewPartitioningSettings, err = expandTablePartitioningPolicySettings(d, nil)
+		diff.NewPartitioningSettings, err = expandTablePartitioningPolicySettings(d, nil, nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand new partitioning settings: %w", err)
 		}

@@ -2,19 +2,16 @@ package table
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func prepareAlterRequest(tableName string, d *schema.ResourceData, desc options.Description) (string, error) {
-	diff, err := prepareTableDiff(d, desc)
+func prepareAlterRequest(tableName string, d *schema.ResourceData) (string, error) {
+	diff, err := prepareTableDiff(d)
 	if err != nil {
 		return "", err
 	}
@@ -47,27 +44,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 		_ = db.Close(ctx)
 	}()
 
-	// TODO(shmel1k@): remove copypaste
-	var description options.Description
-	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		description, err = s.DescribeTable(
-			ctx,
-			tableResource.Entity.GetFullEntityPath(),
-			options.WithPartitionStats(),
-			options.WithShardKeyBounds(),
-			options.WithTableStats(),
-		)
-		return err
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "SCHEME_ERROR") {
-			d.SetId("")
-			return nil
-		}
-		return diag.FromErr(fmt.Errorf("failed to describe table %q: %w", tableResource.Path, err))
-	}
-
-	request, err := prepareAlterRequest(tableResource.Path, d, description)
+	request, err := prepareAlterRequest(tableResource.Path, d)
 	if err != nil {
 		return diag.FromErr(err)
 	}

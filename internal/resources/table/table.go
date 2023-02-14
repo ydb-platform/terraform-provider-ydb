@@ -3,9 +3,11 @@ package table
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 )
@@ -157,13 +159,25 @@ func expandPartitionAtKeys(p []interface{}, primaryKeyColumns []*Column) ([]*Par
 	return res, nil
 }
 
-func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Column) (p *PartitioningSettings, err error) {
+func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Column, primaryKeyColumns []string) (p *PartitioningSettings, err error) {
 	v, ok := d.GetOk("partitioning_settings")
 	if !ok {
 		return
 	}
 
 	p = &PartitioningSettings{}
+
+	pk := make(map[string]struct{})
+	for _, v := range primaryKeyColumns {
+		pk[v] = struct{}{}
+	}
+
+	primaryKeyCols := make([]*Column, 0, len(primaryKeyColumns))
+	for _, v := range columns {
+		if _, ok := pk[v.Name]; ok {
+			primaryKeyCols = append(primaryKeyCols, v)
+		}
+	}
 
 	pSet := v.(*schema.Set)
 	for _, l := range pSet.List() {
@@ -172,7 +186,7 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 			p.PartitionsCount = partitionsCount
 		}
 		if explicitPartitions, ok := m["partition_at_keys"].([]interface{}); ok {
-			p.PartitionAtKeys, err = expandPartitionAtKeys(explicitPartitions, columns)
+			p.PartitionAtKeys, err = expandPartitionAtKeys(explicitPartitions, primaryKeyCols)
 			if err != nil {
 				return nil, err
 			}
@@ -204,7 +218,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		}
 	}
 
-	columns := expandColumns(d)
+	columns := expandColumns(d.Get("column"))
 	pk := expandPrimaryKey(d)
 	families := expandColumnFamilies(d)
 	attributes := expandAttributes(d)
@@ -216,7 +230,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		return nil, fmt.Errorf("failed to parse database endpoint: %w", err)
 	}
 
-	partitioningSettings, err := expandTablePartitioningPolicySettings(d, columns)
+	partitioningSettings, err := expandTablePartitioningPolicySettings(d, columns, pk)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand table partitioning settings: %w", err)
 	}
@@ -283,6 +297,24 @@ func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.P
 	return output
 }
 
+func unwrapType(t types.Type) (typ string, notNull bool) {
+	yqlStr := t.Yql()
+	notNull = true
+
+	if strings.HasPrefix(yqlStr, "Optional<") {
+		notNull = false
+		yqlStr = strings.TrimPrefix(yqlStr, "Optional<")
+		yqlStr = strings.TrimSuffix(yqlStr, ">")
+	}
+
+	typ = yqlStr
+	if typ == "String" {
+		typ = "Bytes"
+	}
+
+	return typ, notNull
+}
+
 func flattenTableDescription(d *schema.ResourceData, desc options.Description, databaseEndpoint string) {
 	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
 	_ = d.Set("connection_string", databaseEndpoint)
@@ -291,7 +323,7 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 	for _, col := range desc.Columns {
 		mp := make(map[string]interface{})
 		mp["name"] = col.Name
-		mp["type"] = col.Type.String() // TODO(shmel1k@): why optional?
+		mp["type"], mp["not_null"] = unwrapType(col.Type) // TODO(shmel1k@): why optional?
 		mp["family"] = col.Family
 		cols = append(cols, mp)
 	}
