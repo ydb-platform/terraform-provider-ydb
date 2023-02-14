@@ -90,7 +90,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:     schema.TypeString,
 			Required: true,
 		},
-		"database_endpoint": {
+		"connection_string": {
 			Type:     schema.TypeString,
 			Required: true,
 		},
@@ -162,11 +162,6 @@ func ResourceSchema() map[string]*schema.Schema {
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
-					// "mode": {
-					// 	Type:         schema.TypeString,
-					// 	Required:     true,
-					// 	ValidateFunc: validation.NoZeroValues,
-					// },
 					"expire_interval": {
 						Type:         schema.TypeString,
 						Required:     true,

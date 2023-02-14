@@ -8,7 +8,6 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
@@ -58,18 +57,9 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 
-	opts := make([]topicoptions.AlterOption, 0, len(cdcResource.Consumers))
-	for _, v := range cdcResource.Consumers {
-		opts = append(opts, topicoptions.AlterWithAddConsumers(topictypes.Consumer{
-			Name:            v.Name,
-			Important:       v.Important,
-			SupportedCodecs: v.SupportedCodecs,
-			ReadFrom:        v.ReadFrom,
-			Attributes:      v.Attributes,
-		}))
-	}
+	opts := topicoptions.AlterWithAddConsumers(cdcResource.Consumers...)
 
-	err = db.Topic().Alter(ctx, cdcResource.TablePath+"/"+cdcResource.Name, opts...)
+	err = db.Topic().Alter(ctx, cdcResource.TablePath+"/"+cdcResource.Name, opts)
 	if err != nil {
 		return diag.FromErr(err)
 	}

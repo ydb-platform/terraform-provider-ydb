@@ -210,7 +210,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 	attributes := expandAttributes(d)
 	ttl := expandTableTTLSettings(d)
 
-	databaseEndpoint := d.Get("database_endpoint").(string)
+	databaseEndpoint := d.Get("connection_string").(string)
 	databaseURL, err := url.Parse(databaseEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse database endpoint: %w", err)
@@ -236,7 +236,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		path = databaseEndpoint + "/" + path
 	} else {
 		path = databaseURL.Query().Get("database") + "/" + d.Get("path").(string)
-		databaseEndpoint = d.Get("database_endpoint").(string)
+		databaseEndpoint = d.Get("connection_string").(string)
 	}
 
 	return &Resource{
@@ -285,7 +285,7 @@ func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.P
 
 func flattenTableDescription(d *schema.ResourceData, desc options.Description, databaseEndpoint string) {
 	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
-	_ = d.Set("database_endpoint", databaseEndpoint)
+	_ = d.Set("connection_string", databaseEndpoint)
 
 	cols := make([]interface{}, 0, len(desc.Columns))
 	for _, col := range desc.Columns {

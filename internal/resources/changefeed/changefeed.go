@@ -3,12 +3,14 @@ package changefeed
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
-	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 )
 
 var (
@@ -39,6 +41,42 @@ type ChangeDataCaptureSettings struct {
 	Consumers         []topictypes.Consumer
 }
 
+func expandConsumers(d *schema.ResourceData) []topictypes.Consumer {
+	v, ok := d.GetOk("consumer")
+	if !ok {
+		return nil
+	}
+
+	pSet := v.(*schema.Set)
+	result := make([]topictypes.Consumer, 0, len(pSet.List()))
+	for _, l := range pSet.List() {
+		consumer := l.(map[string]interface{})
+		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
+		if !ok {
+			for _, vv := range topic.YDBTopicAllowedCodecs {
+				supportedCodecs = append(supportedCodecs, vv)
+			}
+		}
+		consumerName := consumer["name"].(string)
+		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
+		if !ok {
+			startingMessageTS = 0
+		}
+		codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
+		for _, c := range supportedCodecs {
+			codec := c.(string)
+			codecs = append(codecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(codec)])
+		}
+		result = append(result, topictypes.Consumer{
+			Name:            consumerName,
+			SupportedCodecs: codecs,
+			ReadFrom:        time.Unix(int64(startingMessageTS/1000), 0),
+		})
+	}
+
+	return result
+}
+
 func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*ChangeDataCaptureSettings, error) {
 	var entity *helpers.YDBEntity
 	var err error
@@ -51,7 +89,7 @@ func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*Chan
 
 	settings := &ChangeDataCaptureSettings{
 		Entity:           entity,
-		DatabaseEndpoint: d.Get("database_endpoint").(string),
+		DatabaseEndpoint: d.Get("connection_string").(string),
 		Name:             d.Get("name").(string),
 		Mode:             d.Get("mode").(string),
 		TablePath:        d.Get("table_path").(string),
@@ -65,7 +103,7 @@ func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*Chan
 	if retentionPeriod, ok := d.Get("retention_period").(string); ok && retentionPeriod != "" {
 		settings.RetentionPeriod = &retentionPeriod
 	}
-	settings.Consumers = topic.ExpandConsumers(d.Get("consumer").([]interface{}))
+	settings.Consumers = expandConsumers(d)
 
 	return settings, nil
 }
@@ -78,7 +116,7 @@ func flattenCDCDescription(
 	consumers []topictypes.Consumer,
 ) {
 	_ = d.Set("table_path", tablePath)
-	_ = d.Set("database_endpoint", databaseEndpoint)
+	_ = d.Set("connection_string", databaseEndpoint)
 	_ = d.Set("name", cdcDescription.Name)
 	_ = d.Set("mode", changefeedModeToStringMap[cdcDescription.Mode])
 	_ = d.Set("format", changefeedFormatToStringMap[cdcDescription.Format])

@@ -92,7 +92,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
 		},
-		"database_endpoint": {
+		"connection_string": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
@@ -121,7 +121,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			ValidateFunc: validation.NoZeroValues,
 		},
 		"consumer": {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Optional: true,
 			Computed: true,
 			Elem: &schema.Resource{

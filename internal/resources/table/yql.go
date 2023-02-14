@@ -373,10 +373,6 @@ func prepareNewPartitioningSettingsQuery(
 	return string(buf)
 }
 
-//func prepareCDCAlterQuery(tableName string, cdc []*ChangeDataCaptureSettings) string {
-
-//}
-
 func PrepareAlterRequest(diff *tableDiff) string {
 	if diff == nil {
 		return ""
