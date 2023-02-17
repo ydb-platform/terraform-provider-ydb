@@ -502,61 +502,6 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 	}
 }
 
-//func TestPrepareCDCAlterQuery(t *testing.T) {
-//	virtualTimestampsTrue := true
-//	virtualTimestampsFalse := false
-//	formatJSON := "JSON"
-//	retentionPeriod := "PT12H"
-//
-//	testData := []struct {
-//		testName  string
-//		tableName string
-//		cdc       []*ChangeDataCaptureSettings
-//		expected  string
-//	}{
-//		{
-//			testName:  "empty cdc",
-//			tableName: "abacaba",
-//			expected:  "",
-//		},
-//		{
-//			testName:  "multiple cdcs",
-//			tableName: "abacaba",
-//			cdc: []*ChangeDataCaptureSettings{
-//				{
-//					Name:              "cdc",
-//					Mode:              "UPDATES",
-//					Format:            &formatJSON,
-//					RetentionPeriod:   &retentionPeriod,
-//					VirtualTimestamps: &virtualTimestampsTrue,
-//				},
-//				{
-//					Name:              "cdc2",
-//					Mode:              "UPDATES",
-//					Format:            nil,
-//					VirtualTimestamps: &virtualTimestampsFalse,
-//				},
-//			},
-//			expected: "ALTER TABLE `abacaba` ADD CHANGEFEED `cdc` WITH (\n" +
-//				"MODE = \"UPDATES\",\n" +
-//				"FORMAT = \"JSON\",\n" +
-//				"VIRTUAL_TIMESTAMPS = true,\n" +
-//				"RETENTION_PERIOD = Interval(\"PT12H\")\n);\n" +
-//				"ALTER TABLE `abacaba` ADD CHANGEFEED `cdc2` WITH (\n" +
-//				"MODE = \"UPDATES\",\n" +
-//				"VIRTUAL_TIMESTAMPS = false\n)",
-//		},
-//	}
-//
-//	for _, v := range testData {
-//		v := v
-//		t.Run(v.testName, func(t *testing.T) {
-//			got := prepareCDCAlterQuery(v.tableName, v.cdc)
-//			assert.Equal(t, v.expected, got)
-//		})
-//	}
-//}
-
 func TestPrepareAlterRequest(t *testing.T) {
 	newPartitioningBySize := 42
 	newPartitioningByLoad := false

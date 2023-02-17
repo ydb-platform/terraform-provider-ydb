@@ -7,11 +7,11 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
 
 func prepareDropParams(d *schema.ResourceData) dropCDCParams {

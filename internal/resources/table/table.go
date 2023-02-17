@@ -308,8 +308,8 @@ func unwrapType(t types.Type) (typ string, notNull bool) {
 	}
 
 	typ = yqlStr
-	if typ == "String" {
-		typ = "Bytes"
+	if typ == "String" { //nolint
+		typ = "Bytes" //nolint
 	}
 
 	return typ, notNull

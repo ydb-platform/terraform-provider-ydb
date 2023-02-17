@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 )
 
@@ -13,7 +12,7 @@ func TestCheckColumnDiff(t *testing.T) {
 	testData := []struct {
 		testName             string
 		rcolumns             []*Column
-		dcolumns             []options.Column
+		dcolumns             []*Column
 		expectedColumnsToAdd []*Column
 		expectedError        bool
 	}{
@@ -43,7 +42,7 @@ func TestCheckColumnDiff(t *testing.T) {
 					Name: "b",
 				},
 			},
-			dcolumns: []options.Column{
+			dcolumns: []*Column{
 				{
 					Name: "a",
 				},
