@@ -95,7 +95,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Required: true,
 		},
 		"column": {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Required: true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{

@@ -51,9 +51,9 @@ func parsePartitionKey(k string, typ string) (interface{}, error) {
 }
 
 func expandColumns(cols interface{}) []*Column {
-	columnsRaw := cols.([]interface{})
-	columns := make([]*Column, 0, len(columnsRaw))
-	for _, v := range columnsRaw {
+	columnsRaw := cols.(*schema.Set)
+	columns := make([]*Column, 0, len(columnsRaw.List()))
+	for _, v := range columnsRaw.List() {
 		mp := v.(map[string]interface{})
 		family := ""
 		if f, ok := mp["family"].(string); ok {

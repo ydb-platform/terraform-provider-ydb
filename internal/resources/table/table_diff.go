@@ -114,7 +114,7 @@ func prepareTableDiff(d *schema.ResourceData) (*tableDiff, error) {
 		o, n := d.GetChange("column")
 		oColumns := expandColumns(o)
 		nColumns := expandColumns(n)
-		newColumns, err := checkColumnDiff(oColumns, nColumns)
+		newColumns, err := checkColumnDiff(nColumns, oColumns)
 		if err != nil {
 			return nil, err
 		}
