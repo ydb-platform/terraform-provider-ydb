@@ -1,35 +1,52 @@
 package terraform
 
 import (
+	"context"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 type Config struct {
-	YDBEndpoint string
-	YDBToken    string
+	Endpoint string
+	Token    string
 }
 
 func Provider() *schema.Provider {
-	return &schema.Provider{
+	provider := &schema.Provider{
 		Schema: map[string]*schema.Schema{
-			"ydb_endpoint": {
+			"endpoint": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
-			"ydb_token": {
+			"token": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"ydb_topic": ydbTopicDataSource(),
+			"ydb_table": ydbTableDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"ydb_topic": ydbTopicResource(),
+			"ydb_topic":            ydbTopicResource(),
+			"ydb_table":            ydbTableResource(),
+			"ydb_table_changefeed": ydbTableChangeFeedResource(),
+			"ydb_table_index":      ydbTableIndexResource(),
 		},
 	}
+
+	provider.ConfigureContextFunc = configureProvider
+	return provider
+}
+
+func configureProvider(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+	cfg := &Config{
+		Endpoint: d.Get("endpoint").(string),
+		Token:    d.Get("token").(string),
+	}
+	return cfg, nil
 }
 
 func defaultTimeouts() *schema.ResourceTimeout {

@@ -1,4 +1,4 @@
-package table
+package changefeed
 
 import (
 	"context"
@@ -6,16 +6,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	tableResource, err := tableResourceSchemaToTableResource(d)
+	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if tableResource == nil {
+
+	if cdcResource == nil {
 		return diag.Diagnostics{
 			diag.Diagnostic{
 				Severity: diag.Error,
@@ -24,7 +26,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: tableResource.DatabaseEndpoint,
+		DatabaseEndpoint: cdcResource.DatabaseEndpoint,
 		Token:            h.token,
 	})
 	if err != nil {
@@ -40,8 +42,8 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	q := PrepareCreateRequest(tableResource)
-	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+	q := PrepareCreateRequest(cdcResource)
+	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
 		return s.ExecuteSchemeQuery(ctx, q)
 	})
 	if err != nil {
@@ -54,7 +56,14 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 
-	d.SetId(tableResource.DatabaseEndpoint + "/" + tableResource.Path)
+	opts := topicoptions.AlterWithAddConsumers(cdcResource.Consumers...)
+
+	err = db.Topic().Alter(ctx, cdcResource.TablePath+"/"+cdcResource.Name, opts)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	d.SetId(cdcResource.DatabaseEndpoint + "/" + cdcResource.TablePath + "/" + cdcResource.Name)
 
 	return h.Read(ctx, d, meta)
 }

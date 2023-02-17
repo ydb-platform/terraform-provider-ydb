@@ -1,4 +1,4 @@
-package table
+package index
 
 import (
 	"context"
@@ -10,25 +10,14 @@ import (
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func prepareAlterRequest(tableName string, d *schema.ResourceData) (string, error) {
-	diff, err := prepareTableDiff(d)
-	if err != nil {
-		return "", err
-	}
-	diff.TableName = tableName
-
-	query := PrepareAlterRequest(diff)
-	return query, nil
-}
-
-func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
-	tableResource, err := tableResourceSchemaToTableResource(d)
+func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	indexResource, err := indexResourceSchemaToIndexResource(d)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: tableResource.DatabaseEndpoint,
+		DatabaseEndpoint: indexResource.ConnectionString,
 		Token:            h.token,
 	})
 	if err != nil {
@@ -44,22 +33,15 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 		_ = db.Close(ctx)
 	}()
 
-	request, err := prepareAlterRequest(tableResource.Path, d)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	// NOTE(shmel1k@): no query after all checks.
-	if request == "" {
-		return nil
-	}
-
+	q := prepareCreateIndexRequest(indexResource)
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		err = s.ExecuteSchemeQuery(ctx, request)
-		return err
+		return s.ExecuteSchemeQuery(ctx, q)
 	})
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	return nil
+
+	d.SetId(indexResource.ConnectionString + "/" + indexResource.TablePath + "/" + indexResource.Name)
+
+	return h.Read(ctx, d, meta)
 }

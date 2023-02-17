@@ -39,7 +39,7 @@ func ydbTopicDataSource() *schema.Resource {
 func dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
 	cb := func(ctx context.Context) (string, error) {
-		return cfg.YDBToken, nil
+		return cfg.Token, nil
 	}
 
 	return topic.DataSourceReadFunc(cb)(ctx, d, meta)
@@ -48,7 +48,7 @@ func dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta in
 func resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
 	cb := func(ctx context.Context) (string, error) {
-		return cfg.YDBToken, nil
+		return cfg.Token, nil
 	}
 
 	return topic.ResourceCreateFunc(cb)(ctx, d, meta)
@@ -57,7 +57,7 @@ func resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, meta in
 func resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
 	cb := func(ctx context.Context) (string, error) {
-		return cfg.YDBToken, nil
+		return cfg.Token, nil
 	}
 
 	return topic.ResourceReadFunc(cb)(ctx, d, meta)
@@ -66,7 +66,7 @@ func resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta inte
 func resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
 	cb := func(ctx context.Context) (string, error) {
-		return cfg.YDBToken, nil
+		return cfg.Token, nil
 	}
 
 	return topic.ResourceUpdateFunc(cb)(ctx, d, meta)
@@ -75,7 +75,7 @@ func resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta in
 func resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
 	cb := func(ctx context.Context) (string, error) {
-		return cfg.YDBToken, nil
+		return cfg.Token, nil
 	}
 
 	return topic.ResourceDeleteFunc(cb)(ctx, d, meta)

@@ -11,6 +11,9 @@ import (
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 )
 
 type caller struct {
@@ -19,13 +22,13 @@ type caller struct {
 
 func (c *caller) createYDBConnection(
 	ctx context.Context,
-	d ResourceDataProxy,
-	ydbEn *ydbEntity,
+	d helpers.ResourceDataProxy,
+	ydbEn *helpers.YDBEntity,
 ) (ydb.Connection, error) {
 	// TODO(shmel1k@): move to other level.
 	var databaseEndpoint string
 	if ydbEn != nil {
-		databaseEndpoint = ydbEn.prepareFullYDBEndpoint()
+		databaseEndpoint = ydbEn.PrepareFullYDBEndpoint()
 	} else {
 		// NOTE(shmel1k@): resource is not initialized yet.
 		databaseEndpoint = d.Get("database_endpoint").(string)
@@ -39,7 +42,7 @@ func (c *caller) createYDBConnection(
 }
 
 func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceData) diag.Diagnostics {
-	topic, err := parseYDBEntityID(d.Id())
+	topic, err := helpers.ParseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -59,7 +62,7 @@ func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceDa
 		return c.resourceYDBTopicCreate(ctx, d, nil)
 	}
 
-	topicName := topic.getEntityPath()
+	topicName := topic.GetEntityPath()
 	desc, err := topicClient.Describe(ctx, topicName)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
@@ -79,7 +82,7 @@ func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceDa
 }
 
 func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	topic, err := parseYDBEntityID(d.Id())
+	topic, err := helpers.ParseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -93,7 +96,7 @@ func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceDat
 	}()
 	topicClient := ydbClient.Topic()
 
-	topicName := topic.getEntityPath()
+	topicName := topic.GetEntityPath()
 
 	description, err := topicClient.Describe(ctx, topicName)
 	if err != nil {
@@ -123,42 +126,15 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 
 	var supportedCodecs []topictypes.Codec
 	if gotCodecs, ok := d.GetOk("supported_codecs"); !ok {
-		supportedCodecs = ydbTopicDefaultCodecs
+		supportedCodecs = topic.YDBTopicDefaultCodecs
 	} else {
 		for _, c := range gotCodecs.([]interface{}) {
 			cod := c.(string)
-			supportedCodecs = append(supportedCodecs, ydbTopicCodecNameToCodec[cod])
+			supportedCodecs = append(supportedCodecs, topic.YDBTopicCodecNameToCodec[cod])
 		}
 	}
 
-	consumers := make([]topictypes.Consumer, 0, 4)
-	for _, v := range d.Get("consumer").([]interface{}) {
-		consumer := v.(map[string]interface{})
-		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
-		if !ok {
-			for _, vv := range ydbTopicAllowedCodecs {
-				supportedCodecs = append(supportedCodecs, vv)
-			}
-		}
-		consumerName := consumer["name"].(string)
-		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
-		if !ok {
-			startingMessageTS = 0
-		}
-		codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
-		for _, c := range supportedCodecs {
-			codec := c.(string)
-			codecs = append(codecs, ydbTopicCodecNameToCodec[strings.ToLower(codec)])
-		}
-		consumers = append(consumers, topictypes.Consumer{
-			Name:            consumerName,
-			SupportedCodecs: codecs,
-			ReadFrom:        time.Unix(int64(startingMessageTS/1000), 0),
-		})
-		if err != nil {
-			return diag.FromErr(fmt.Errorf("failed to create consumer %q: %w", consumerName, err))
-		}
-	}
+	consumers := topic.ExpandConsumers(d.Get("consumers").([]interface{}))
 
 	err = client.Topic().Create(ctx, d.Get("name").(string),
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
@@ -185,7 +161,7 @@ func (c *caller) resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceD
 
 func (c *caller) resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	_ = meta
-	topic, err := parseYDBEntityID(d.Id())
+	topic, err := helpers.ParseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -198,7 +174,7 @@ func (c *caller) resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceD
 		_ = client.Close(ctx)
 	}()
 
-	topicName := topic.getEntityPath()
+	topicName := topic.GetEntityPath()
 	err = client.Topic().Drop(ctx, topicName)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to delete topic: %w", err))

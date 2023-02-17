@@ -1,4 +1,4 @@
-package table
+package changefeed
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
-	tableResource, err := tableResourceSchemaToTableResource(d)
+func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if tableResource == nil {
+	if cdcResource == nil {
 		return diag.Diagnostics{
 			diag.Diagnostic{
 				Severity: diag.Error,
@@ -25,20 +25,14 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 			},
 		}
 	}
-
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: tableResource.DatabaseEndpoint,
+		DatabaseEndpoint: cdcResource.DatabaseEndpoint,
 		Token:            h.token,
 	})
 	if err != nil {
-		return diag.Diagnostics{
-			diag.Diagnostic{
-				Severity: diag.Error,
-				Summary:  "failed to initialize table client",
-				Detail:   err.Error(),
-			},
-		}
+		return diag.FromErr(err)
 	}
+
 	defer func() {
 		_ = db.Close(ctx)
 	}()
@@ -47,7 +41,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
 		description, err = s.DescribeTable(
 			ctx,
-			tableResource.Entity.GetFullEntityPath(),
+			parseTablePathFromCDCEntity(cdcResource.Entity.GetFullEntityPath()),
 			options.WithPartitionStats(),
 			options.WithShardKeyBounds(),
 			options.WithTableStats(),
@@ -60,13 +54,32 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 			d.SetId("")
 			return nil
 		}
-		return diag.Errorf("failed to describe table %q: %s", tableResource.Path, err)
+		return diag.Errorf("failed to describe table %q: %s", cdcResource.TablePath, err)
 	}
 
 	prefix := "grpc://"
 	if db.Secure() {
 		prefix = "grpcs://"
 	}
-	flattenTableDescription(d, description, prefix+db.Endpoint()+"/?database="+db.Name())
+
+	var cdcDescription options.ChangefeedDescription
+	for _, v := range description.Changefeeds {
+		if v.Name == cdcResource.Name {
+			cdcDescription = v
+			break
+		}
+	}
+	if cdcDescription.Name == "" {
+		// NOTE(shmel1k@): changefeed was not found.
+		d.SetId("")
+		return h.Create(ctx, d, meta)
+	}
+
+	topicDesc, err := db.Topic().Describe(ctx, cdcResource.Entity.GetEntityPath())
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	flattenCDCDescription(d, description.Name, cdcDescription, prefix+db.Endpoint()+"/?database="+db.Name(), topicDesc.Consumers)
 	return nil
 }

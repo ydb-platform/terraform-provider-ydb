@@ -10,7 +10,7 @@ import (
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
+func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
 	tableResource, err := tableResourceSchemaToTableResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -26,7 +26,7 @@ func Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.D
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
-		Token:            tableResource.Token,
+		Token:            h.token,
 	})
 	if err != nil {
 		return diag.Errorf("failed to initialize table client: %s", err)
@@ -36,7 +36,8 @@ func Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.D
 	}()
 
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		return s.DropTable(ctx, tableResource.Path)
+		query := PrepareDropTableRequest(tableResource.Path)
+		return s.ExecuteSchemeQuery(ctx, query)
 	})
 	if err != nil {
 		return diag.Errorf("failed to drop table %q: %s", tableResource.Path, err)
