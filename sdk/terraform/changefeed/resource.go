@@ -91,34 +91,41 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
 		},
 		"connection_string": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
 		},
 		"name": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
 		},
 		"mode": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
 		},
 		"format": {
 			Type:     schema.TypeString,
 			Required: true,
+			ForceNew: true,
 		},
 		"virtual_timestamps": {
 			Type:     schema.TypeBool,
 			Optional: true,
+			ForceNew: true,
 		},
 		"retention_period": {
 			Type:         schema.TypeString,
 			Optional:     true,
 			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
 		},
 		"consumer": {
 			Type:     schema.TypeSet,

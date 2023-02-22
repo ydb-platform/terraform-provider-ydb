@@ -89,9 +89,11 @@ func ResourceSchema() map[string]*schema.Schema {
 		"path": {
 			Type:     schema.TypeString,
 			Required: true,
+			ForceNew: true,
 		},
 		"connection_string": {
 			Type:     schema.TypeString,
+			ForceNew: true,
 			Required: true,
 		},
 		"column": {

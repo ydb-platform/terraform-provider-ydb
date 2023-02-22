@@ -87,33 +87,41 @@ func ResourceDeleteFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 func ResourceSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"table_path": {
-			Type:     schema.TypeString,
-			Required: true,
+			Type:         schema.TypeString,
+			Required:     true,
+			ForceNew:     true,
+			ValidateFunc: validation.NoZeroValues,
 		},
 		"connection_string": {
-			Type:     schema.TypeString,
-			Required: true,
+			Type:         schema.TypeString,
+			Required:     true,
+			ForceNew:     true,
+			ValidateFunc: validation.NoZeroValues,
 		},
 		"name": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
 		},
 		"type": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
 		},
 		"columns": {
 			Type:     schema.TypeList,
 			Required: true,
+			ForceNew: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
 				ValidateFunc: validation.NoZeroValues,
 			},
 		},
 		"cover": {
-			Type:     schema.TypeList,
+			Type: schema.TypeList,
+			// TODO(shmel1k@): set to force new
 			Optional: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,

@@ -2,6 +2,7 @@ package index
 
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -38,6 +39,10 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return err
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "SCHEME_ERROR") {
+			d.SetId("")
+			return nil
+		}
 		return diag.FromErr(err)
 	}
 	var indexDescription options.IndexDescription
