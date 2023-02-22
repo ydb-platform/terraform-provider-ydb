@@ -16,8 +16,7 @@ type tableDiff struct {
 	NewPartitioningSettings   *PartitioningSettings
 	NewKeyBloomFilterSettings *bool
 	ReadReplicasSettings      string
-	AddChangeFeed             bool
-	DropChangeFeed            bool
+	OnlyResetTTL              bool
 }
 
 func checkColumnDiff(rcolumns []*Column, dcolumns []*Column) ([]*Column, error) {
@@ -121,8 +120,10 @@ func prepareTableDiff(d *schema.ResourceData) (*tableDiff, error) {
 		diff.ColumnsToAdd = newColumns
 	}
 	if d.HasChange("ttl") {
-		// TODO(shmel1k@): add option like 'just delete ttl'
 		diff.NewTTLSettings = expandTableTTLSettings(d)
+		if diff.NewTTLSettings == nil {
+			diff.OnlyResetTTL = true
+		}
 	}
 	if d.HasChange("partitioning_settings") {
 		var err error
