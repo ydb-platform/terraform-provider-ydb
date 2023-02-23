@@ -396,6 +396,10 @@ func PrepareAlterRequest(diff *tableDiff) string {
 		req = append(req, ';', '\n')
 		req = append(req, prepareSetNewTTLSettingsQuery(diff.TableName, diff.NewTTLSettings)...)
 	}
+	if diff.OnlyResetTTL {
+		needSemiColon = true
+		req = append(req, prepareResetTTLQuery(diff.TableName)...)
+	}
 	if diff.NewPartitioningSettings != nil || diff.ReadReplicasSettings != "" {
 		if needSemiColon {
 			req = append(req, ';', '\n')

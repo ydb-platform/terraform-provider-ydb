@@ -16,8 +16,9 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
+	connectionString := indexResource.getConnectionString()
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: indexResource.ConnectionString,
+		DatabaseEndpoint: connectionString,
 		Token:            h.token,
 	})
 	if err != nil {
@@ -41,7 +42,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
-	d.SetId(indexResource.ConnectionString + "/" + indexResource.TablePath + "/" + indexResource.Name)
+	d.SetId(indexResource.getConnectionString() + "/" + indexResource.getTablePath() + "/" + indexResource.Name)
 
 	return h.Read(ctx, d, meta)
 }

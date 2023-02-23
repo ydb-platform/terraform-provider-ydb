@@ -17,6 +17,7 @@ type handler struct {
 
 type resource struct {
 	TablePath        string
+	TableEntity      *helpers.YDBEntity
 	ConnectionString string
 	Name             string
 	Type             string
@@ -34,6 +35,16 @@ func indexResourceSchemaToIndexResource(d *schema.ResourceData) (*resource, erro
 			return nil, fmt.Errorf("failed to parse index entity: %w", err)
 		}
 	}
+
+	var tableEntity *helpers.YDBEntity
+	if tableID, ok := d.GetOk("table_id"); ok {
+		en, err := helpers.ParseYDBEntityID(tableID.(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse table_id: %w", err)
+		}
+		tableEntity = en
+	}
+
 	tablePath := d.Get("table_path").(string)
 	connectionString := d.Get("connection_string").(string)
 	name := d.Get("name").(string)
@@ -53,6 +64,7 @@ func indexResourceSchemaToIndexResource(d *schema.ResourceData) (*resource, erro
 
 	return &resource{
 		TablePath:        tablePath,
+		TableEntity:      tableEntity,
 		ConnectionString: connectionString,
 		Name:             name,
 		Type:             typ,
@@ -60,6 +72,22 @@ func indexResourceSchemaToIndexResource(d *schema.ResourceData) (*resource, erro
 		Cover:            coverArr,
 		Entity:           entity,
 	}, nil
+}
+
+func (r *resource) getConnectionString() string {
+	// NOTE(shmel1k@): ConnectionString is set only when no `table_id` is present.
+	if r.ConnectionString != "" {
+		return r.ConnectionString
+	}
+	return r.TableEntity.PrepareFullYDBEndpoint()
+}
+
+func (r *resource) getTablePath() string {
+	// NOTE(shmel1k@): TablePath is set only when no `table_id` is present.
+	if r.TablePath != "" {
+		return r.TablePath
+	}
+	return r.TableEntity.GetEntityPath()
 }
 
 func NewHandler(token string) resources.Handler {
@@ -70,13 +98,12 @@ func NewHandler(token string) resources.Handler {
 
 func flattenIndexDescription(
 	d *schema.ResourceData,
-	tablePath string,
+	indexResource *resource,
 	indexDescription options.IndexDescription,
-	connectionString string,
 ) {
-	_ = d.Set("table_path", tablePath)
-	_ = d.Set("connection_string", connectionString)
-	// TODO(shmel1k@): index type?
+	_ = d.Set("table_path", indexResource.getTablePath())
+	_ = d.Set("connection_string", indexResource.getConnectionString())
+	_ = d.Set("table_id", indexResource.getConnectionString()+"/"+indexResource.getTablePath())
 	_ = d.Set("name", indexDescription.Name)
 	cols := make([]interface{}, 0, len(indexDescription.IndexColumns))
 	for _, c := range indexDescription.IndexColumns {

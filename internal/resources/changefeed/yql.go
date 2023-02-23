@@ -2,10 +2,10 @@ package changefeed
 
 import "github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 
-func PrepareCreateRequest(cdc *ChangeDataCaptureSettings) string {
+func PrepareCreateRequest(cdc *changeDataCaptureSettings) string {
 	buf := make([]byte, 0, 256)
 	buf = append(buf, "ALTER TABLE `"...)
-	buf = helpers.AppendWithEscape(buf, cdc.TablePath)
+	buf = helpers.AppendWithEscape(buf, cdc.getTablePath())
 	buf = append(buf, '`', ' ')
 	buf = append(buf, "ADD CHANGEFEED `"...)
 	buf = helpers.AppendWithEscape(buf, cdc.Name)

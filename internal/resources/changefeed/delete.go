@@ -51,7 +51,7 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, meta inter
 
 	return h.dropCDC(ctx, dropCDCParams{
 		name:             cdcResource.Name,
-		databaseEndpoint: cdcResource.DatabaseEndpoint,
-		tablePath:        cdcResource.TablePath,
+		databaseEndpoint: cdcResource.getConnectionString(),
+		tablePath:        cdcResource.getTablePath(),
 	})
 }

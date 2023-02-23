@@ -54,7 +54,8 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 
-	d.SetId(tableResource.DatabaseEndpoint + "/" + tableResource.Path)
+	id := tableResource.DatabaseEndpoint + "/" + tableResource.Path
+	d.SetId(id)
 
 	return h.Read(ctx, d, meta)
 }

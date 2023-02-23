@@ -14,59 +14,14 @@ import (
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func prepareDropParams(d *schema.ResourceData) dropCDCParams {
-	var databaseEndpoint string
-	if d.HasChange("connection_string") {
-		old, _ := d.GetChange("connection_string")
-		databaseEndpoint = old.(string)
-	} else {
-		databaseEndpoint = d.Get("connection_string").(string)
-	}
-
-	var tablePath string
-	if d.HasChange("table_path") {
-		old, _ := d.GetChange("table_path")
-		tablePath = old.(string)
-	} else {
-		tablePath = d.Get("table_path").(string)
-	}
-
-	var name string
-	if d.HasChange("name") {
-		old, _ := d.GetChange("name")
-		name = old.(string)
-	} else {
-		name = d.Get("name").(string)
-	}
-
-	return dropCDCParams{
-		name:             name,
-		databaseEndpoint: databaseEndpoint,
-		tablePath:        tablePath,
-	}
-}
-
 func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	if d.HasChangeExcept("consumer") {
-		// TODO(shmel1k@): improve deletion behavior.
-		params := prepareDropParams(d)
-		err := h.dropCDC(ctx, params)
-		if err != nil {
-			return err
-		}
-
-		d.SetId("")
-
-		return h.Create(ctx, d, meta)
-	}
-
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: cdcResource.DatabaseEndpoint,
+		DatabaseEndpoint: cdcResource.getConnectionString(),
 		Token:            h.token,
 	})
 	if err != nil {
@@ -82,7 +37,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	topicPath := cdcResource.TablePath + "/" + cdcResource.Name
+	topicPath := cdcResource.getTablePath() + "/" + cdcResource.Name
 	desc, err := db.Topic().Describe(ctx, topicPath)
 	if err != nil {
 		return diag.FromErr(err)
