@@ -50,7 +50,7 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 	return h.dropIndex(ctx, dropIndexParams{
 		name:             indexResource.Name,
-		databaseEndpoint: indexResource.ConnectionString,
-		tablePath:        indexResource.TablePath,
+		databaseEndpoint: indexResource.getConnectionString(),
+		tablePath:        indexResource.getTablePath(),
 	})
 }

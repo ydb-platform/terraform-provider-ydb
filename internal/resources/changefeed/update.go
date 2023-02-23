@@ -21,7 +21,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: cdcResource.DatabaseEndpoint,
+		DatabaseEndpoint: cdcResource.getConnectionString(),
 		Token:            h.token,
 	})
 	if err != nil {
@@ -37,7 +37,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	topicPath := cdcResource.TablePath + "/" + cdcResource.Name
+	topicPath := cdcResource.getTablePath() + "/" + cdcResource.Name
 	desc, err := db.Topic().Describe(ctx, topicPath)
 	if err != nil {
 		return diag.FromErr(err)

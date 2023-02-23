@@ -26,7 +26,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		}
 	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: cdcResource.DatabaseEndpoint,
+		DatabaseEndpoint: cdcResource.getConnectionString(),
 		Token:            h.token,
 	})
 	if err != nil {
@@ -57,11 +57,6 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return diag.Errorf("failed to describe table %q: %s", cdcResource.TablePath, err)
 	}
 
-	prefix := "grpc://"
-	if db.Secure() {
-		prefix = "grpcs://"
-	}
-
 	var cdcDescription options.ChangefeedDescription
 	for _, v := range description.Changefeeds {
 		if v.Name == cdcResource.Name {
@@ -80,6 +75,6 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return diag.FromErr(err)
 	}
 
-	flattenCDCDescription(d, description.Name, cdcDescription, prefix+db.Endpoint()+"/?database="+db.Name(), topicDesc.Consumers)
+	flattenCDCDescription(d, cdcResource, cdcDescription, topicDesc.Consumers)
 	return nil
 }

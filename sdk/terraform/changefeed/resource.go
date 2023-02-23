@@ -89,15 +89,33 @@ func ResourceSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"table_path": {
 			Type:         schema.TypeString,
-			Required:     true,
+			Optional:     true,
+			Computed:     true,
 			ValidateFunc: validation.NoZeroValues,
 			ForceNew:     true,
+			ConflictsWith: []string{
+				"table_id",
+			},
 		},
 		"connection_string": {
 			Type:         schema.TypeString,
-			Required:     true,
+			Optional:     true,
+			Computed:     true,
 			ValidateFunc: validation.NoZeroValues,
 			ForceNew:     true,
+			ConflictsWith: []string{
+				"table_id",
+			},
+		},
+		"table_id": {
+			Type:     schema.TypeString,
+			Optional: true,
+			ForceNew: true,
+			Computed: true,
+			ConflictsWith: []string{
+				"table_path",
+				"connection_string",
+			},
 		},
 		"name": {
 			Type:         schema.TypeString,

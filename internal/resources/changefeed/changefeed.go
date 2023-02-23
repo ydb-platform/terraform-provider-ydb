@@ -29,8 +29,8 @@ var (
 	}
 )
 
-type ChangeDataCaptureSettings struct {
-	DatabaseEndpoint  string
+type changeDataCaptureSettings struct {
+	ConnectionString  string
 	TablePath         string
 	Name              string
 	Mode              string
@@ -38,7 +38,22 @@ type ChangeDataCaptureSettings struct {
 	RetentionPeriod   *string
 	VirtualTimestamps *bool
 	Entity            *helpers.YDBEntity
+	TableEntity       *helpers.YDBEntity
 	Consumers         []topictypes.Consumer
+}
+
+func (c *changeDataCaptureSettings) getTablePath() string {
+	if c.TablePath != "" {
+		return c.TablePath
+	}
+	return c.TableEntity.GetEntityPath()
+}
+
+func (c *changeDataCaptureSettings) getConnectionString() string {
+	if c.ConnectionString != "" {
+		return c.ConnectionString
+	}
+	return c.TableEntity.PrepareFullYDBEndpoint()
 }
 
 func expandConsumers(d *schema.ResourceData) []topictypes.Consumer {
@@ -77,7 +92,7 @@ func expandConsumers(d *schema.ResourceData) []topictypes.Consumer {
 	return result
 }
 
-func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*ChangeDataCaptureSettings, error) {
+func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*changeDataCaptureSettings, error) {
 	var entity *helpers.YDBEntity
 	var err error
 	if d.Id() != "" {
@@ -87,12 +102,22 @@ func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*Chan
 		}
 	}
 
-	settings := &ChangeDataCaptureSettings{
+	var tableEntity *helpers.YDBEntity
+	if tableID, ok := d.GetOk("table_id"); ok {
+		en, err := helpers.ParseYDBEntityID(tableID.(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse table_id: %w", err)
+		}
+		tableEntity = en
+	}
+
+	settings := &changeDataCaptureSettings{
 		Entity:           entity,
-		DatabaseEndpoint: d.Get("connection_string").(string),
+		ConnectionString: d.Get("connection_string").(string),
 		Name:             d.Get("name").(string),
 		Mode:             d.Get("mode").(string),
 		TablePath:        d.Get("table_path").(string),
+		TableEntity:      tableEntity,
 	}
 	if format, ok := d.Get("format").(string); ok && format != "" {
 		settings.Format = &format
@@ -110,13 +135,13 @@ func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*Chan
 
 func flattenCDCDescription(
 	d *schema.ResourceData,
-	tablePath string,
+	changefeedResource *changeDataCaptureSettings,
 	cdcDescription options.ChangefeedDescription,
-	databaseEndpoint string,
 	consumers []topictypes.Consumer,
 ) {
-	_ = d.Set("table_path", tablePath)
-	_ = d.Set("connection_string", databaseEndpoint)
+	_ = d.Set("table_path", changefeedResource.getTablePath())
+	_ = d.Set("connection_string", changefeedResource.getConnectionString())
+	_ = d.Set("table_id", changefeedResource.getConnectionString()+"/"+changefeedResource.getTablePath())
 	_ = d.Set("name", cdcDescription.Name)
 	_ = d.Set("mode", changefeedModeToStringMap[cdcDescription.Mode])
 	_ = d.Set("format", changefeedFormatToStringMap[cdcDescription.Format])

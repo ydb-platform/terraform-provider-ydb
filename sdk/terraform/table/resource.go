@@ -114,11 +114,13 @@ func ResourceSchema() map[string]*schema.Schema {
 					"family": {
 						Type:         schema.TypeString,
 						Optional:     true,
+						Computed:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"not_null": {
 						Type:     schema.TypeBool,
 						Optional: true,
+						Computed: true,
 					},
 				},
 			},
@@ -185,7 +187,6 @@ func ResourceSchema() map[string]*schema.Schema {
 					"uniform_partitions": {
 						Type:     schema.TypeInt,
 						Optional: true,
-						// TODO(shmel1k@): add conflicts with partition_at_keys
 					},
 					"partition_at_keys": {
 						Type:     schema.TypeList,
@@ -197,7 +198,7 @@ func ResourceSchema() map[string]*schema.Schema {
 									Type:     schema.TypeList,
 									Required: true,
 									Elem: &schema.Schema{
-										Type: schema.TypeString, // TODO(shmel1k@): interface type?
+										Type: schema.TypeString,
 									},
 								},
 							},

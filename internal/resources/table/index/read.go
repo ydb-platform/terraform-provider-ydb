@@ -19,7 +19,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: indexResource.ConnectionString,
+		DatabaseEndpoint: indexResource.getConnectionString(),
 		Token:            h.token,
 	})
 	if err != nil {
@@ -58,11 +58,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return h.Create(ctx, d, meta)
 	}
 
-	prefix := "grpc://"
-	if db.Secure() {
-		prefix = "grpcs://"
-	}
-
-	flattenIndexDescription(d, indexResource.TablePath, indexDescription, prefix+db.Endpoint()+"/?database="+db.Name())
+	// TODO(shmel1k@): bug here.
+	flattenIndexDescription(d, indexResource, indexDescription)
 	return nil
 }

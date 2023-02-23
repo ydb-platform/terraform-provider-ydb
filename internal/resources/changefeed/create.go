@@ -26,7 +26,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: cdcResource.DatabaseEndpoint,
+		DatabaseEndpoint: cdcResource.getConnectionString(),
 		Token:            h.token,
 	})
 	if err != nil {
@@ -58,12 +58,12 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 
 	opts := topicoptions.AlterWithAddConsumers(cdcResource.Consumers...)
 
-	err = db.Topic().Alter(ctx, cdcResource.TablePath+"/"+cdcResource.Name, opts)
+	err = db.Topic().Alter(ctx, cdcResource.getTablePath()+"/"+cdcResource.Name, opts)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	d.SetId(cdcResource.DatabaseEndpoint + "/" + cdcResource.TablePath + "/" + cdcResource.Name)
+	d.SetId(cdcResource.getConnectionString() + "/" + cdcResource.getTablePath() + "/" + cdcResource.Name)
 
 	return h.Read(ctx, d, meta)
 }
