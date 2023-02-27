@@ -149,7 +149,7 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 	}
 
 	topicPath := d.Get("name").(string)
-	d.SetId(d.Get("database_endpoint").(string) + "/" + topicPath)
+	d.SetId(d.Get("database_endpoint").(string) + "&path=" + topicPath)
 
 	return c.resourceYDBTopicRead(ctx, d, nil)
 }
