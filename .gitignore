@@ -10,3 +10,4 @@ terraform-provider-ydb
 bin/
 *.idea
 vendor/
+terraform.*
