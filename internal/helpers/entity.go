@@ -1,6 +1,9 @@
 package helpers
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type YDBEntity struct {
 	databaseEndpoint string
@@ -25,6 +28,10 @@ func (y *YDBEntity) GetEntityPath() string {
 	return y.entityPath
 }
 
+func (y *YDBEntity) ID() string {
+	return y.PrepareFullYDBEndpoint() + "&path=" + y.entityPath
+}
+
 func ParseYDBEntityID(id string) (*YDBEntity, error) {
 	if id == "" {
 		return nil, fmt.Errorf("failed to parse ydb entity id: %s", "got empty id")
@@ -37,6 +44,16 @@ func ParseYDBEntityID(id string) (*YDBEntity, error) {
 
 	slashCount := 0
 	i := 0
+	split := strings.Split(database, "&path=")
+	if len(split) > 1 {
+		return &YDBEntity{
+			databaseEndpoint: endpoint,
+			database:         split[0],
+			entityPath:       split[1],
+			useTLS:           useTLS,
+		}, nil
+	}
+
 	for i = 0; i < len(database); i++ {
 		if database[i] == '/' {
 			slashCount++

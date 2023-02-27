@@ -52,6 +52,14 @@ func TestParseYDBDatabaseEndpoint(t *testing.T) {
 			endpoint:    "grp://ydb.yandex-team.ru/?database=/some/path",
 			expectedErr: true,
 		},
+		{
+			testName:             "valid localhost endpoint",
+			endpoint:             "grpc://localhost:2136/?database=/local",
+			expectedErr:          false,
+			expectedBaseEndpoint: "localhost:2136",
+			expectedUseTLS:       false,
+			expectedDatabasePath: "/local",
+		},
 	}
 
 	for _, v := range testData {
