@@ -316,14 +316,14 @@ func unwrapType(t types.Type) (typ string, notNull bool) {
 }
 
 func flattenTableDescription(d *schema.ResourceData, desc options.Description, databaseEndpoint string) {
-	_ = d.Set("path", desc.Name) // TODO(shmel1k@): path?
+	_ = d.Set("path", d.Get("path").(string))
 	_ = d.Set("connection_string", databaseEndpoint)
 
 	cols := make([]interface{}, 0, len(desc.Columns))
 	for _, col := range desc.Columns {
 		mp := make(map[string]interface{})
 		mp["name"] = col.Name
-		mp["type"], mp["not_null"] = unwrapType(col.Type) // TODO(shmel1k@): why optional?
+		mp["type"], mp["not_null"] = unwrapType(col.Type)
 		mp["family"] = col.Family
 		cols = append(cols, mp)
 	}
