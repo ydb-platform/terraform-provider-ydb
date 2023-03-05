@@ -29,7 +29,13 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 		}
 	}
 
-	err := d.Set("supported_codecs", supportedCodecs)
+	consumers := topic.FlattenConsumersDescription(desc.Consumers)
+	err := d.Set("consumer", consumers)
+	if err != nil {
+		return fmt.Errorf("failed to set consumer %+v: %w", consumers, err)
+	}
+
+	err = d.Set("supported_codecs", supportedCodecs)
 	if err != nil {
 		return err
 	}
@@ -60,6 +66,11 @@ func prepareYDBTopicAlterSettings(
 	}
 	if d.HasChange("retention_period_ms") {
 		opts = append(opts, topicoptions.AlterWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond))
+	}
+
+	if d.HasChange("consumer") {
+		additionalOpts := topic.MergeConsumerSettings(d.Get("consumer").([]interface{}), settings.Consumers)
+		opts = append(opts, additionalOpts...)
 	}
 
 	return opts

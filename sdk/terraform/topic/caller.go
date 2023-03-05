@@ -134,12 +134,15 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		}
 	}
 
+	consumers := topic.ExpandConsumers(d.Get("consumer").([]interface{}))
+
 	err = client.Topic().Create(ctx, d.Get("name").(string),
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
 		topicoptions.CreateWithPartitionWriteBurstBytes(ydbTopicDefaultMaxPartitionWriteSpeed),
 		topicoptions.CreateWithPartitionWriteSpeedBytesPerSecond(ydbTopicDefaultMaxPartitionWriteSpeed),
 		topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond),
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get("partitions_count").(int))),
+		topicoptions.CreateWithConsumer(consumers...),
 	)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %w", err))
