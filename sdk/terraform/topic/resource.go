@@ -135,35 +135,35 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Default:  1000 * 60 * 60 * 24, // 1 day
 		},
-		// "consumer": {
-		// 	Type:     schema.TypeList,
-		// 	Optional: true,
-		// 	Elem: &schema.Resource{
-		// 		Schema: map[string]*schema.Schema{
-		// 			"name": {
-		// 				Type:         schema.TypeString,
-		// 				Required:     true,
-		// 				ValidateFunc: validation.NoZeroValues,
-		// 			},
-		// 			"supported_codecs": {
-		// 				Type:     schema.TypeList,
-		// 				Optional: true,
-		// 				Elem: &schema.Schema{
-		// 					Type:         schema.TypeString,
-		// 					ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
-		// 				},
-		// 			},
-		// 			"starting_message_timestamp_ms": {
-		// 				Type:     schema.TypeInt,
-		// 				Optional: true,
-		// 			},
-		// 			"service_type": {
-		// 				Type:     schema.TypeString,
-		// 				Optional: true,
-		// 			},
-		// 		},
-		// 	},
-		// },
+		"consumer": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"name": {
+						Type:         schema.TypeString,
+						Required:     true,
+						ValidateFunc: validation.NoZeroValues,
+					},
+					"supported_codecs": {
+						Type:     schema.TypeList,
+						Optional: true,
+						Elem: &schema.Schema{
+							Type:         schema.TypeString,
+							ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
+						},
+					},
+					"starting_message_timestamp_ms": {
+						Type:     schema.TypeInt,
+						Optional: true,
+					},
+					"service_type": {
+						Type:     schema.TypeString,
+						Optional: true,
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -199,6 +199,38 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:     schema.TypeInt,
 			Optional: true,
 			Default:  ydbTopicDefaultRetentionPeriod,
+		},
+		"consumer": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Computed: true,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"name": {
+						Type:         schema.TypeString,
+						Required:     true,
+						ValidateFunc: validation.NoZeroValues,
+					},
+					"supported_codecs": {
+						Type:     schema.TypeList,
+						Optional: true,
+						Elem: &schema.Schema{
+							Type:         schema.TypeString,
+							ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
+						},
+						Computed: true,
+					},
+					"starting_message_timestamp_ms": {
+						Type:     schema.TypeInt,
+						Optional: true,
+						Computed: true,
+					},
+					"service_type": {
+						Type:     schema.TypeString,
+						Computed: true,
+					},
+				},
+			},
 		},
 	}
 }
