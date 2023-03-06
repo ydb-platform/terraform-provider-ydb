@@ -141,7 +141,7 @@ func flattenCDCDescription(
 ) {
 	_ = d.Set("table_path", changefeedResource.getTablePath())
 	_ = d.Set("connection_string", changefeedResource.getConnectionString())
-	_ = d.Set("table_id", changefeedResource.getConnectionString()+"/"+changefeedResource.getTablePath())
+	_ = d.Set("table_id", changefeedResource.getConnectionString()+"&path="+changefeedResource.getTablePath())
 	_ = d.Set("name", cdcDescription.Name)
 	_ = d.Set("mode", changefeedModeToStringMap[cdcDescription.Mode])
 	_ = d.Set("format", changefeedFormatToStringMap[cdcDescription.Format])

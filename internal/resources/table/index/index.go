@@ -103,7 +103,7 @@ func flattenIndexDescription(
 ) {
 	_ = d.Set("table_path", indexResource.getTablePath())
 	_ = d.Set("connection_string", indexResource.getConnectionString())
-	_ = d.Set("table_id", indexResource.getConnectionString()+"/"+indexResource.getTablePath())
+	_ = d.Set("table_id", indexResource.getConnectionString()+"&path="+indexResource.getTablePath())
 	_ = d.Set("name", indexDescription.Name)
 	cols := make([]interface{}, 0, len(indexDescription.IndexColumns))
 	for _, c := range indexDescription.IndexColumns {

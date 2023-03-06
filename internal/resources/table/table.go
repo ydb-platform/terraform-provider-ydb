@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
@@ -338,10 +339,8 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 	if desc.TimeToLiveSettings != nil {
 		var ttlSettings []interface{}
 		ttlSettings = append(ttlSettings, map[string]interface{}{
-			"column_name":          desc.TimeToLiveSettings.ColumnName,
-			"mode":                 desc.TimeToLiveSettings.Mode,
-			"expire_after_seconds": desc.TimeToLiveSettings.ExpireAfterSeconds,
-			"column_unit":          desc.TimeToLiveSettings.ColumnUnit.ToYDB().String(),
+			"column_name":     desc.TimeToLiveSettings.ColumnName,
+			"expire_interval": ttlToISO8601(time.Duration(desc.TimeToLiveSettings.ExpireAfterSeconds) * time.Second),
 		})
 		_ = d.Set("ttl", ttlSettings)
 	}
