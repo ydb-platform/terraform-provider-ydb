@@ -3,6 +3,7 @@ package table
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -118,4 +119,70 @@ func expandAttributes(d *schema.ResourceData) map[string]string {
 		attributes[k] = v.(string)
 	}
 	return attributes
+}
+
+func ttlToISO8601(ttl time.Duration) string {
+	const (
+		day   = 24 * time.Hour
+		month = 30 * day
+		year  = 365 * day
+	)
+
+	if ttl == 0 {
+		return ""
+	}
+
+	result := make([]byte, 0, 16)
+	result = append(result, "P"...)
+	y := ttl / year
+	if y > 0 {
+		result = strconv.AppendInt(result, int64(y), 10)
+		result = append(result, 'Y')
+	}
+	ttl %= year
+	mn := ttl / month
+	if mn > 0 {
+		result = strconv.AppendInt(result, int64(mn), 10)
+		result = append(result, 'M')
+	}
+	ttl %= month
+	d := ttl / day
+	if d > 0 {
+		result = strconv.AppendInt(result, int64(d), 10)
+		result = append(result, 'D')
+	}
+	ttl %= day
+
+	hasT := false
+	h := ttl / time.Hour
+	if h > 0 {
+		hasT = true
+		result = append(result, 'T')
+		result = strconv.AppendInt(result, int64(h), 10)
+		result = append(result, 'H')
+	}
+	ttl %= time.Hour
+
+	min := ttl / time.Minute
+	if min > 0 {
+		if !hasT {
+			result = append(result, 'T')
+		}
+		hasT = true
+		result = strconv.AppendInt(result, int64(min), 10)
+		result = append(result, 'M')
+	}
+	ttl %= time.Minute
+
+	sec := ttl / time.Second
+	if sec > 0 {
+		if !hasT {
+			result = append(result, 'T')
+		}
+		hasT = true
+		_ = hasT
+		result = strconv.AppendInt(result, int64(sec), 10)
+		result = append(result, 'S')
+	}
+	return string(result)
 }
