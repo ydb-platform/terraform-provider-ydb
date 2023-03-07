@@ -100,21 +100,37 @@ func flattenIndexDescription(
 	d *schema.ResourceData,
 	indexResource *resource,
 	indexDescription options.IndexDescription,
-) {
-	_ = d.Set("table_path", indexResource.getTablePath())
-	_ = d.Set("connection_string", indexResource.getConnectionString())
-	_ = d.Set("table_id", indexResource.getConnectionString()+"&path="+indexResource.getTablePath())
-	_ = d.Set("name", indexDescription.Name)
+) (err error) {
+	err = d.Set("table_path", indexResource.getTablePath())
+	if err != nil {
+		return
+	}
+	err = d.Set("connection_string", indexResource.getConnectionString())
+	if err != nil {
+		return
+	}
+	err = d.Set("table_id", indexResource.getConnectionString()+"&path="+indexResource.getTablePath())
+	if err != nil {
+		return
+	}
+	err = d.Set("name", indexDescription.Name)
+	if err != nil {
+		return
+	}
 	cols := make([]interface{}, 0, len(indexDescription.IndexColumns))
 	for _, c := range indexDescription.IndexColumns {
 		cols = append(cols, c)
 	}
-	_ = d.Set("columns", cols)
+	err = d.Set("columns", cols)
+	if err != nil {
+		return
+	}
 	covers := make([]interface{}, 0, len(indexDescription.DataColumns))
 	for _, c := range indexDescription.DataColumns {
 		covers = append(covers, c)
 	}
-	_ = d.Set("cover", covers)
+
+	return d.Set("cover", covers)
 }
 
 func parseTablePathFromIndexEntity(entityPath string) string {

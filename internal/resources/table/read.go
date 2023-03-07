@@ -67,6 +67,5 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 	if db.Secure() {
 		prefix = "grpcs://"
 	}
-	flattenTableDescription(d, description, prefix+db.Endpoint()+"/?database="+db.Name())
-	return nil
+	return diag.FromErr(flattenTableDescription(d, description, prefix+db.Endpoint()+"/?database="+db.Name()))
 }
