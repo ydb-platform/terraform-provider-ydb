@@ -58,7 +58,5 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return h.Create(ctx, d, meta)
 	}
 
-	// TODO(shmel1k@): bug here.
-	flattenIndexDescription(d, indexResource, indexDescription)
-	return nil
+	return diag.FromErr(flattenIndexDescription(d, indexResource, indexDescription))
 }
