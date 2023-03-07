@@ -276,23 +276,16 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.PartitioningSettings) []interface{} {
 	output := make([]interface{}, 0, 1)
 	partitioningSettings := make(map[string]interface{})
-	if d.HasChange("partitioning_settings.partition_at_keys") {
-		oldPartitionAtKeys, _ := d.GetChange("partitioning_settings.partition_at_keys")
-		partitioningSettings["partition_at_keys"] = oldPartitionAtKeys
-	} else {
-		partitioningSettings["partition_at_keys"] = d.Get("partitioning_settings.partition_at_keys")
-	}
-
-	if d.HasChange("partitioning_settings.uniform_partitions") {
-		oldUniformPartitions, _ := d.GetChange("partitioning_settings.uniform_partitions")
-		partitioningSettings["uniform_partitions"] = oldUniformPartitions
-	} else {
-		partitioningSettings["uniform_partitions"] = d.Get("partitioning_settings.uniform_partitions")
-	}
 	partitioningSettings["auto_partitioning_by_load"] = settings.PartitioningByLoad == options.FeatureEnabled
 	partitioningSettings["auto_partitioning_partition_size_mb"] = settings.PartitionSizeMb
 	partitioningSettings["auto_partitioning_min_partitions_count"] = settings.MinPartitionsCount
 	partitioningSettings["auto_partitioning_max_partitions_count"] = settings.MaxPartitionsCount
+	pSet := d.Get("partitioning_settings").(*schema.Set)
+	for _, l := range pSet.List() {
+		m := l.(map[string]interface{})
+		partitioningSettings["partition_at_keys"] = m["partition_at_keys"]
+		partitioningSettings["uniform_partitions"] = m["uniform_partitions"]
+	}
 
 	output = append(output, partitioningSettings)
 	return output
@@ -316,9 +309,15 @@ func unwrapType(t types.Type) (typ string, notNull bool) {
 	return typ, notNull
 }
 
-func flattenTableDescription(d *schema.ResourceData, desc options.Description, databaseEndpoint string) {
-	_ = d.Set("path", d.Get("path").(string))
-	_ = d.Set("connection_string", databaseEndpoint)
+func flattenTableDescription(d *schema.ResourceData, desc options.Description, databaseEndpoint string) (err error) {
+	err = d.Set("path", d.Get("path").(string))
+	if err != nil {
+		return
+	}
+	err = d.Set("connection_string", databaseEndpoint)
+	if err != nil {
+		return
+	}
 
 	cols := make([]interface{}, 0, len(desc.Columns))
 	for _, col := range desc.Columns {
@@ -328,13 +327,19 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 		mp["family"] = col.Family
 		cols = append(cols, mp)
 	}
-	_ = d.Set("column", cols)
+	err = d.Set("column", cols)
+	if err != nil {
+		return
+	}
 
 	pk := make([]interface{}, 0, len(desc.PrimaryKey))
 	for _, p := range desc.PrimaryKey {
 		pk = append(pk, p)
 	}
-	_ = d.Set("primary_key", pk)
+	err = d.Set("primary_key", pk)
+	if err != nil {
+		return
+	}
 
 	if desc.TimeToLiveSettings != nil {
 		var ttlSettings []interface{}
@@ -342,20 +347,33 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, d
 			"column_name":     desc.TimeToLiveSettings.ColumnName,
 			"expire_interval": ttlToISO8601(time.Duration(desc.TimeToLiveSettings.ExpireAfterSeconds) * time.Second),
 		})
-		_ = d.Set("ttl", ttlSettings)
+		err = d.Set("ttl", ttlSettings)
+		if err != nil {
+			return
+		}
 	}
 
 	attributes := make(map[string]interface{})
 	for k, v := range desc.Attributes {
 		attributes[k] = v
 	}
-	_ = d.Set("attributes", attributes)
-	_ = d.Set("partitioning_settings", flattenTablePartitioningSettings(d, desc.PartitioningSettings))
-
-	_ = d.Set("key_bloom_filter", desc.KeyBloomFilter == options.FeatureEnabled)
-	if desc.ReadReplicaSettings.Type == options.ReadReplicasAnyAzReadReplicas {
-		_ = d.Set("read_replicas_settings", fmt.Sprintf("ANY_AZ:%d", desc.ReadReplicaSettings.Count))
-	} else {
-		_ = d.Set("read_replicas_settings", fmt.Sprintf("PER_AZ:%d", desc.ReadReplicaSettings.Count))
+	err = d.Set("attributes", attributes)
+	if err != nil {
+		return
 	}
+	err = d.Set("partitioning_settings", flattenTablePartitioningSettings(d, desc.PartitioningSettings))
+	if err != nil {
+		return
+	}
+
+	err = d.Set("key_bloom_filter", desc.KeyBloomFilter == options.FeatureEnabled)
+	if err != nil {
+		return
+	}
+	if desc.ReadReplicaSettings.Type == options.ReadReplicasAnyAzReadReplicas {
+		err = d.Set("read_replicas_settings", fmt.Sprintf("ANY_AZ:%d", desc.ReadReplicaSettings.Count))
+	} else {
+		err = d.Set("read_replicas_settings", fmt.Sprintf("PER_AZ:%d", desc.ReadReplicaSettings.Count))
+	}
+	return err
 }

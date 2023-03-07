@@ -138,14 +138,33 @@ func flattenCDCDescription(
 	changefeedResource *changeDataCaptureSettings,
 	cdcDescription options.ChangefeedDescription,
 	consumers []topictypes.Consumer,
-) {
-	_ = d.Set("table_path", changefeedResource.getTablePath())
-	_ = d.Set("connection_string", changefeedResource.getConnectionString())
-	_ = d.Set("table_id", changefeedResource.getConnectionString()+"&path="+changefeedResource.getTablePath())
-	_ = d.Set("name", cdcDescription.Name)
-	_ = d.Set("mode", changefeedModeToStringMap[cdcDescription.Mode])
-	_ = d.Set("format", changefeedFormatToStringMap[cdcDescription.Format])
-	_ = d.Set("consumer", topic.FlattenConsumersDescription(consumers))
+) (err error) {
+	err = d.Set("table_path", changefeedResource.getTablePath())
+	if err != nil {
+		return
+	}
+	err = d.Set("connection_string", changefeedResource.getConnectionString())
+	if err != nil {
+		return
+	}
+	err = d.Set("table_id", changefeedResource.getConnectionString()+"&path="+changefeedResource.getTablePath())
+	if err != nil {
+		return
+	}
+	err = d.Set("name", cdcDescription.Name)
+	if err != nil {
+		return
+	}
+	err = d.Set("mode", changefeedModeToStringMap[cdcDescription.Mode])
+	if err != nil {
+		return
+	}
+	err = d.Set("format", changefeedFormatToStringMap[cdcDescription.Format])
+	if err != nil {
+		return
+	}
+
+	return d.Set("consumer", topic.FlattenConsumersDescription(consumers))
 }
 
 func parseTablePathFromCDCEntity(entityPath string) string {

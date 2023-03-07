@@ -75,6 +75,5 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return diag.FromErr(err)
 	}
 
-	flattenCDCDescription(d, cdcResource, cdcDescription, topicDesc.Consumers)
-	return nil
+	return diag.FromErr(flattenCDCDescription(d, cdcResource, cdcDescription, topicDesc.Consumers))
 }

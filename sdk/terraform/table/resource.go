@@ -182,11 +182,13 @@ func ResourceSchema() map[string]*schema.Schema {
 		"partitioning_settings": {
 			Type:     schema.TypeSet,
 			Optional: true,
+			Computed: true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"uniform_partitions": {
 						Type:     schema.TypeInt,
 						Optional: true,
+						Computed: true,
 					},
 					"partition_at_keys": {
 						Type:     schema.TypeList,
@@ -207,14 +209,17 @@ func ResourceSchema() map[string]*schema.Schema {
 					"auto_partitioning_min_partitions_count": {
 						Type:     schema.TypeInt,
 						Optional: true,
+						Computed: true,
 					},
 					"auto_partitioning_max_partitions_count": {
 						Type:     schema.TypeInt,
 						Optional: true,
+						Computed: true,
 					},
 					"auto_partitioning_partition_size_mb": {
 						Type:     schema.TypeInt,
 						Optional: true,
+						Computed: true,
 					},
 					"auto_partitioning_by_load": {
 						Type:     schema.TypeBool,
