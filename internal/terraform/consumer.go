@@ -5,12 +5,13 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/topic"
+
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/topic/consumer"
 )
 
 func ydbTopicConsumer() *schema.Resource {
 	return &schema.Resource{
-		Schema:        topic.ResourceConsumerSchema(),
+		Schema:        consumer.ResourceConsumerSchema(),
 		SchemaVersion: 0,
 		CreateContext: resourceYDBTopicConsumerCreate,
 		ReadContext:   resourceYDBTopicConsumerRead,
@@ -29,7 +30,7 @@ func resourceYDBTopicConsumerCreate(ctx context.Context, d *schema.ResourceData,
 		return cfg.Token, nil
 	}
 
-	return topic.ResourceCreateConsumerFunc(cb)(ctx, d, meta)
+	return consumer.ResourceCreateConsumerFunc(cb)(ctx, d, meta)
 }
 
 func resourceYDBTopicConsumerRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -38,7 +39,7 @@ func resourceYDBTopicConsumerRead(ctx context.Context, d *schema.ResourceData, m
 		return cfg.Token, nil
 	}
 
-	return topic.ResourceReadConsumerFunc(cb)(ctx, d, meta)
+	return consumer.ResourceReadConsumerFunc(cb)(ctx, d, meta)
 }
 
 func resourceYDBTopicConsumerUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -47,7 +48,7 @@ func resourceYDBTopicConsumerUpdate(ctx context.Context, d *schema.ResourceData,
 		return cfg.Token, nil
 	}
 
-	return topic.ResourceUpdateConsumerFunc(cb)(ctx, d, meta)
+	return consumer.ResourceUpdateConsumerFunc(cb)(ctx, d, meta)
 }
 
 func resourceYDBTopicConsumerDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -56,5 +57,5 @@ func resourceYDBTopicConsumerDelete(ctx context.Context, d *schema.ResourceData,
 		return cfg.Token, nil
 	}
 
-	return topic.ResourceDeleteConsumerFunc(cb)(ctx, d, meta)
+	return consumer.ResourceDeleteConsumerFunc(cb)(ctx, d, meta)
 }

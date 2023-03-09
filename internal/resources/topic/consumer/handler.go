@@ -1,4 +1,4 @@
-package topic
+package consumer
 
 import (
 	"fmt"
@@ -7,12 +7,30 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
 
+type handler struct {
+	token string
+}
+
+func NewHandler(token string) resources.Handler {
+	return &handler{
+		token: token,
+	}
+}
+
+const (
+	ydbTopicCodecGZIP = "gzip"
+	ydbTopicCodecRAW  = "raw"
+	ydbTopicCodecZSTD = "zstd"
+)
+
 func flattenYDBTopicConsumerDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
 	_ = d.Set("name", d.Get("name").(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
+	_ = d.Set("topic_path", d.Get("topic_path").(string))
 
 	supportedCodecs := make([]string, 0, len(desc.SupportedCodecs))
 	for _, v := range desc.SupportedCodecs {
@@ -31,7 +49,7 @@ func flattenYDBTopicConsumerDescription(d *schema.ResourceData, desc topictypes.
 		return err
 	}
 
-	return d.Set("database_endpoint", d.Get("database_endpoint").(string))
+	return d.Set("connection_string", d.Get("connection_string").(string))
 }
 
 func prepareYDBTopicConsumerAlterSettings(
