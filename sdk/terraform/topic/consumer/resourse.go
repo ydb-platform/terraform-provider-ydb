@@ -1,4 +1,4 @@
-package topic
+package consumer
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/topic/consumer"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
@@ -23,10 +24,9 @@ func ResourceCreateConsumerFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD 
 				},
 			}
 		}
-		c := &caller{
-			token: token,
-		}
-		return c.resourceYDBTopicConsumerCreate(ctx, d, meta)
+
+		h := consumer.NewHandler(token)
+		return h.Create(ctx, d, meta)
 	}
 }
 
@@ -42,10 +42,9 @@ func ResourceReadConsumerFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 				},
 			}
 		}
-		c := &caller{
-			token: token,
-		}
-		return c.resourceYDBTopicConsumerRead(ctx, d, meta)
+
+		h := consumer.NewHandler(token)
+		return h.Read(ctx, d, meta)
 	}
 }
 
@@ -61,10 +60,9 @@ func ResourceUpdateConsumerFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD 
 				},
 			}
 		}
-		c := &caller{
-			token: token,
-		}
-		return c.resourceYDBTopicConsumerUpdate(ctx, d, meta)
+
+		h := consumer.NewHandler(token)
+		return h.Update(ctx, d, meta)
 	}
 }
 
@@ -80,20 +78,26 @@ func ResourceDeleteConsumerFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD 
 				},
 			}
 		}
-		c := &caller{
-			token: token,
-		}
-		return c.resourceYDBTopicConsumerDelete(ctx, d, meta)
+
+		h := consumer.NewHandler(token)
+		return h.Delete(ctx, d, meta)
 	}
 }
 
 func ResourceConsumerSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
-		"database_endpoint": {
+		"connection_string": {
 			Type:     schema.TypeString,
 			Optional: true,
+			ForceNew: true,
 		},
 		"name": {
+			Type:         schema.TypeString,
+			Required:     true,
+			ValidateFunc: validation.NoZeroValues,
+			ForceNew:     true,
+		},
+		"topic_path": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
@@ -110,10 +114,6 @@ func ResourceConsumerSchema() map[string]*schema.Schema {
 		"starting_message_timestamp_ms": {
 			Type:     schema.TypeInt,
 			Optional: true,
-			Computed: true,
-		},
-		"service_type": {
-			Type:     schema.TypeString,
 			Computed: true,
 		},
 	}

@@ -8,20 +8,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
-	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	helpersTopic "github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/topic"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 const (
-	ydbTopicCodecGZIP = "gzip"
-	ydbTopicCodecRAW  = "raw"
-	ydbTopicCodecZSTD = "zstd"
-)
-
-const (
-	ydbTopicDefaultPartitionsCount        = 2
-	ydbTopicDefaultRetentionPeriod        = 1000 * 60 * 60 * 18 // 24 hours
-	ydbTopicDefaultMaxPartitionWriteSpeed = 1048576
+	ydbTopicDefaultPartitionsCount = 2
+	ydbTopicDefaultRetentionPeriod = 1000 * 60 * 60 * 18 // 24 hours
 )
 
 func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
@@ -36,10 +30,9 @@ func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 				},
 			}
 		}
-		c := &caller{
-			token: token,
-		}
-		return c.resourceYDBTopicCreate(ctx, d, meta)
+
+		h := topic.NewHandler(token)
+		return h.Create(ctx, d, meta)
 	}
 }
 
@@ -55,10 +48,9 @@ func ResourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 				},
 			}
 		}
-		c := &caller{
-			token: token,
-		}
-		return c.resourceYDBTopicRead(ctx, d, meta)
+
+		h := topic.NewHandler(token)
+		return h.Read(ctx, d, meta)
 	}
 }
 
@@ -74,10 +66,9 @@ func ResourceUpdateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 				},
 			}
 		}
-		c := &caller{
-			token: token,
-		}
-		return c.resourceYDBTopicUpdate(ctx, d, meta)
+
+		h := topic.NewHandler(token)
+		return h.Update(ctx, d, meta)
 	}
 }
 
@@ -93,10 +84,27 @@ func ResourceDeleteFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 				},
 			}
 		}
-		c := &caller{
-			token: token,
+
+		h := topic.NewHandler(token)
+		return h.Delete(ctx, d, meta)
+	}
+}
+
+func DataSourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		token, err := cb(ctx)
+		if err != nil {
+			return diag.Diagnostics{
+				{
+					Severity: diag.Error,
+					Summary:  "failed to create token for YDB request",
+					Detail:   err.Error(),
+				},
+			}
 		}
-		return c.resourceYDBTopicDelete(ctx, d, meta)
+
+		h := topic.NewHandler(token)
+		return h.Read(ctx, d, meta)
 	}
 }
 
@@ -127,7 +135,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
-				ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
+				ValidateFunc: validation.StringInSlice(helpersTopic.YDBTopicAllowedCodecs, false),
 			},
 		},
 		"retention_period_ms": {
@@ -150,7 +158,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,
-							ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
+							ValidateFunc: validation.StringInSlice(helpersTopic.YDBTopicAllowedCodecs, false),
 						},
 					},
 					"starting_message_timestamp_ms": {
@@ -191,7 +199,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
-				ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
+				ValidateFunc: validation.StringInSlice(helpersTopic.YDBTopicAllowedCodecs, false),
 			},
 			Computed: true,
 		},
@@ -216,7 +224,7 @@ func ResourceSchema() map[string]*schema.Schema {
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,
-							ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
+							ValidateFunc: validation.StringInSlice(helpersTopic.YDBTopicAllowedCodecs, false),
 						},
 						Computed: true,
 					},

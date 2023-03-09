@@ -6,10 +6,26 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+)
 
-	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+type handler struct {
+	token string
+}
+
+func NewHandler(token string) resources.Handler {
+	return &handler{
+		token: token,
+	}
+}
+
+const (
+	ydbTopicCodecGZIP = "gzip"
+	ydbTopicCodecRAW  = "raw"
+	ydbTopicCodecZSTD = "zstd"
 )
 
 func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
