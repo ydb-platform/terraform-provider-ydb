@@ -177,6 +177,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		"attributes": {
 			Type:     schema.TypeMap,
 			Optional: true,
+			Computed: true,
 			Elem:     &schema.Schema{Type: schema.TypeString},
 		},
 		"partitioning_settings": {

@@ -147,7 +147,7 @@ func flattenCDCDescription(
 	if err != nil {
 		return
 	}
-	err = d.Set("table_id", changefeedResource.getConnectionString()+"&path="+changefeedResource.getTablePath())
+	err = d.Set("table_id", changefeedResource.getConnectionString()+"?path="+changefeedResource.getTablePath())
 	if err != nil {
 		return
 	}

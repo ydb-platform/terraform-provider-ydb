@@ -29,7 +29,7 @@ func (y *YDBEntity) GetEntityPath() string {
 }
 
 func (y *YDBEntity) ID() string {
-	return y.PrepareFullYDBEndpoint() + "&path=" + y.entityPath
+	return y.PrepareFullYDBEndpoint() + "?path=" + y.entityPath
 }
 
 func ParseYDBEntityID(id string) (*YDBEntity, error) {
@@ -44,7 +44,7 @@ func ParseYDBEntityID(id string) (*YDBEntity, error) {
 
 	slashCount := 0
 	i := 0
-	split := strings.Split(database, "&path=")
+	split := strings.Split(database, "?path=")
 	if len(split) > 1 {
 		return &YDBEntity{
 			databaseEndpoint: endpoint,

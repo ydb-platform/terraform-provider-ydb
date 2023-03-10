@@ -28,7 +28,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 	}
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: tableResource.DatabaseEndpoint,
+		DatabaseEndpoint: tableResource.getConnectionString(),
 		Token:            h.token,
 	})
 	if err != nil {

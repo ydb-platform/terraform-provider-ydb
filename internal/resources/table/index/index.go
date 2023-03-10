@@ -109,7 +109,7 @@ func flattenIndexDescription(
 	if err != nil {
 		return
 	}
-	err = d.Set("table_id", indexResource.getConnectionString()+"&path="+indexResource.getTablePath())
+	err = d.Set("table_id", indexResource.getConnectionString()+"?path="+indexResource.getTablePath())
 	if err != nil {
 		return
 	}

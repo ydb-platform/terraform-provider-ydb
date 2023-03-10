@@ -63,7 +63,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
-	d.SetId(cdcResource.getConnectionString() + "&path=" + cdcResource.getTablePath() + "/" + cdcResource.Name)
+	d.SetId(cdcResource.getConnectionString() + "?path=" + cdcResource.getTablePath() + "/" + cdcResource.Name)
 
 	return h.Read(ctx, d, meta)
 }

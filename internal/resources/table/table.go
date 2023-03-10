@@ -108,6 +108,13 @@ type Resource struct {
 	EnableBloomFilter    *bool
 }
 
+func (r *Resource) getConnectionString() string {
+	if r.DatabaseEndpoint != "" {
+		return r.DatabaseEndpoint
+	}
+	return r.Entity.PrepareFullYDBEndpoint()
+}
+
 func expandTableTTLSettings(d *schema.ResourceData) (ttl *TTL) {
 	v, ok := d.GetOk("ttl")
 	if !ok {

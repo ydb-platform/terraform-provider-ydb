@@ -26,8 +26,9 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 		}
 	}
 
+	//	panic(tableResource.getConnectionString())
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: tableResource.DatabaseEndpoint,
+		DatabaseEndpoint: tableResource.getConnectionString(),
 		Token:            h.token,
 	})
 	if err != nil {
