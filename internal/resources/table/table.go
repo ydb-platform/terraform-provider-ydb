@@ -316,12 +316,12 @@ func unwrapType(t types.Type) (typ string, notNull bool) {
 	return typ, notNull
 }
 
-func flattenTableDescription(d *schema.ResourceData, desc options.Description, databaseEndpoint string) (err error) {
-	err = d.Set("path", d.Get("path").(string))
+func flattenTableDescription(d *schema.ResourceData, desc options.Description, entity *helpers.YDBEntity) (err error) {
+	err = d.Set("path", entity.GetEntityPath())
 	if err != nil {
 		return
 	}
-	err = d.Set("connection_string", databaseEndpoint)
+	err = d.Set("connection_string", entity.PrepareFullYDBEndpoint())
 	if err != nil {
 		return
 	}

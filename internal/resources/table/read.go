@@ -26,7 +26,6 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 		}
 	}
 
-	//	panic(tableResource.getConnectionString())
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.getConnectionString(),
 		Token:            h.token,
@@ -64,9 +63,5 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 		return diag.Errorf("failed to describe table %q: %s", tableResource.Path, err)
 	}
 
-	prefix := "grpc://"
-	if db.Secure() {
-		prefix = "grpcs://"
-	}
-	return diag.FromErr(flattenTableDescription(d, description, prefix+db.Endpoint()+"/?database="+db.Name()))
+	return diag.FromErr(flattenTableDescription(d, description, tableResource.Entity))
 }
