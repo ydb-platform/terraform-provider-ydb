@@ -134,7 +134,7 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		}
 	}
 
-	consumers := topic.ExpandConsumers(d.Get("consumers").([]interface{}))
+	consumers := topic.ExpandConsumers(d.Get("consumer").([]interface{}))
 
 	err = client.Topic().Create(ctx, d.Get("name").(string),
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
@@ -149,7 +149,7 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 	}
 
 	topicPath := d.Get("name").(string)
-	d.SetId(d.Get("database_endpoint").(string) + "&path=" + topicPath)
+	d.SetId(d.Get("database_endpoint").(string) + "?path=" + topicPath)
 
 	return c.resourceYDBTopicRead(ctx, d, nil)
 }
