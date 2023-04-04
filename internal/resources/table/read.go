@@ -2,10 +2,10 @@ package table
 
 import (
 	"context"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 
@@ -55,7 +55,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 		return err
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "SCHEME_ERROR") {
+		if ydb.IsOperationErrorSchemeError(err) {
 			// NOTE(shmel1k@): marking as non-existing resource
 			d.SetId("")
 			return nil
