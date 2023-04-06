@@ -198,7 +198,12 @@ func ResourceSchema() map[string]*schema.Schema {
 		"retention_period_ms": {
 			Type:     schema.TypeInt,
 			Optional: true,
-			Default:  ydbTopicDefaultRetentionPeriod,
+			Computed: true,
+		},
+		"metering_mode": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Computed: true,
 		},
 		"consumer": {
 			Type:     schema.TypeList,
