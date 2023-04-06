@@ -20,6 +20,12 @@ type caller struct {
 	token string
 }
 
+const (
+	meteringModeRequestUnits     = "request_units"
+	meteringModeReservedCapacity = "reserved_capacity"
+	meteringModeUnspecified      = "unspecified"
+)
+
 func (c *caller) createYDBConnection(
 	ctx context.Context,
 	d helpers.ResourceDataProxy,
@@ -72,13 +78,22 @@ func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceDa
 	}
 
 	opts := prepareYDBTopicAlterSettings(d, desc)
-
 	err = topicClient.Alter(ctx, topicName, opts...)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("got error when tried to alter topic: %w", err))
 	}
 
 	return c.resourceYDBTopicRead(ctx, d, nil)
+}
+
+func MetringModeToString(mode topictypes.MeteringMode) string {
+	if mode == topictypes.MeteringModeRequestUnits {
+		return meteringModeRequestUnits
+	}
+	if mode == topictypes.MeteringModeReservedCapacity {
+		return meteringModeReservedCapacity
+	}
+	return meteringModeUnspecified
 }
 
 func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
@@ -106,13 +121,22 @@ func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceDat
 		}
 		return diag.FromErr(fmt.Errorf("resource: failed to describe topic: %w", err))
 	}
-
 	err = flattenYDBTopicDescription(d, description)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to flatten topic description: %w", err))
 	}
 
 	return nil
+}
+
+func StringToMeteringMode(mode string) topictypes.MeteringMode {
+	if mode == meteringModeRequestUnits {
+		return topictypes.MeteringModeRequestUnits
+	}
+	if mode == meteringModeReservedCapacity {
+		return topictypes.MeteringModeReservedCapacity
+	}
+	return topictypes.MeteringModeUnspecified
 }
 
 func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
@@ -135,15 +159,18 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 	}
 
 	consumers := topic.ExpandConsumers(d.Get("consumer").([]interface{}))
-
-	err = client.Topic().Create(ctx, d.Get("name").(string),
+	options := []topicoptions.CreateOption{
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
 		topicoptions.CreateWithPartitionWriteBurstBytes(ydbTopicDefaultMaxPartitionWriteSpeed),
 		topicoptions.CreateWithPartitionWriteSpeedBytesPerSecond(ydbTopicDefaultMaxPartitionWriteSpeed),
-		topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond),
+		topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int)) * time.Millisecond),
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get("partitions_count").(int))),
 		topicoptions.CreateWithConsumer(consumers...),
-	)
+	}
+	if d.Get("metering_mode") != "" {
+		options = append(options, topicoptions.CreateWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
+	}
+	err = client.Topic().Create(ctx, d.Get("name").(string), options...)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %w", err))
 	}

@@ -16,6 +16,7 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 	_ = d.Set("name", d.Get("name").(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
 	_ = d.Set("partitions_count", desc.PartitionSettings.MinActivePartitions)
 	_ = d.Set("retention_period_ms", desc.RetentionPeriod.Milliseconds())
+	_ = d.Set("metering_mode", MetringModeToString(desc.MeteringMode))
 
 	supportedCodecs := make([]string, 0, len(desc.SupportedCodecs))
 	for _, v := range desc.SupportedCodecs {
@@ -50,6 +51,9 @@ func prepareYDBTopicAlterSettings(
 	if d.HasChange("partitions_count") {
 		opts = append(opts, topicoptions.AlterWithPartitionCountLimit(int64(d.Get("partitions_count").(int))))
 		opts = append(opts, topicoptions.AlterWithMinActivePartitions(int64(d.Get("partitions_count").(int))))
+	}
+	if d.HasChange("metering_mode") {
+		opts = append(opts, topicoptions.AlterWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
 	}
 	if d.HasChange("supported_codecs") {
 		codecs := d.Get("supported_codecs").([]interface{})
