@@ -20,7 +20,6 @@ const (
 
 const (
 	ydbTopicDefaultPartitionsCount        = 2
-	ydbTopicDefaultRetentionPeriod        = 1000 * 60 * 60 * 18 // 24 hours
 	ydbTopicDefaultMaxPartitionWriteSpeed = 1048576
 )
 
