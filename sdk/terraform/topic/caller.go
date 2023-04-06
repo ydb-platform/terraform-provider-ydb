@@ -153,12 +153,14 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 	}
 
 	consumers := topic.ExpandConsumers(d.Get("consumer").([]interface{}))
-	var options = []topicoptions.CreateOption{topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
+	options := []topicoptions.CreateOption{
+		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
 		topicoptions.CreateWithPartitionWriteBurstBytes(ydbTopicDefaultMaxPartitionWriteSpeed),
 		topicoptions.CreateWithPartitionWriteSpeedBytesPerSecond(ydbTopicDefaultMaxPartitionWriteSpeed),
 		topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int)) * time.Millisecond),
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get("partitions_count").(int))),
-		topicoptions.CreateWithConsumer(consumers...)}
+		topicoptions.CreateWithConsumer(consumers...),
+	}
 	if d.Get("metering_mode") != "" {
 		options = append(options, topicoptions.CreateWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
 	}
