@@ -21,9 +21,9 @@ type caller struct {
 }
 
 const (
-	requestUnits     = "request_units"
-	reservedCapacity = "reserved_capacity"
-	unspecified      = "unspecified"
+	meteringModeRequestUnits     = "request_units"
+	meteringModeReservedCapacity = "reserved_capacity"
+	meteringModeUnspecified      = "unspecified"
 )
 
 func (c *caller) createYDBConnection(
@@ -88,12 +88,12 @@ func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceDa
 
 func MetringModeToString(mode topictypes.MeteringMode) string {
 	if mode == topictypes.MeteringModeRequestUnits {
-		return requestUnits
+		return meteringModeRequestUnits
 	}
 	if mode == topictypes.MeteringModeReservedCapacity {
-		return reservedCapacity
+		return meteringModeReservedCapacity
 	}
-	return unspecified
+	return meteringModeUnspecified
 }
 
 func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
@@ -130,10 +130,10 @@ func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceDat
 }
 
 func StringToMeteringMode(mode string) topictypes.MeteringMode {
-	if mode == requestUnits {
+	if mode == meteringModeRequestUnits {
 		return topictypes.MeteringModeRequestUnits
 	}
-	if mode == reservedCapacity {
+	if mode == meteringModeReservedCapacity {
 		return topictypes.MeteringModeReservedCapacity
 	}
 	return topictypes.MeteringModeUnspecified
