@@ -86,7 +86,7 @@ func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceDa
 	return c.resourceYDBTopicRead(ctx, d, nil)
 }
 
-func MetringModeToString(mode topictypes.MeteringMode) string {
+func MeteringModeToString(mode topictypes.MeteringMode) string {
 	if mode == topictypes.MeteringModeRequestUnits {
 		return meteringModeRequestUnits
 	}
@@ -163,9 +163,14 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
 		topicoptions.CreateWithPartitionWriteBurstBytes(ydbTopicDefaultMaxPartitionWriteSpeed),
 		topicoptions.CreateWithPartitionWriteSpeedBytesPerSecond(ydbTopicDefaultMaxPartitionWriteSpeed),
-		topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int)) * time.Millisecond),
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get("partitions_count").(int))),
 		topicoptions.CreateWithConsumer(consumers...),
+	}
+	if d.Get("retention_period_ms") != 0 {
+		options = append(options, topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond))
+	}
+	if d.Get("retention_storage_mb") != 0 {
+		options = append(options, topicoptions.CreateWithRetentionStorageMB(int64(d.Get("retention_storage_mb").(int))))
 	}
 	if d.Get("metering_mode") != "" {
 		options = append(options, topicoptions.CreateWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))

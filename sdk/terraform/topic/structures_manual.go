@@ -16,7 +16,8 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 	_ = d.Set("name", d.Get("name").(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
 	_ = d.Set("partitions_count", desc.PartitionSettings.MinActivePartitions)
 	_ = d.Set("retention_period_ms", desc.RetentionPeriod.Milliseconds())
-	_ = d.Set("metering_mode", MetringModeToString(desc.MeteringMode))
+	_ = d.Set("retention_storage_mb", desc.RetentionStorageMB)
+	_ = d.Set("metering_mode", MeteringModeToString(desc.MeteringMode))
 
 	supportedCodecs := make([]string, 0, len(desc.SupportedCodecs))
 	for _, v := range desc.SupportedCodecs {
@@ -70,6 +71,9 @@ func prepareYDBTopicAlterSettings(
 	}
 	if d.HasChange("retention_period_ms") {
 		opts = append(opts, topicoptions.AlterWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond))
+	}
+	if d.HasChange("retention_storage_mb") {
+		opts = append(opts, topicoptions.AlterWithRetentionStorageMB(int64(d.Get("retention_storage_mb").(int))))
 	}
 
 	if d.HasChange("consumer") {

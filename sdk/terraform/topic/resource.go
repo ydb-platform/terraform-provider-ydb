@@ -20,7 +20,6 @@ const (
 
 const (
 	ydbTopicDefaultPartitionsCount        = 2
-	ydbTopicDefaultRetentionPeriod        = 1000 * 60 * 60 * 18 // 24 hours
 	ydbTopicDefaultMaxPartitionWriteSpeed = 1048576
 )
 
@@ -196,9 +195,20 @@ func ResourceSchema() map[string]*schema.Schema {
 			Computed: true,
 		},
 		"retention_period_ms": {
-			Type:     schema.TypeInt,
-			Optional: true,
-			Default:  ydbTopicDefaultRetentionPeriod,
+			Type:          schema.TypeInt,
+			Optional:      true,
+			Default:       0,
+			ConflictsWith: []string{
+				//				"retention_storage_mb",
+			},
+		},
+		"retention_storage_mb": {
+			Type:          schema.TypeInt,
+			Optional:      true,
+			Computed:      true,
+			ConflictsWith: []string{
+				//				"retention_period_ms",
+			},
 		},
 		"metering_mode": {
 			Type:     schema.TypeString,
