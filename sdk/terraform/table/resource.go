@@ -238,6 +238,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		"read_replicas_settings": {
 			Type:     schema.TypeString,
 			Optional: true,
+			Computed: true,
 		},
 	}
 }
