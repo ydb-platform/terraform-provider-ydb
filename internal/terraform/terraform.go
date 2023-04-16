@@ -26,14 +26,16 @@ func Provider() *schema.Provider {
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"ydb_topic": ydbTopicDataSource(),
-			"ydb_table": ydbTableDataSource(),
+			"ydb_topic":        ydbTopicDataSource(),
+			"ydb_table":        ydbTableDataSource(),
+			"ydb_coordination": ydbCoordinationDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"ydb_topic":            ydbTopicResource(),
 			"ydb_table":            ydbTableResource(),
 			"ydb_table_changefeed": ydbTableChangeFeedResource(),
 			"ydb_table_index":      ydbTableIndexResource(),
+			"ydb_coordination":     ydbCoordinationResource(),
 		},
 	}
 
