@@ -190,7 +190,7 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 	pSet := v.(*schema.Set)
 	for _, l := range pSet.List() {
 		m := l.(map[string]interface{})
-		if partitionsCount, ok := m["uniform_partitions"].(int); ok {
+		if partitionsCount, ok := m["uniform_partitions"].(int); ok && partitionsCount != 0 {
 			p.PartitionsCount = partitionsCount
 		}
 		if explicitPartitions, ok := m["partition_at_keys"].([]interface{}); ok {
@@ -199,16 +199,16 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 				return nil, err
 			}
 		}
-		if minPartitionsCount, ok := m["auto_partitioning_min_partitions_count"].(int); ok {
+		if minPartitionsCount, ok := m["auto_partitioning_min_partitions_count"].(int); ok && minPartitionsCount != 0 {
 			p.MinPartitionsCount = minPartitionsCount
 		}
-		if maxPartitionsCount, ok := m["auto_partitioning_max_partitions_count"].(int); ok {
+		if maxPartitionsCount, ok := m["auto_partitioning_max_partitions_count"].(int); ok && maxPartitionsCount != 0 {
 			p.MaxPartitionsCount = maxPartitionsCount
 		}
 		if byLoad, ok := m["auto_partitioning_by_load"].(bool); ok {
 			p.ByLoad = &byLoad
 		}
-		if bySize, ok := m["auto_partitioning_partition_size_mb"].(int); ok {
+		if bySize, ok := m["auto_partitioning_partition_size_mb"].(int); ok && bySize != 0 {
 			p.BySize = &bySize
 		}
 	}
