@@ -2,10 +2,11 @@ package coordination
 
 import (
 	"fmt"
+	"net/url"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/ydb-go-sdk/v3/coordination"
-	"net/url"
 )
 
 type Resource struct {
