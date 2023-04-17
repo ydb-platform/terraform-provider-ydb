@@ -22,7 +22,7 @@ type Resource struct {
 
 func ResourceToNodeConfig(resource *Resource) coordination.NodeConfig {
 	return coordination.NodeConfig{
-		Path:                     resource.Path,
+		Path:                     "",
 		SelfCheckPeriodMillis:    uint32(resource.SelfCheckPeriodMillis),
 		SessionGracePeriodMillis: uint32(resource.SessionGracePeriodMillis),
 		ReadConsistencyMode:      resource.ReadConsistencyMode,
