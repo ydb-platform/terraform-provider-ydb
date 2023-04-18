@@ -33,9 +33,12 @@ func ResourceToNodeConfig(resource *Resource) coordination.NodeConfig {
 }
 
 const (
-	ConsistencyModeRelaxed = "relaxed"
-	ConsistencyModeStrict  = "strict"
-	ConsistencyModeUnset   = "unset"
+	ConsistencyModeRelaxed            = "relaxed"
+	ConsistencyModeStrict             = "strict"
+	ConsistencyModeUnset              = "unset"
+	RatelimiterCountersModeAggregated = "aggregated"
+	RatelimiterCountersModeDetailed   = "detailed"
+	RatelimiterCountersModeUnset      = "unset"
 )
 
 func convertStringToConsistencyMode(s string) coordination.ConsistencyMode {
@@ -59,10 +62,10 @@ func convertConsistencyModeToString(c coordination.ConsistencyMode) string {
 }
 
 func convertStringToRatelimiterMode(s string) coordination.RatelimiterCountersMode {
-	if s == "aggregated" {
+	if s == RatelimiterCountersModeAggregated {
 		return coordination.RatelimiterCountersModeAggregated
 	}
-	if s == "detailed" {
+	if s == RatelimiterCountersModeDetailed {
 		return coordination.RatelimiterCountersModeDetailed
 	}
 	return coordination.RatelimiterCountersModeUnset
@@ -70,12 +73,12 @@ func convertStringToRatelimiterMode(s string) coordination.RatelimiterCountersMo
 
 func convertRatelimiterModeToString(c coordination.RatelimiterCountersMode) string {
 	if c == coordination.RatelimiterCountersModeAggregated {
-		return "aggregated"
+		return RatelimiterCountersModeAggregated
 	}
 	if c == coordination.RatelimiterCountersModeDetailed {
-		return "detailed"
+		return RatelimiterCountersModeDetailed
 	}
-	return "unset"
+	return RatelimiterCountersModeUnset
 }
 
 func flattenCoordinationDescription(d *schema.ResourceData, desc *coordination.NodeConfig, entity *helpers.YDBEntity) (err error) {
