@@ -8,7 +8,6 @@ import (
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/coordination"
-
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 

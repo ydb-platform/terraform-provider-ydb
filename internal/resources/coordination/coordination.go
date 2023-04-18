@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/coordination"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
