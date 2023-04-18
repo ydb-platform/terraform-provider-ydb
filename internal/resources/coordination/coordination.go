@@ -32,11 +32,17 @@ func ResourceToNodeConfig(resource *Resource) coordination.NodeConfig {
 	}
 }
 
+const (
+	ConsistencyModeRelaxed = "relaxed"
+	ConsistencyModeStrict  = "strict"
+	ConsistencyModeUnset   = "unset"
+)
+
 func convertStringToConsistencyMode(s string) coordination.ConsistencyMode {
-	if s == "relaxed" {
+	if s == ConsistencyModeRelaxed {
 		return coordination.ConsistencyModeRelaxed
 	}
-	if s == "strict" {
+	if s == ConsistencyModeStrict {
 		return coordination.ConsistencyModeStrict
 	}
 	return coordination.ConsistencyModeUnset
@@ -44,12 +50,12 @@ func convertStringToConsistencyMode(s string) coordination.ConsistencyMode {
 
 func convertConsistencyModeToString(c coordination.ConsistencyMode) string {
 	if c == coordination.ConsistencyModeRelaxed {
-		return "relaxed"
+		return ConsistencyModeRelaxed
 	}
 	if c == coordination.ConsistencyModeStrict {
-		return "strict"
+		return ConsistencyModeStrict
 	}
-	return "unset"
+	return ConsistencyModeUnset
 }
 
 func convertStringToRatelimiterMode(s string) coordination.RatelimiterCountersMode {
