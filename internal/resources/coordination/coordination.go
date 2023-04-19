@@ -111,7 +111,7 @@ func flattenCoordinationDescription(d *schema.ResourceData, desc *coordination.N
 	if err != nil {
 		return
 	}
-	return err
+	return
 }
 
 func ResourceSchemaToCoordinationResource(d *schema.ResourceData) (*Resource, error) {

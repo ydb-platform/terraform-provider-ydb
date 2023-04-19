@@ -13,37 +13,32 @@ import (
 func coordinationDiff(d *schema.ResourceData) coordination.NodeConfig {
 	var diff coordination.NodeConfig
 	if d.HasChange("self_check_period_ms") {
-		if v, ok := d.GetOk("self_check_period_ms"); ok {
-			diff.SelfCheckPeriodMillis = uint32(v.(int))
-		}
+		v, _ := d.GetOk("self_check_period_ms")
+		diff.SelfCheckPeriodMillis = uint32(v.(int))
 	} else {
 		diff.SessionGracePeriodMillis = uint32(d.Get("self_check_period_ms").(int))
 	}
 	if d.HasChange("session_grace_period_ms") {
-		if v, ok := d.GetOk("session_grace_period_ms"); ok {
-			diff.SessionGracePeriodMillis = uint32(v.(int))
-		}
+		v, _ := d.GetOk("session_grace_period_ms")
+		diff.SessionGracePeriodMillis = uint32(v.(int))
 	} else {
 		diff.SessionGracePeriodMillis = uint32(d.Get("session_grace_period_ms").(int))
 	}
 	if d.HasChange("read_consistency_mode") {
-		if v, ok := d.GetOk("read_consistency_mode"); ok {
-			diff.ReadConsistencyMode = convertStringToConsistencyMode(v.(string))
-		}
+		v, _ := d.GetOk("read_consistency_mode")
+		diff.ReadConsistencyMode = convertStringToConsistencyMode(v.(string))
 	} else {
 		diff.ReadConsistencyMode = convertStringToConsistencyMode(d.Get("read_consistency_mode").(string))
 	}
 	if d.HasChange("attach_consistency_mode") {
-		if v, ok := d.GetOk("attach_consistency_mode"); ok {
-			diff.AttachConsistencyMode = convertStringToConsistencyMode(v.(string))
-		}
+		v, _ := d.GetOk("attach_consistency_mode")
+		diff.AttachConsistencyMode = convertStringToConsistencyMode(v.(string))
 	} else {
 		diff.AttachConsistencyMode = convertStringToConsistencyMode(d.Get("attach_consistency_mode").(string))
 	}
 	if d.HasChange("ratelimiter_counters_mode") {
-		if v, ok := d.GetOk("ratelimiter_counters_mode"); ok {
-			diff.RatelimiterCountersMode = convertStringToRatelimiterMode(v.(string))
-		}
+		v, _ := d.GetOk("ratelimiter_counters_mode")
+		diff.RatelimiterCountersMode = convertStringToRatelimiterMode(v.(string))
 	} else {
 		diff.RatelimiterCountersMode = convertStringToRatelimiterMode(d.Get("ratelimiter_counters_mode").(string))
 	}

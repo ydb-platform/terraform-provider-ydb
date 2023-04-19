@@ -42,7 +42,7 @@ func (h handlerCoordination) Create(ctx context.Context, d *schema.ResourceData,
 	d.SetId(id)
 	err = db.Coordination().CreateNode(ctx, coordinationResource.Path, ResourceToNodeConfig(coordinationResource))
 	if err != nil {
-		panic(err)
+		diag.FromErr(err)
 	}
 	return h.Read(ctx, d, meta)
 }

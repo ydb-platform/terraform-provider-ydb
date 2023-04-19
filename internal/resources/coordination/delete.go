@@ -36,13 +36,13 @@ func (h handlerCoordination) Delete(ctx context.Context, d *schema.ResourceData,
 			},
 		}
 	}
-	err = db.Coordination().DropNode(ctx, coordinationResource.Path)
-	if err != nil {
-		return diag.Errorf("failed to drop coordination %q: %s", coordinationResource.Path, err)
-	}
 	defer func() {
 		_ = db.Close(ctx)
 	}()
 
+	err = db.Coordination().DropNode(ctx, coordinationResource.Path)
+	if err != nil {
+		return diag.Errorf("failed to drop coordination %q: %s", coordinationResource.Path, err)
+	}
 	return nil
 }
