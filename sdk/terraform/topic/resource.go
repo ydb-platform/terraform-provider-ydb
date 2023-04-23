@@ -9,6 +9,7 @@ import (
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/attributes"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
@@ -16,11 +17,6 @@ const (
 	ydbTopicCodecGZIP = "gzip"
 	ydbTopicCodecRAW  = "raw"
 	ydbTopicCodecZSTD = "zstd"
-)
-
-const (
-	ydbTopicDefaultPartitionsCount        = 2
-	ydbTopicDefaultMaxPartitionWriteSpeed = 1048576
 )
 
 func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
@@ -168,24 +164,26 @@ func DataSourceSchema() map[string]*schema.Schema {
 
 func ResourceSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
-		"database_endpoint": {
+		attributes.DatabaseEndpoint: {
 			Type:     schema.TypeString,
 			Required: true,
+			ForceNew: true,
 		},
-		"name": {
+		attributeName: {
 			Type:     schema.TypeString,
 			Required: true,
+			ForceNew: true,
 		},
-		"description": {
+		attributes.Description: {
 			Type:     schema.TypeString,
 			Optional: true,
 		},
-		"partitions_count": {
+		attributePartitionsCount: {
 			Type:     schema.TypeInt,
 			Optional: true,
-			Default:  ydbTopicDefaultPartitionsCount,
+			Computed: true,
 		},
-		"supported_codecs": {
+		attributeSupportedCodecs: {
 			Type:     schema.TypeList,
 			Optional: true,
 			Elem: &schema.Schema{
@@ -194,39 +192,44 @@ func ResourceSchema() map[string]*schema.Schema {
 			},
 			Computed: true,
 		},
-		"retention_period_ms": {
-			Type:          schema.TypeInt,
-			Optional:      true,
-			Default:       0,
+		attributeRetentionPeriodMS: {
+			Type:     schema.TypeInt,
+			Optional: true,
+			Computed: true,
 			ConflictsWith: []string{
-				//				"retention_storage_mb",
+				attributeRetentionStorageMB,
 			},
 		},
-		"retention_storage_mb": {
-			Type:          schema.TypeInt,
-			Optional:      true,
-			Computed:      true,
+		attributeRetentionStorageMB: {
+			Type:     schema.TypeInt,
+			Optional: true,
+			Computed: true,
 			ConflictsWith: []string{
-				//				"retention_period_ms",
+				attributeRetentionPeriodMS,
 			},
 		},
-		"metering_mode": {
+		attributePartitionWriteSpeedKBPS: {
+			Type:     schema.TypeInt,
+			Optional: true,
+			Computed: true,
+		},
+		attributeMeteringMode: {
 			Type:     schema.TypeString,
 			Optional: true,
 			Computed: true,
 		},
-		"consumer": {
+		attributeConsumer: {
 			Type:     schema.TypeList,
 			Optional: true,
 			Computed: true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
-					"name": {
+					attributeName: {
 						Type:         schema.TypeString,
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
-					"supported_codecs": {
+					attributeSupportedCodecs: {
 						Type:     schema.TypeList,
 						Optional: true,
 						Elem: &schema.Schema{
@@ -235,13 +238,9 @@ func ResourceSchema() map[string]*schema.Schema {
 						},
 						Computed: true,
 					},
-					"starting_message_timestamp_ms": {
+					attributeConsumerStartingMessageTimestampMS: {
 						Type:     schema.TypeInt,
 						Optional: true,
-						Computed: true,
-					},
-					"service_type": {
-						Type:     schema.TypeString,
 						Computed: true,
 					},
 				},

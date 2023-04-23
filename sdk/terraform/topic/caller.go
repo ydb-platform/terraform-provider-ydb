@@ -14,6 +14,7 @@ import (
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/attributes"
 )
 
 type caller struct {
@@ -37,7 +38,7 @@ func (c *caller) createYDBConnection(
 		databaseEndpoint = ydbEn.PrepareFullYDBEndpoint()
 	} else {
 		// NOTE(shmel1k@): resource is not initialized yet.
-		databaseEndpoint = d.Get("database_endpoint").(string)
+		databaseEndpoint = d.Get(attributes.DatabaseEndpoint).(string)
 	}
 
 	sess, err := ydb.Open(ctx, databaseEndpoint, ydb.WithAccessTokenCredentials(c.token))
@@ -62,11 +63,6 @@ func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceDa
 	}()
 
 	topicClient := ydbClient.Topic()
-
-	if d.HasChange("name") {
-		// Creating new topic
-		return c.resourceYDBTopicCreate(ctx, d, nil)
-	}
 
 	topicName := topic.GetEntityPath()
 	desc, err := topicClient.Describe(ctx, topicName)
@@ -149,7 +145,7 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 	}()
 
 	var supportedCodecs []topictypes.Codec
-	if gotCodecs, ok := d.GetOk("supported_codecs"); !ok {
+	if gotCodecs, ok := d.GetOk(attributeSupportedCodecs); !ok {
 		supportedCodecs = topic.YDBTopicDefaultCodecs
 	} else {
 		for _, c := range gotCodecs.([]interface{}) {
@@ -158,30 +154,32 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		}
 	}
 
-	consumers := topic.ExpandConsumers(d.Get("consumer").([]interface{}))
+	consumers := topic.ExpandConsumers(d.Get(attributeConsumer).([]interface{}))
 	options := []topicoptions.CreateOption{
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
-		topicoptions.CreateWithPartitionWriteBurstBytes(ydbTopicDefaultMaxPartitionWriteSpeed),
-		topicoptions.CreateWithPartitionWriteSpeedBytesPerSecond(ydbTopicDefaultMaxPartitionWriteSpeed),
-		topicoptions.CreateWithMinActivePartitions(int64(d.Get("partitions_count").(int))),
+		topicoptions.CreateWithMinActivePartitions(int64(d.Get(attributePartitionsCount).(int))),
 		topicoptions.CreateWithConsumer(consumers...),
 	}
-	if d.Get("retention_period_ms") != 0 {
+	if d.Get(attributeRetentionPeriodMS) != 0 {
 		options = append(options, topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond))
 	}
-	if d.Get("retention_storage_mb") != 0 {
+	if d.Get(attributeRetentionStorageMB) != 0 {
 		options = append(options, topicoptions.CreateWithRetentionStorageMB(int64(d.Get("retention_storage_mb").(int))))
 	}
-	if d.Get("metering_mode") != "" {
+	if d.Get(attributeMeteringMode) != "" {
 		options = append(options, topicoptions.CreateWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
 	}
-	err = client.Topic().Create(ctx, d.Get("name").(string), options...)
+	if d.Get(attributePartitionWriteSpeedKBPS) != 0 {
+		writeSpeed := 1024 * d.Get("partition_write_speed_kbps").(int)
+		options = append(options, topicoptions.CreateWithPartitionWriteBurstBytes(int64(writeSpeed)))
+	}
+	err = client.Topic().Create(ctx, d.Get(attributeName).(string), options...)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to initialize ydb-topic control plane client: %w", err))
 	}
 
-	topicPath := d.Get("name").(string)
-	d.SetId(d.Get("database_endpoint").(string) + "?path=" + topicPath)
+	topicPath := d.Get(attributeName).(string)
+	d.SetId(d.Get(attributes.DatabaseEndpoint).(string) + "?path=" + topicPath)
 
 	return c.resourceYDBTopicRead(ctx, d, nil)
 }
@@ -208,9 +206,5 @@ func (c *caller) resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceD
 
 	topicName := topic.GetEntityPath()
 	err = client.Topic().Drop(ctx, topicName)
-	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to delete topic: %w", err))
-	}
-
-	return nil
+	return diag.FromErr(err)
 }
