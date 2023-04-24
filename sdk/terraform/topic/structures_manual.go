@@ -16,7 +16,7 @@ import (
 func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
 	_ = d.Set(attributeName, d.Get(attributeName).(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
 	_ = d.Set(attributePartitionsCount, desc.PartitionSettings.MinActivePartitions)
-	_ = d.Set(attributeRetentionPeriodMS, desc.RetentionPeriod.Milliseconds())
+	_ = d.Set(attributeRetentionPeriodHours, desc.RetentionPeriod.Hours())
 	_ = d.Set(attributeRetentionStorageMB, desc.RetentionStorageMB)
 	_ = d.Set(attributeMeteringMode, MeteringModeToString(desc.MeteringMode))
 	_ = d.Set(attributePartitionWriteSpeedKBPS, desc.PartitionWriteSpeedBytesPerSecond/1024)
@@ -71,11 +71,11 @@ func prepareYDBTopicAlterSettings(
 		}
 		opts = append(opts, topicoptions.AlterWithSupportedCodecs(updatedCodecs...))
 	}
-	if d.HasChange(attributeRetentionPeriodMS) {
-		opts = append(opts, topicoptions.AlterWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond))
+	if d.HasChange(attributeRetentionPeriodHours) {
+		opts = append(opts, topicoptions.AlterWithRetentionPeriod(time.Duration(d.Get(attributeRetentionPeriodHours).(int))*time.Hour))
 	}
 	if d.HasChange(attributeRetentionStorageMB) {
-		opts = append(opts, topicoptions.AlterWithRetentionStorageMB(int64(d.Get("retention_storage_mb").(int))))
+		opts = append(opts, topicoptions.AlterWithRetentionStorageMB(int64(d.Get(attributeRetentionStorageMB).(int))))
 	}
 	if d.HasChange(attributePartitionWriteSpeedKBPS) {
 		writeSpeed := d.Get(attributePartitionWriteSpeedKBPS).(int) * 1024

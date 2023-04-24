@@ -4,7 +4,7 @@ const (
 	attributePartitionsCount                    = "partitions_count"
 	attributeMeteringMode                       = "metering_mode"
 	attributeSupportedCodecs                    = "supported_codecs"
-	attributeRetentionPeriodMS                  = "retention_period_ms"
+	attributeRetentionPeriodHours               = "retention_period_hours"
 	attributeRetentionStorageMB                 = "retention_storage_mb"
 	attributePartitionWriteSpeedKBPS            = "partition_write_speed_kbps"
 	attributeConsumer                           = "consumer"

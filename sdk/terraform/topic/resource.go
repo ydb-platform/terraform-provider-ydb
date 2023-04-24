@@ -192,7 +192,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			},
 			Computed: true,
 		},
-		attributeRetentionPeriodMS: {
+		attributeRetentionPeriodHours: {
 			Type:     schema.TypeInt,
 			Optional: true,
 			Computed: true,
@@ -205,7 +205,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Computed: true,
 			ConflictsWith: []string{
-				attributeRetentionPeriodMS,
+				attributeRetentionPeriodHours,
 			},
 		},
 		attributePartitionWriteSpeedKBPS: {

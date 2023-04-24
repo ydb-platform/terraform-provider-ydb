@@ -160,18 +160,19 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get(attributePartitionsCount).(int))),
 		topicoptions.CreateWithConsumer(consumers...),
 	}
-	if d.Get(attributeRetentionPeriodMS) != 0 {
-		options = append(options, topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond))
+	if d.Get(attributeRetentionPeriodHours) != 0 {
+		options = append(options, topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get(attributeRetentionPeriodHours).(int))*time.Hour))
 	}
 	if d.Get(attributeRetentionStorageMB) != 0 {
-		options = append(options, topicoptions.CreateWithRetentionStorageMB(int64(d.Get("retention_storage_mb").(int))))
+		options = append(options, topicoptions.CreateWithRetentionStorageMB(int64(d.Get(attributeRetentionStorageMB).(int))))
 	}
 	if d.Get(attributeMeteringMode) != "" {
-		options = append(options, topicoptions.CreateWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
+		options = append(options, topicoptions.CreateWithMeteringMode(StringToMeteringMode(d.Get(attributeMeteringMode).(string))))
 	}
 	if d.Get(attributePartitionWriteSpeedKBPS) != 0 {
-		writeSpeed := 1024 * d.Get("partition_write_speed_kbps").(int)
+		writeSpeed := 1024 * d.Get(attributePartitionWriteSpeedKBPS).(int)
 		options = append(options, topicoptions.CreateWithPartitionWriteBurstBytes(int64(writeSpeed)))
+		options = append(options, topicoptions.CreateWithPartitionWriteSpeedBytesPerSecond(int64(writeSpeed)))
 	}
 	err = client.Topic().Create(ctx, d.Get(attributeName).(string), options...)
 	if err != nil {
