@@ -10,13 +10,16 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/attributes"
 )
 
 func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
-	_ = d.Set("name", d.Get("name").(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
-	_ = d.Set("partitions_count", desc.PartitionSettings.MinActivePartitions)
-	_ = d.Set("retention_period_ms", desc.RetentionPeriod.Milliseconds())
-	_ = d.Set("metering_mode", MetringModeToString(desc.MeteringMode))
+	_ = d.Set(attributeName, d.Get(attributeName).(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
+	_ = d.Set(attributePartitionsCount, desc.PartitionSettings.MinActivePartitions)
+	_ = d.Set(attributeRetentionPeriodHours, desc.RetentionPeriod.Hours())
+	_ = d.Set(attributeRetentionStorageMB, desc.RetentionStorageMB)
+	_ = d.Set(attributeMeteringMode, MeteringModeToString(desc.MeteringMode))
+	_ = d.Set(attributePartitionWriteSpeedKBPS, desc.PartitionWriteSpeedBytesPerSecond/1024)
 
 	supportedCodecs := make([]string, 0, len(desc.SupportedCodecs))
 	for _, v := range desc.SupportedCodecs {
@@ -31,32 +34,32 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 	}
 
 	consumers := topic.FlattenConsumersDescription(desc.Consumers)
-	err := d.Set("consumer", consumers)
+	err := d.Set(attributeConsumer, consumers)
 	if err != nil {
 		return fmt.Errorf("failed to set consumer %+v: %w", consumers, err)
 	}
 
-	err = d.Set("supported_codecs", supportedCodecs)
+	err = d.Set(attributeSupportedCodecs, supportedCodecs)
 	if err != nil {
 		return err
 	}
 
-	return d.Set("database_endpoint", d.Get("database_endpoint").(string))
+	return d.Set(attributes.DatabaseEndpoint, d.Get(attributes.DatabaseEndpoint).(string))
 }
 
 func prepareYDBTopicAlterSettings(
 	d *schema.ResourceData,
 	settings topictypes.TopicDescription,
 ) (opts []topicoptions.AlterOption) {
-	if d.HasChange("partitions_count") {
+	if d.HasChange(attributePartitionsCount) {
 		opts = append(opts, topicoptions.AlterWithPartitionCountLimit(int64(d.Get("partitions_count").(int))))
 		opts = append(opts, topicoptions.AlterWithMinActivePartitions(int64(d.Get("partitions_count").(int))))
 	}
-	if d.HasChange("metering_mode") {
+	if d.HasChange(attributeMeteringMode) {
 		opts = append(opts, topicoptions.AlterWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
 	}
-	if d.HasChange("supported_codecs") {
-		codecs := d.Get("supported_codecs").([]interface{})
+	if d.HasChange(attributeSupportedCodecs) {
+		codecs := d.Get(attributeSupportedCodecs).([]interface{})
 		updatedCodecs := make([]topictypes.Codec, 0, len(codecs))
 
 		for _, c := range codecs {
@@ -68,12 +71,18 @@ func prepareYDBTopicAlterSettings(
 		}
 		opts = append(opts, topicoptions.AlterWithSupportedCodecs(updatedCodecs...))
 	}
-	if d.HasChange("retention_period_ms") {
-		opts = append(opts, topicoptions.AlterWithRetentionPeriod(time.Duration(d.Get("retention_period_ms").(int))*time.Millisecond))
+	if d.HasChange(attributeRetentionPeriodHours) {
+		opts = append(opts, topicoptions.AlterWithRetentionPeriod(time.Duration(d.Get(attributeRetentionPeriodHours).(int))*time.Hour))
 	}
-
-	if d.HasChange("consumer") {
-		additionalOpts := topic.MergeConsumerSettings(d.Get("consumer").([]interface{}), settings.Consumers)
+	if d.HasChange(attributeRetentionStorageMB) {
+		opts = append(opts, topicoptions.AlterWithRetentionStorageMB(int64(d.Get(attributeRetentionStorageMB).(int))))
+	}
+	if d.HasChange(attributePartitionWriteSpeedKBPS) {
+		writeSpeed := d.Get(attributePartitionWriteSpeedKBPS).(int) * 1024
+		opts = append(opts, topicoptions.AlterWithPartitionWriteSpeedBytesPerSecond(int64(writeSpeed)))
+	}
+	if d.HasChange(attributeConsumer) {
+		additionalOpts := topic.MergeConsumerSettings(d.Get(attributeConsumer).([]interface{}), settings.Consumers)
 		opts = append(opts, additionalOpts...)
 	}
 
