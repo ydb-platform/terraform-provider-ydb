@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -36,7 +37,7 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interf
 	}()
 
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		query := PrepareDropTableRequest(tableResource.Path)
+		query := PrepareDropTableRequest(strings.Trim(tableResource.Path, "/"))
 		return s.ExecuteSchemeQuery(ctx, query)
 	})
 	if err != nil {

@@ -74,8 +74,9 @@ type PartitionAtKeys struct {
 }
 
 type PartitioningSettings struct {
-	BySize             *int
+	BySize             *bool
 	ByLoad             *bool
+	PartitionSizeMb    *int
 	PartitionAtKeys    []*PartitionAtKeys
 	PartitionsCount    int
 	MinPartitionsCount int
@@ -208,8 +209,11 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 		if byLoad, ok := m["auto_partitioning_by_load"].(bool); ok {
 			p.ByLoad = &byLoad
 		}
-		if bySize, ok := m["auto_partitioning_partition_size_mb"].(int); ok && bySize != 0 {
+		if bySize, ok := m["auto_partitioning_by_size"].(bool); ok {
 			p.BySize = &bySize
+		}
+		if partitionSizeMb, ok := m["auto_partitioning_partition_size_mb"].(int); ok && partitionSizeMb != 0 {
+			p.PartitionSizeMb = &partitionSizeMb
 		}
 	}
 
@@ -284,6 +288,7 @@ func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.P
 	output := make([]interface{}, 0, 1)
 	partitioningSettings := make(map[string]interface{})
 	partitioningSettings["auto_partitioning_by_load"] = settings.PartitioningByLoad == options.FeatureEnabled
+	partitioningSettings["auto_partitioning_by_size"] = settings.PartitioningBySize == options.FeatureEnabled
 	partitioningSettings["auto_partitioning_partition_size_mb"] = settings.PartitionSizeMb
 	partitioningSettings["auto_partitioning_min_partitions_count"] = settings.MinPartitionsCount
 	partitioningSettings["auto_partitioning_max_partitions_count"] = settings.MaxPartitionsCount

@@ -227,6 +227,11 @@ func ResourceSchema() map[string]*schema.Schema {
 						Optional: true,
 						Default:  false,
 					},
+					"auto_partitioning_by_size": {
+						Type:     schema.TypeBool,
+						Optional: true,
+						Default:  true,
+					},
 				},
 			},
 		},

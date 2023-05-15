@@ -410,6 +410,8 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 	partitioningBySize := 42
 	partitioningByLoadFalse := false
 	partitioningByLoadTrue := true
+	partitioningBySizeTrue := true
+	partitioningBySizeFalse := false
 
 	testData := []struct {
 		testName            string
@@ -429,11 +431,22 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 			testName:  "enable only partitioning_by_size",
 			tableName: "abacaba",
 			settings: &PartitioningSettings{
-				BySize: &partitioningBySize,
+				BySize:          &partitioningBySizeTrue,
+				PartitionSizeMb: &partitioningBySize,
 			},
 			expected: "ALTER TABLE `abacaba` SET (\n" +
 				"AUTO_PARTITIONING_BY_SIZE = ENABLED,\n" +
 				"AUTO_PARTITIONING_PARTITION_SIZE_MB = 42\n)",
+		},
+		{
+			testName:  "disable partitioning_by_size",
+			tableName: "abacaba",
+			settings: &PartitioningSettings{
+				BySize:          &partitioningBySizeFalse,
+				PartitionSizeMb: &partitioningBySize, //checking that size don't being thrown to params yql
+			},
+			expected: "ALTER TABLE `abacaba` SET (\n" +
+				"AUTO_PARTITIONING_BY_SIZE = DISABLED\n)",
 		},
 		{
 			testName:  "enable only partitioning_by_load",
@@ -477,7 +490,8 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 			testName:  "all settings set",
 			tableName: "abacaba",
 			settings: &PartitioningSettings{
-				BySize:             &partitioningBySize,
+				BySize:             &partitioningBySizeTrue,
+				PartitionSizeMb:    &partitioningBySize,
 				ByLoad:             &partitioningByLoadTrue,
 				MinPartitionsCount: 4,
 				MaxPartitionsCount: 42,
@@ -505,6 +519,7 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 func TestPrepareAlterRequest(t *testing.T) {
 	newPartitioningBySize := 42
 	newPartitioningByLoad := false
+	newPartitioningBySizeTrue := true
 	testData := []struct {
 		testName string
 		diff     *tableDiff
@@ -541,7 +556,8 @@ func TestPrepareAlterRequest(t *testing.T) {
 			diff: &tableDiff{
 				TableName: "abacaba",
 				NewPartitioningSettings: &PartitioningSettings{
-					BySize:             &newPartitioningBySize,
+					BySize:             &newPartitioningBySizeTrue,
+					PartitionSizeMb:    &newPartitioningBySize,
 					MinPartitionsCount: 1,
 					MaxPartitionsCount: 5,
 				},
@@ -596,7 +612,8 @@ func TestPrepareAlterRequest(t *testing.T) {
 					ExpireInterval: "PT0S",
 				},
 				NewPartitioningSettings: &PartitioningSettings{
-					BySize:             &newPartitioningBySize,
+					BySize:             &newPartitioningBySizeTrue,
+					PartitionSizeMb:    &newPartitioningBySize,
 					ByLoad:             &newPartitioningByLoad,
 					MinPartitionsCount: 4,
 					MaxPartitionsCount: 42,
