@@ -341,7 +341,7 @@ func prepareNewPartitioningSettingsQuery(
 		}
 		needComma = true
 	}
-	if settings != nil && settings.BySize != nil {
+	if settings != nil && settings.BySize != nil { //nolint:nestif
 		if needComma {
 			buf = append(buf, ',', '\n')
 		}

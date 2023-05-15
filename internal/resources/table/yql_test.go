@@ -443,7 +443,7 @@ func TestPrepareNewPartitioningSettingsQuery(t *testing.T) {
 			tableName: "abacaba",
 			settings: &PartitioningSettings{
 				BySize:          &partitioningBySizeFalse,
-				PartitionSizeMb: &partitioningBySize, //checking that size don't being thrown to params yql
+				PartitionSizeMb: &partitioningBySize, // checking that size don't being thrown to params yql
 			},
 			expected: "ALTER TABLE `abacaba` SET (\n" +
 				"AUTO_PARTITIONING_BY_SIZE = DISABLED\n)",
