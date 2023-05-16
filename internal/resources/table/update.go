@@ -62,5 +62,5 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	return nil
+	return h.Read(ctx, d, cfg)
 }

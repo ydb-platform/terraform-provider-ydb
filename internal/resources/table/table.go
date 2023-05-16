@@ -188,8 +188,8 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 		}
 	}
 
-	pSet := v.(*schema.Set)
-	for _, l := range pSet.List() {
+	pList := v.([]interface{})
+	for _, l := range pList {
 		m := l.(map[string]interface{})
 		if partitionsCount, ok := m["uniform_partitions"].(int); ok && partitionsCount != 0 {
 			p.PartitionsCount = partitionsCount
@@ -292,8 +292,8 @@ func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.P
 	partitioningSettings["auto_partitioning_partition_size_mb"] = settings.PartitionSizeMb
 	partitioningSettings["auto_partitioning_min_partitions_count"] = settings.MinPartitionsCount
 	partitioningSettings["auto_partitioning_max_partitions_count"] = settings.MaxPartitionsCount
-	pSet := d.Get("partitioning_settings").(*schema.Set)
-	for _, l := range pSet.List() {
+	pList := d.Get("partitioning_settings").([]interface{})
+	for _, l := range pList {
 		m := l.(map[string]interface{})
 		partitioningSettings["partition_at_keys"] = m["partition_at_keys"]
 		partitioningSettings["uniform_partitions"] = m["uniform_partitions"]
