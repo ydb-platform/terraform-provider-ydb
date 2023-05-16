@@ -133,12 +133,18 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 				req = append(req, ',', '\n')
 			}
 			req = appendIndent(req, indent)
-			req = append(req, "AUTO_PARTITIONING_BY_SIZE = ENABLED"...)
-			req = append(req, ',')
-			req = append(req, '\n')
-			req = appendIndent(req, indent)
-			req = append(req, "AUTO_PARTITIONING_PARTITION_SIZE_MB = "...)
-			req = strconv.AppendInt(req, int64(*r.PartitioningSettings.BySize), 10)
+			if *r.PartitioningSettings.BySize {
+				req = append(req, "AUTO_PARTITIONING_BY_SIZE = ENABLED"...)
+				if r.PartitioningSettings.PartitionSizeMb != nil {
+					req = append(req, ',')
+					req = append(req, '\n')
+					req = appendIndent(req, indent)
+					req = append(req, "AUTO_PARTITIONING_PARTITION_SIZE_MB = "...)
+					req = strconv.AppendInt(req, int64(*r.PartitioningSettings.PartitionSizeMb), 10)
+				}
+			} else {
+				req = append(req, "AUTO_PARTITIONING_BY_SIZE = DISABLED"...)
+			}
 			needComma = true
 		}
 		if r.PartitioningSettings.PartitionsCount != 0 {
@@ -335,15 +341,21 @@ func prepareNewPartitioningSettingsQuery(
 		}
 		needComma = true
 	}
-	if settings != nil && settings.BySize != nil {
+	if settings != nil && settings.BySize != nil { //nolint:nestif
 		if needComma {
 			buf = append(buf, ',', '\n')
 		}
 		needComma = true
-		buf = append(buf, "AUTO_PARTITIONING_BY_SIZE = ENABLED"...)
-		buf = append(buf, ',', '\n')
-		buf = append(buf, "AUTO_PARTITIONING_PARTITION_SIZE_MB = "...)
-		buf = strconv.AppendInt(buf, int64(*settings.BySize), 10)
+		if *settings.BySize {
+			buf = append(buf, "AUTO_PARTITIONING_BY_SIZE = ENABLED"...)
+			if settings.PartitionSizeMb != nil {
+				buf = append(buf, ',', '\n')
+				buf = append(buf, "AUTO_PARTITIONING_PARTITION_SIZE_MB = "...)
+				buf = strconv.AppendInt(buf, int64(*settings.PartitionSizeMb), 10)
+			}
+		} else {
+			buf = append(buf, "AUTO_PARTITIONING_BY_SIZE = DISABLED"...)
+		}
 	}
 	if settings != nil && settings.MinPartitionsCount != 0 {
 		if needComma {
