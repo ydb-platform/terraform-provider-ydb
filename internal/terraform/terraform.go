@@ -37,7 +37,7 @@ func Provider() *schema.Provider {
 			"ydb_table_changefeed": ydbTableChangeFeedResource(),
 			"ydb_table_index":      ydbTableIndexResource(),
 			"ydb_coordination":     ydbCoordinationResource(),
-			"ydb_rate_limiter":     ydbRateLimiterResource(),
+			"ydb_ratelimiter":      ydbRateLimiterResource(),
 		},
 	}
 

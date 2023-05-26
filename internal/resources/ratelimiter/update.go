@@ -77,5 +77,6 @@ func (h handlerRateLimiter) Update(ctx context.Context, d *schema.ResourceData, 
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	return nil
+	return h.Read(ctx, d, meta)
 }
+mscm

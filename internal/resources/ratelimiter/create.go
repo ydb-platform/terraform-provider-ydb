@@ -40,7 +40,7 @@ func (h handlerRateLimiter) Create(ctx context.Context, d *schema.ResourceData, 
 	d.SetId(id)
 	err = db.Ratelimiter().CreateResource(ctx, rateLimiterResource.Path, ResourceToRateLimiterResource(rateLimiterResource))
 	if err != nil {
-		diag.FromErr(err)
+		return diag.FromErr(err)
 	}
 	return h.Read(ctx, d, meta)
 }
