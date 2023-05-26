@@ -5,10 +5,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/ydb-go-sdk/v3/ratelimiter"
 
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3/ratelimiter"
 )
 
 func rateLimiterDiff(d *schema.ResourceData) ratelimiter.Resource {
