@@ -29,6 +29,7 @@ func Provider() *schema.Provider {
 			"ydb_topic":        ydbTopicDataSource(),
 			"ydb_table":        ydbTableDataSource(),
 			"ydb_coordination": ydbCoordinationDataSource(),
+			"ydb_rate_limiter": ydbRateLimiterDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"ydb_topic":            ydbTopicResource(),
@@ -36,6 +37,7 @@ func Provider() *schema.Provider {
 			"ydb_table_changefeed": ydbTableChangeFeedResource(),
 			"ydb_table_index":      ydbTableIndexResource(),
 			"ydb_coordination":     ydbCoordinationResource(),
+			"ydb_ratelimiter":      ydbRateLimiterResource(),
 		},
 	}
 
