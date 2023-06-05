@@ -54,6 +54,7 @@ type Index struct {
 type TTL struct {
 	ColumnName     string
 	ExpireInterval string
+	Unit           string
 }
 
 func (t *TTL) ToYQL() string {
@@ -128,6 +129,7 @@ func expandTableTTLSettings(d *schema.ResourceData) (ttl *TTL) {
 		ttl.ColumnName = m["column_name"].(string)
 		//		ttl.Mode = m["mode"].(string)
 		ttl.ExpireInterval = m["expire_interval"].(string)
+		ttl.Unit = m["unit"].(string)
 	}
 	return
 }
@@ -358,6 +360,7 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, e
 		ttlSettings = append(ttlSettings, map[string]interface{}{
 			"column_name":     desc.TimeToLiveSettings.ColumnName,
 			"expire_interval": ttlToISO8601(time.Duration(desc.TimeToLiveSettings.ExpireAfterSeconds) * time.Second),
+			"unit":            desc.TimeToLiveSettings.ColumnUnit.ToYDB().String(),
 		})
 		err = d.Set("ttl", ttlSettings)
 		if err != nil {

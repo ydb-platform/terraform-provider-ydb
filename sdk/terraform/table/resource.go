@@ -171,6 +171,12 @@ func ResourceSchema() map[string]*schema.Schema {
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
+					"unit": {
+						Type:         schema.TypeString,
+						Optional:     true,
+						Computed:     true,
+						ValidateFunc: validation.NoZeroValues,
+					},
 				},
 			},
 		},

@@ -82,7 +82,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	indent--
 
 	needWith := false
-	if r.TTL != nil {
+	if r.TTL != nil && isTTLYqlType(r) {
 		needWith = true
 	}
 	if len(r.Attributes) != 0 {
@@ -103,7 +103,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req = append(req, ' ', '(', '\n')
 	indent++
 	needComma := false
-	if r.TTL != nil {
+	if r.TTL != nil && isTTLYqlType(r) {
 		req = appendIndent(req, indent)
 		req = append(req, "TTL = Interval(\""...)
 		req = helpers.AppendWithEscape(req, r.TTL.ExpireInterval)
@@ -248,6 +248,19 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	//	}
 
 	return string(req)
+}
+
+func isTTLYqlType(r *Resource) bool {
+	for _, v := range r.Columns {
+		if r.TTL.ColumnName == v.Name {
+			if v.Type == "Date" ||
+				v.Type == "Datetime" ||
+				v.Type == "Timestamp" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func prepareAddColumnsQuery(tableName string, columnsToAdd []*Column) string {
@@ -399,7 +412,7 @@ func PrepareAlterRequest(diff *tableDiff) string {
 		needSemiColon = true
 		req = append(req, prepareAddColumnsQuery(diff.TableName, diff.ColumnsToAdd)...)
 	}
-	if diff.NewTTLSettings != nil {
+	if diff.NewTTLSettings != nil && is {
 		if needSemiColon {
 			req = append(req, ';', '\n')
 		}
