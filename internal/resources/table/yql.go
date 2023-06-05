@@ -412,7 +412,7 @@ func PrepareAlterRequest(diff *tableDiff) string {
 		needSemiColon = true
 		req = append(req, prepareAddColumnsQuery(diff.TableName, diff.ColumnsToAdd)...)
 	}
-	if diff.NewTTLSettings != nil && is {
+	if diff.NewTTLSettings != nil {
 		if needSemiColon {
 			req = append(req, ';', '\n')
 		}
