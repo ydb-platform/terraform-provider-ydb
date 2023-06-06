@@ -263,6 +263,14 @@ func isTTLYqlType(r *Resource) bool {
 	return false
 }
 
+func isTTLYqlTypeOnUpdate(diff *tableDiff) bool {
+	if diff.NewTTLSettings.Unit == "UNIT_UNSPECIFIED" ||
+		diff.NewTTLSettings.Unit == "" {
+		return true
+	}
+	return false
+}
+
 func prepareAddColumnsQuery(tableName string, columnsToAdd []*Column) string {
 	req := []byte("ALTER TABLE `")
 	req = helpers.AppendWithEscape(req, tableName)
@@ -412,7 +420,7 @@ func PrepareAlterRequest(diff *tableDiff) string {
 		needSemiColon = true
 		req = append(req, prepareAddColumnsQuery(diff.TableName, diff.ColumnsToAdd)...)
 	}
-	if diff.NewTTLSettings != nil {
+	if diff.NewTTLSettings != nil && isTTLYqlTypeOnUpdate(diff) {
 		if needSemiColon {
 			req = append(req, ';', '\n')
 		}

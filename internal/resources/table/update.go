@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -50,13 +51,28 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 		return diag.FromErr(err)
 	}
 
-	// NOTE(shmel1k@): no query after all checks.
-	if request == "" {
-		return nil
+	errTtl, isIntegralTTL, dur, ttlOpt := integralTTL(tableResource)
+	if errTtl != nil {
+		return diag.FromErr(errTtl)
 	}
 
+	// NOTE(shmel1k@): no query after all checks.
+	if request == "" && !isIntegralTTL {
+		return nil
+	}
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
-		err = s.ExecuteSchemeQuery(ctx, request)
+		if request != "" {
+			if err = s.ExecuteSchemeQuery(ctx, request); err != nil {
+				return err
+			}
+		}
+		if isIntegralTTL {
+			err = s.AlterTable(ctx, db.Name()+"/"+tableResource.Path,
+				options.WithSetTimeToLiveSettings(
+					ttlOpt.ExpireAfter(dur.ToTimeDuration()),
+				),
+			)
+		}
 		return err
 	})
 	if err != nil {

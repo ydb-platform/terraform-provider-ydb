@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"github.com/sosodev/duration"
 	"net/url"
 	"strings"
 	"time"
@@ -391,4 +392,31 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, e
 		err = d.Set("read_replicas_settings", fmt.Sprintf("PER_AZ:%d", desc.ReadReplicaSettings.Count))
 	}
 	return err
+}
+
+func integralTTL(tableResource *Resource) (error, bool, *duration.Duration, *options.TimeToLiveSettings) {
+
+	var ttlOpt options.TimeToLiveSettings
+
+	if tableResource.TTL != nil && !isTTLYqlType(tableResource) {
+		dur, err := duration.Parse(tableResource.TTL.ExpireInterval)
+		if err != nil {
+			return err, false, nil, nil
+		}
+		switch tableResource.TTL.Unit {
+		case "UNIT_SECONDS":
+			ttlOpt = options.NewTTLSettings().ColumnSeconds(tableResource.TTL.ColumnName)
+		case "UNIT_MILLISECONDS":
+			ttlOpt = options.NewTTLSettings().ColumnMilliseconds(tableResource.TTL.ColumnName)
+		case "UNIT_MICROSECONDS":
+			ttlOpt = options.NewTTLSettings().ColumnMicroseconds(tableResource.TTL.ColumnName)
+		case "UNIT_NANOSECONDS":
+			ttlOpt = options.NewTTLSettings().ColumnNanoseconds(tableResource.TTL.ColumnName)
+		default:
+			return fmt.Errorf("wrong ttl unit: %s, try use UNIT_SECONDS, "+
+				"UNIT_MILLISECONDS, UNIT_MICROSECONDS or UNIT_NANOSECONDS", tableResource.TTL.Unit), false, nil, nil
+		}
+		return nil, true, dur, &ttlOpt
+	}
+	return nil, false, nil, nil
 }
