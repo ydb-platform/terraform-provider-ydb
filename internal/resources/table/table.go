@@ -6,9 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sosodev/duration"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/sosodev/duration"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
