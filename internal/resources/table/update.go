@@ -2,8 +2,9 @@ package table
 
 import (
 	"context"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"strings"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -51,9 +52,9 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 		return diag.FromErr(err)
 	}
 
-	errTtl, isIntegralTTL, dur, ttlOpt := integralTTL(tableResource)
-	if errTtl != nil {
-		return diag.FromErr(errTtl)
+	ttlOpt, isIntegralTTL, dur, errTTL := integralTTL(tableResource)
+	if errTTL != nil {
+		return diag.FromErr(errTTL)
 	}
 
 	// NOTE(shmel1k@): no query after all checks.

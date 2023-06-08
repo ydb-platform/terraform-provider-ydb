@@ -2,11 +2,13 @@ package table
 
 import (
 	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -41,9 +43,9 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 
 	q := PrepareCreateRequest(tableResource)
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
-		errTtl, isIntegralTTL, dur, ttlOpt := integralTTL(tableResource)
-		if errTtl != nil {
-			return errTtl
+		ttlOpt, isIntegralTTL, dur, errTTL := integralTTL(tableResource)
+		if errTTL != nil {
+			return errTTL
 		}
 		if err = s.ExecuteSchemeQuery(ctx, q); err != nil {
 			return
