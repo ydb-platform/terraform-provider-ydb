@@ -46,3 +46,34 @@ func AppendWithEscape(buf []byte, s string) []byte {
 	}
 	return buf
 }
+
+func YdbTTLUnitCheck(i interface{}, k string) (warnings []string, errors []error) {
+
+	listOfValidUnit := []string{"seconds", "milliseconds", "microseconds", "nanoseconds"}
+	found := false
+
+	v, ok := i.(string)
+	if !ok {
+		errors = append(errors, fmt.Errorf("expected type of %q to be string", k))
+		return warnings, errors
+	}
+
+	for _, val := range listOfValidUnit {
+		if val == v {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		errors = append(errors, fmt.Errorf("valid value for %q not found, expected: %v", k, listOfValidUnit))
+	}
+
+	return warnings, errors
+}
+
+func MapTTLUnit(s string) string {
+	mapTTLUnit := map[string]string{"UNIT_SECONDS": "seconds", "UNIT_MILLISECONDS": "milliseconds",
+		"UNIT_MICROSECONDS": "microseconds", "UNIT_NANOSECONDS": "nanoseconds"}
+	return mapTTLUnit[s]
+}

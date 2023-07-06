@@ -113,6 +113,10 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 		req = append(req, '`')
 		req = helpers.AppendWithEscape(req, r.TTL.ColumnName)
 		req = append(req, '`')
+		if r.TTL.Unit != "" {
+			req = append(req, " AS "...)
+			req = append(req, r.TTL.Unit...)
+		}
 		needComma = true
 	}
 	if r.PartitioningSettings != nil { //nolint:nestif
