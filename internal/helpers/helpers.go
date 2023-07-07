@@ -48,7 +48,6 @@ func AppendWithEscape(buf []byte, s string) []byte {
 }
 
 func YdbTTLUnitCheck(i interface{}, k string) (warnings []string, errors []error) {
-
 	listOfValidUnit := []string{"seconds", "milliseconds", "microseconds", "nanoseconds"}
 	found := false
 
@@ -73,7 +72,9 @@ func YdbTTLUnitCheck(i interface{}, k string) (warnings []string, errors []error
 }
 
 func MapTTLUnit(s string) string {
-	mapTTLUnit := map[string]string{"UNIT_SECONDS": "seconds", "UNIT_MILLISECONDS": "milliseconds",
-		"UNIT_MICROSECONDS": "microseconds", "UNIT_NANOSECONDS": "nanoseconds"}
+	mapTTLUnit := map[string]string{
+		"UNIT_SECONDS": "seconds", "UNIT_MILLISECONDS": "milliseconds",
+		"UNIT_MICROSECONDS": "microseconds", "UNIT_NANOSECONDS": "nanoseconds",
+	}
 	return mapTTLUnit[s]
 }
