@@ -172,6 +172,40 @@ func TestPrepareCreateRequest(t *testing.T) {
 				")",
 		},
 		{
+			testName: "table with two columns with one as ttl of integral type",
+			resource: &Resource{
+				FullPath: "hello/world",
+				Columns: []*Column{
+					{
+						Name: "mir",
+						Type: "Utf8",
+					},
+					{
+						Name: "ttl",
+						Type: "Uint32",
+					},
+				},
+				PrimaryKey: &PrimaryKey{
+					Columns: []string{
+						"mir",
+					},
+				},
+				TTL: &TTL{
+					ColumnName:     "ttl",
+					ExpireInterval: "PT0S",
+					Unit:           "seconds",
+				},
+			},
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
+				"\t`mir` Utf8," + "\n" +
+				"\t`ttl` Uint32," + "\n" +
+				"\tPRIMARY KEY (`mir`)" + "\n" +
+				")" + "\n" +
+				"WITH (" + "\n" +
+				"\tTTL = Interval(\"PT0S\") ON `ttl` AS seconds" + "\n" +
+				")",
+		},
+		{
 			testName: "table with two columns and partitioning settings",
 			resource: &Resource{
 				FullPath: "hello/world",
@@ -394,6 +428,16 @@ func TestPrepareSetNewTTLSettingsQuery(t *testing.T) {
 				ExpireInterval: "Never",
 			},
 			expected: "ALTER TABLE `table` SET (TTL = Interval(\"Never\") ON `abacaba`)",
+		},
+		{
+			testName:  "simple test with integral type ttl",
+			tableName: "table",
+			ttlSettings: &TTL{
+				ColumnName:     "abacaba",
+				ExpireInterval: "Never",
+				Unit:           "seconds",
+			},
+			expected: "ALTER TABLE `table` SET (TTL = Interval(\"Never\") ON `abacaba` AS seconds)",
 		},
 	}
 

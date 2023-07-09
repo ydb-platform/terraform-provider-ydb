@@ -11,6 +11,14 @@ import (
 
 type TerraformCRUD func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
 
+var (
+	listOfValidUnit = []string{"seconds", "milliseconds", "microseconds", "nanoseconds"}
+	mapTTLUnit      = map[string]string{
+		"UNIT_SECONDS": "seconds", "UNIT_MILLISECONDS": "milliseconds",
+		"UNIT_MICROSECONDS": "microseconds", "UNIT_NANOSECONDS": "nanoseconds",
+	}
+)
+
 func ParseYDBDatabaseEndpoint(endpoint string) (baseEP, databasePath string, useTLS bool, err error) {
 	dbSplit := strings.Split(endpoint, "/?database=")
 	if len(dbSplit) != 2 {
@@ -45,4 +53,26 @@ func AppendWithEscape(buf []byte, s string) []byte {
 		buf = append(buf, s[i])
 	}
 	return buf
+}
+
+func YdbTTLUnitCheck(i interface{}, k string) (warnings []string, errors []error) {
+	v, ok := i.(string)
+	if !ok {
+		errors = append(errors, fmt.Errorf("expected type of %q to be string", k))
+		return warnings, errors
+	}
+
+	for _, val := range listOfValidUnit {
+		if val == v {
+			return
+		}
+	}
+
+	errors = append(errors, fmt.Errorf("valid value for %q not found, expected: %v", k, listOfValidUnit))
+
+	return
+}
+
+func YDBUnitToUnit(unit string) string {
+	return mapTTLUnit[unit]
 }
