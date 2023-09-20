@@ -5,7 +5,7 @@ import "github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 func PrepareCreateRequest(cdc *changeDataCaptureSettings) string {
 	buf := make([]byte, 0, 256)
 	buf = append(buf, "ALTER TABLE `"...)
-	buf = helpers.AppendWithEscape(buf, cdc.getTablePath())
+	buf = helpers.AppendWithEscape(buf, helpers.LeadingSlashTrim(cdc.getTablePath()))
 	buf = append(buf, '`', ' ')
 	buf = append(buf, "ADD CHANGEFEED `"...)
 	buf = helpers.AppendWithEscape(buf, cdc.Name)
@@ -43,7 +43,7 @@ func PrepareCreateRequest(cdc *changeDataCaptureSettings) string {
 func PrepareDropRequest(tablePath, cdcName string) string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, "ALTER TABLE `"...)
-	buf = helpers.AppendWithEscape(buf, tablePath)
+	buf = helpers.AppendWithEscape(buf, helpers.LeadingSlashTrim(tablePath))
 	buf = append(buf, '`', ' ')
 	buf = append(buf, "DROP CHANGEFEED `"...)
 	buf = helpers.AppendWithEscape(buf, cdcName)

@@ -76,3 +76,7 @@ func YdbTTLUnitCheck(i interface{}, k string) (warnings []string, errors []error
 func YDBUnitToUnit(unit string) string {
 	return mapTTLUnit[unit]
 }
+
+func LeadingSlashTrim(path string) string {
+	return strings.Trim(path, "/")
+}

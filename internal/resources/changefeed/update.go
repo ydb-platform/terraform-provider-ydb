@@ -10,6 +10,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
@@ -37,7 +38,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	topicPath := cdcResource.getTablePath() + "/" + cdcResource.Name
+	topicPath := helpers.LeadingSlashTrim(cdcResource.getTablePath()) + "/" + cdcResource.Name
 	desc, err := db.Topic().Describe(ctx, topicPath)
 	if err != nil {
 		return diag.FromErr(err)

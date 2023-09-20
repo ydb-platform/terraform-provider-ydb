@@ -2,7 +2,6 @@ package table
 
 import (
 	"context"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -45,7 +44,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 		_ = db.Close(ctx)
 	}()
 
-	request, err := prepareAlterRequest(strings.Trim(tableResource.Path, "/"), d)
+	request, err := prepareAlterRequest(tableResource.Path, d)
 	if err != nil {
 		return diag.FromErr(err)
 	}
