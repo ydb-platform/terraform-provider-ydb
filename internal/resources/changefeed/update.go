@@ -38,7 +38,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	topicPath := helpers.LeadingSlashTrim(cdcResource.getTablePath()) + "/" + cdcResource.Name
+	topicPath := helpers.TrimPath(cdcResource.getTablePath()) + "/" + cdcResource.Name
 	desc, err := db.Topic().Describe(ctx, topicPath)
 	if err != nil {
 		return diag.FromErr(err)

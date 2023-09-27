@@ -71,7 +71,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return h.Create(ctx, d, meta)
 	}
 
-	topicDesc, err := db.Topic().Describe(ctx, helpers.LeadingSlashTrim(cdcResource.Entity.GetEntityPath()))
+	topicDesc, err := db.Topic().Describe(ctx, helpers.TrimPath(cdcResource.Entity.GetEntityPath()))
 	if err != nil {
 		return diag.FromErr(err)
 	}

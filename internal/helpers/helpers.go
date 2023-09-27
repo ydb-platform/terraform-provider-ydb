@@ -77,6 +77,6 @@ func YDBUnitToUnit(unit string) string {
 	return mapTTLUnit[unit]
 }
 
-func LeadingSlashTrim(path string) string {
+func TrimPath(path string) string {
 	return strings.Trim(path, "/")
 }

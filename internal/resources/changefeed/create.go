@@ -59,7 +59,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 
 	opts := topicoptions.AlterWithAddConsumers(cdcResource.Consumers...)
 
-	err = db.Topic().Alter(ctx, helpers.LeadingSlashTrim(cdcResource.getTablePath())+"/"+cdcResource.Name, opts)
+	err = db.Topic().Alter(ctx, helpers.TrimPath(cdcResource.getTablePath())+"/"+cdcResource.Name, opts)
 	if err != nil {
 		return diag.FromErr(err)
 	}
