@@ -9,6 +9,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
@@ -70,7 +71,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return h.Create(ctx, d, meta)
 	}
 
-	topicDesc, err := db.Topic().Describe(ctx, cdcResource.Entity.GetEntityPath())
+	topicDesc, err := db.Topic().Describe(ctx, helpers.TrimPath(cdcResource.Entity.GetEntityPath()))
 	if err != nil {
 		return diag.FromErr(err)
 	}

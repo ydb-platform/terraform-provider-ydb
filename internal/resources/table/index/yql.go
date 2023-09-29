@@ -4,7 +4,7 @@ import "github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 
 func prepareCreateIndexRequest(r *resource) string {
 	req := []byte("ALTER TABLE `")
-	req = helpers.AppendWithEscape(req, r.getTablePath())
+	req = helpers.AppendWithEscape(req, helpers.TrimPath(r.getTablePath()))
 	req = append(req, '`', ' ')
 	req = append(req, "ADD INDEX `"...)
 	req = helpers.AppendWithEscape(req, r.Name)
@@ -42,7 +42,7 @@ func prepareCreateIndexRequest(r *resource) string {
 
 func prepareDropRequest(tablePath, indexName string) string {
 	req := []byte("ALTER TABLE `")
-	req = helpers.AppendWithEscape(req, tablePath)
+	req = helpers.AppendWithEscape(req, helpers.TrimPath(tablePath))
 	req = append(req, '`', ' ')
 	req = append(req, "DROP INDEX `"...)
 	req = helpers.AppendWithEscape(req, indexName)

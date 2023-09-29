@@ -8,6 +8,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
@@ -58,7 +59,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 
 	opts := topicoptions.AlterWithAddConsumers(cdcResource.Consumers...)
 
-	err = db.Topic().Alter(ctx, cdcResource.getTablePath()+"/"+cdcResource.Name, opts)
+	err = db.Topic().Alter(ctx, helpers.TrimPath(cdcResource.getTablePath())+"/"+cdcResource.Name, opts)
 	if err != nil {
 		return diag.FromErr(err)
 	}

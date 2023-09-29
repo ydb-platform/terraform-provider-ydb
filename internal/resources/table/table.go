@@ -274,7 +274,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 	return &Resource{
 		Entity:           entity,
 		FullPath:         path,
-		Path:             d.Get("path").(string),
+		Path:             helpers.TrimPath(d.Get("path").(string)),
 		DatabaseEndpoint: databaseEndpoint,
 		Attributes:       attributes,
 		Family:           families,
