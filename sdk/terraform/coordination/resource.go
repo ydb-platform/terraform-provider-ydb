@@ -89,6 +89,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:     schema.TypeString,
 			Required: true,
 			ForceNew: true,
+			ValidateFunc: helpers.YdbTablePathCheck,
 		},
 		"connection_string": {
 			Type:     schema.TypeString,

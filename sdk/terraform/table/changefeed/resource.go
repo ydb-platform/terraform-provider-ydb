@@ -91,7 +91,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:         schema.TypeString,
 			Optional:     true,
 			Computed:     true,
-			ValidateFunc: validation.NoZeroValues,
+			ValidateFunc: validation.All(validation.NoZeroValues, helpers.YdbTablePathCheck),
 			ForceNew:     true,
 			ConflictsWith: []string{
 				"table_id",
