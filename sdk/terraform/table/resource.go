@@ -87,9 +87,10 @@ func ResourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 func ResourceSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"path": {
-			Type:     schema.TypeString,
-			Required: true,
-			ForceNew: true,
+			Type:         schema.TypeString,
+			Required:     true,
+			ForceNew:     true,
+			ValidateFunc: helpers.YdbTablePathCheck,
 		},
 		"connection_string": {
 			Type:     schema.TypeString,

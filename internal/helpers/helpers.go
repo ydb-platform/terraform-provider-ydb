@@ -73,6 +73,22 @@ func YdbTTLUnitCheck(i interface{}, k string) (warnings []string, errors []error
 	return
 }
 
+func YdbTablePathCheck(i interface{}, k string) (warnings []string, errors []error) {
+	v, ok := i.(string)
+	if !ok {
+		errors = append(errors, fmt.Errorf("expected type of %q to be string", k))
+		return warnings, errors
+	}
+
+	if !strings.HasPrefix(v, "/") && !strings.HasSuffix(v, "/") {
+		return
+	}
+
+	errors = append(errors, fmt.Errorf("table path %q can't start or end with '/'", v))
+
+	return
+}
+
 func YDBUnitToUnit(unit string) string {
 	return mapTTLUnit[unit]
 }
