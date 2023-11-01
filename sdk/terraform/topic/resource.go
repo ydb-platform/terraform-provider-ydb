@@ -131,7 +131,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Default:  1000 * 60 * 60 * 24, // 1 day
 		},
 		"consumer": {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Optional: true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
