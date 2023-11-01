@@ -82,7 +82,7 @@ func prepareYDBTopicAlterSettings(
 		opts = append(opts, topicoptions.AlterWithPartitionWriteSpeedBytesPerSecond(int64(writeSpeed)))
 	}
 	if d.HasChange(attributeConsumer) {
-		additionalOpts := topic.MergeConsumerSettings(d.Get(attributeConsumer).([]interface{}), settings.Consumers)
+		additionalOpts := topic.MergeConsumerSettings(d.Get(attributeConsumer).(*schema.Set), settings.Consumers)
 		opts = append(opts, additionalOpts...)
 	}
 

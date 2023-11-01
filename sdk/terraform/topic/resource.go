@@ -219,7 +219,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Computed: true,
 		},
 		attributeConsumer: {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Optional: true,
 			Computed: true,
 			Elem: &schema.Resource{

@@ -154,7 +154,7 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		}
 	}
 
-	consumers := topic.ExpandConsumers(d.Get(attributeConsumer).([]interface{}))
+	consumers := topic.ExpandConsumers(d.Get(attributeConsumer).(*schema.Set))
 	options := []topicoptions.CreateOption{
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get(attributePartitionsCount).(int))),

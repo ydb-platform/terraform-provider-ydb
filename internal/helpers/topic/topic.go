@@ -6,6 +6,7 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 const (
@@ -41,7 +42,7 @@ var (
 )
 
 func MergeConsumerSettings(
-	consumers []interface{},
+	consumers *schema.Set,
 	readRules []topictypes.Consumer,
 ) (opts []topicoptions.AlterOption) {
 	rules := make(map[string]topictypes.Consumer, len(readRules))
@@ -50,7 +51,7 @@ func MergeConsumerSettings(
 	}
 
 	consumersMap := make(map[string]struct{})
-	for _, v := range consumers {
+	for _, v := range consumers.List() {
 		consumer := v.(map[string]interface{})
 		consumerName, ok := consumer["name"].(string)
 		if !ok {
@@ -105,9 +106,9 @@ func MergeConsumerSettings(
 	return opts
 }
 
-func ExpandConsumers(consumers []interface{}) []topictypes.Consumer {
-	result := make([]topictypes.Consumer, 0, len(consumers))
-	for _, v := range consumers {
+func ExpandConsumers(consumers *schema.Set) []topictypes.Consumer {
+	result := make([]topictypes.Consumer, 0, len(consumers.List()))
+	for _, v := range consumers.List() {
 		consumer := v.(map[string]interface{})
 		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
 		if !ok {
