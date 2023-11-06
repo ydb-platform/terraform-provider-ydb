@@ -129,7 +129,7 @@ func ExpandConsumers(consumers *schema.Set) []topictypes.Consumer {
 		result = append(result, topictypes.Consumer{
 			Name:            consumerName,
 			SupportedCodecs: codecs,
-			ReadFrom:        time.Unix(int64(startingMessageTS/1000), 0),
+			ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
 		})
 	}
 
