@@ -148,13 +148,13 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 	if gotCodecs, ok := d.GetOk(attributeSupportedCodecs); !ok {
 		supportedCodecs = topic.YDBTopicDefaultCodecs
 	} else {
-		for _, c := range gotCodecs.([]interface{}) {
+		for _, c := range gotCodecs.(*schema.Set).List() {
 			cod := c.(string)
 			supportedCodecs = append(supportedCodecs, topic.YDBTopicCodecNameToCodec[cod])
 		}
 	}
 
-	consumers := topic.ExpandConsumers(d.Get(attributeConsumer).([]interface{}))
+	consumers := topic.ExpandConsumers(d.Get(attributeConsumer).(*schema.Set))
 	options := []topicoptions.CreateOption{
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get(attributePartitionsCount).(int))),

@@ -59,10 +59,10 @@ func prepareYDBTopicAlterSettings(
 		opts = append(opts, topicoptions.AlterWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
 	}
 	if d.HasChange(attributeSupportedCodecs) {
-		codecs := d.Get(attributeSupportedCodecs).([]interface{})
-		updatedCodecs := make([]topictypes.Codec, 0, len(codecs))
+		codecs := d.Get(attributeSupportedCodecs).(*schema.Set)
+		updatedCodecs := make([]topictypes.Codec, 0, len(codecs.List()))
 
-		for _, c := range codecs {
+		for _, c := range codecs.List() {
 			cc, ok := topic.YDBTopicCodecNameToCodec[strings.ToLower(c.(string))]
 			if !ok {
 				panic(fmt.Sprintf("Unsupported codec %q found after validation", cc))
@@ -82,7 +82,7 @@ func prepareYDBTopicAlterSettings(
 		opts = append(opts, topicoptions.AlterWithPartitionWriteSpeedBytesPerSecond(int64(writeSpeed)))
 	}
 	if d.HasChange(attributeConsumer) {
-		additionalOpts := topic.MergeConsumerSettings(d.Get(attributeConsumer).([]interface{}), settings.Consumers)
+		additionalOpts := topic.MergeConsumerSettings(d.Get(attributeConsumer).(*schema.Set), settings.Consumers)
 		opts = append(opts, additionalOpts...)
 	}
 

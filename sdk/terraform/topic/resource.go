@@ -118,7 +118,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Optional: true,
 		},
 		"supported_codecs": {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Optional: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
@@ -131,7 +131,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Default:  1000 * 60 * 60 * 24, // 1 day
 		},
 		"consumer": {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Optional: true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
@@ -141,7 +141,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"supported_codecs": {
-						Type:     schema.TypeList,
+						Type:     schema.TypeSet,
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,
@@ -184,7 +184,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Computed: true,
 		},
 		attributeSupportedCodecs: {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Optional: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
@@ -219,7 +219,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Computed: true,
 		},
 		attributeConsumer: {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Optional: true,
 			Computed: true,
 			Elem: &schema.Resource{
@@ -230,7 +230,7 @@ func ResourceSchema() map[string]*schema.Schema {
 						ValidateFunc: validation.NoZeroValues,
 					},
 					attributeSupportedCodecs: {
-						Type:     schema.TypeList,
+						Type:     schema.TypeSet,
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,
