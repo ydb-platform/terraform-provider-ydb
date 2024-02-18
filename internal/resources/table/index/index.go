@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/resources"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 type handler struct {

@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
@@ -17,6 +15,7 @@ import (
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/attributes"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 type caller struct {
