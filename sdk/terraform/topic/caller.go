@@ -3,9 +3,10 @@ package topic
 import (
 	"context"
 	"fmt"
-	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	"strings"
 	"time"
+
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"

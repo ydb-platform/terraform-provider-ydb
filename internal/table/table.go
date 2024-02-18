@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"

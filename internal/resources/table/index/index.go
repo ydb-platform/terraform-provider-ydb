@@ -2,8 +2,9 @@ package index
 
 import (
 	"fmt"
-	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	"strings"
+
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"

@@ -2,6 +2,7 @@ package terraform
 
 import (
 	"context"
+
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
