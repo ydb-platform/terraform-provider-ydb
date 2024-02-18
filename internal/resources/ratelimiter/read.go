@@ -27,7 +27,7 @@ func (h handlerRateLimiter) Read(ctx context.Context, d *schema.ResourceData, me
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: rateLimiterResource.DatabaseEndpoint,
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{

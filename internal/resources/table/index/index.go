@@ -2,6 +2,7 @@ package index
 
 import (
 	"fmt"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -12,7 +13,7 @@ import (
 )
 
 type handler struct {
-	token string
+	authCreds auth.YdbCredentials
 }
 
 type resource struct {
@@ -90,9 +91,9 @@ func (r *resource) getTablePath() string {
 	return r.TableEntity.GetEntityPath()
 }
 
-func NewHandler(token string) resources.Handler {
+func NewHandler(authCreds auth.YdbCredentials) resources.Handler {
 	return &handler{
-		token: token,
+		authCreds: authCreds,
 	}
 }
 

@@ -19,9 +19,9 @@ const (
 	ydbTopicCodecZSTD = "zstd"
 )
 
-func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -32,15 +32,15 @@ func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 		c := &caller{
-			token: token,
+			authCreds: authCreds,
 		}
 		return c.resourceYDBTopicCreate(ctx, d, meta)
 	}
 }
 
-func ResourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -51,15 +51,15 @@ func ResourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 		c := &caller{
-			token: token,
+			authCreds: authCreds,
 		}
 		return c.resourceYDBTopicRead(ctx, d, meta)
 	}
 }
 
-func ResourceUpdateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -70,15 +70,15 @@ func ResourceUpdateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 		c := &caller{
-			token: token,
+			authCreds: authCreds,
 		}
 		return c.resourceYDBTopicUpdate(ctx, d, meta)
 	}
 }
 
-func ResourceDeleteFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -89,7 +89,7 @@ func ResourceDeleteFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 		c := &caller{
-			token: token,
+			authCreds: authCreds,
 		}
 		return c.resourceYDBTopicDelete(ctx, d, meta)
 	}

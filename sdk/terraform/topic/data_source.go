@@ -12,9 +12,9 @@ import (
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
-func DataSourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func DataSourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -25,7 +25,7 @@ func DataSourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 		c := &caller{
-			token: token,
+			authCreds: authCreds,
 		}
 		return c.dataSourceYDBTopicRead(ctx, d, meta)
 	}

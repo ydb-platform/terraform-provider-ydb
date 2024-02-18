@@ -2,6 +2,7 @@ package terraform
 
 import (
 	"context"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -38,8 +39,8 @@ func ydbRateLimiterDataSource() *schema.Resource {
 
 func resourceYDBRateLimiterCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return ratelimiter.ResourceCreateFunc(cb)(ctx, d, meta)
@@ -47,8 +48,8 @@ func resourceYDBRateLimiterCreate(ctx context.Context, d *schema.ResourceData, m
 
 func resourceYDBRateLimiterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return ratelimiter.ResourceReadFunc(cb)(ctx, d, meta)
@@ -56,8 +57,8 @@ func resourceYDBRateLimiterRead(ctx context.Context, d *schema.ResourceData, met
 
 func resourceYDBRateLimiterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return ratelimiter.ResourceUpdateFunc(cb)(ctx, d, meta)
@@ -65,8 +66,8 @@ func resourceYDBRateLimiterUpdate(ctx context.Context, d *schema.ResourceData, m
 
 func resourceYDBRateLimiterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return ratelimiter.ResourceDeleteFunc(cb)(ctx, d, meta)
@@ -74,8 +75,8 @@ func resourceYDBRateLimiterDelete(ctx context.Context, d *schema.ResourceData, m
 
 func dataSourceYDBRateLimiterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return ratelimiter.ResourceReadFunc(cb)(ctx, d, meta)

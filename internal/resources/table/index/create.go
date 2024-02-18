@@ -19,7 +19,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	connectionString := indexResource.getConnectionString()
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: connectionString,
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{

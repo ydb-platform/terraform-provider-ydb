@@ -25,7 +25,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.DatabaseEndpoint,
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{

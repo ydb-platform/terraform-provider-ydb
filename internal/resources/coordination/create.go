@@ -24,7 +24,7 @@ func (h handlerCoordination) Create(ctx context.Context, d *schema.ResourceData,
 	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: coordinationResource.DatabaseEndpoint,
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{

@@ -4,13 +4,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 type Config struct {
-	Endpoint string
-	Token    string
+	Endpoint  string
+	AuthCreds auth.YdbCredentials
 }
 
 func Provider() *schema.Provider {
@@ -21,6 +23,14 @@ func Provider() *schema.Provider {
 				Optional: true,
 			},
 			"token": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"user": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"password": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
@@ -48,7 +58,11 @@ func Provider() *schema.Provider {
 func configureProvider(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	cfg := &Config{
 		Endpoint: d.Get("endpoint").(string),
-		Token:    d.Get("token").(string),
+		AuthCreds: auth.YdbCredentials{
+			Token:    d.Get("token").(string),
+			User:     d.Get("user").(string),
+			Password: d.Get("password").(string),
+		},
 	}
 	return cfg, nil
 }

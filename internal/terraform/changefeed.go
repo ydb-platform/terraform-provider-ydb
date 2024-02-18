@@ -3,6 +3,8 @@ package terraform
 import (
 	"context"
 
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
@@ -23,8 +25,8 @@ import (
 
 func resourceYDBTableChangefeedCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return changefeed.ResourceCreateFunc(cb)(ctx, d, meta)
@@ -32,8 +34,8 @@ func resourceYDBTableChangefeedCreate(ctx context.Context, d *schema.ResourceDat
 
 func resourceYDBTableChangefeedRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return changefeed.ResourceReadFunc(cb)(ctx, d, meta)
@@ -41,8 +43,8 @@ func resourceYDBTableChangefeedRead(ctx context.Context, d *schema.ResourceData,
 
 func resourceYDBTableChangefeedUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return changefeed.ResourceUpdateFunc(cb)(ctx, d, meta)
@@ -50,8 +52,8 @@ func resourceYDBTableChangefeedUpdate(ctx context.Context, d *schema.ResourceDat
 
 func resourceYDBTableChangefeedDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return changefeed.ResourceDeleteFunc(cb)(ctx, d, meta)

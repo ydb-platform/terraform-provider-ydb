@@ -2,14 +2,15 @@ package coordination
 
 import (
 	"github.com/ydb-platform/terraform-provider-ydb/internal/resources"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 type handlerCoordination struct {
-	token string
+	authCreds auth.YdbCredentials
 }
 
-func NewHandler(token string) resources.Handler {
+func NewHandler(authCreds auth.YdbCredentials) resources.Handler {
 	return &handlerCoordination{
-		token: token,
+		authCreds: authCreds,
 	}
 }
