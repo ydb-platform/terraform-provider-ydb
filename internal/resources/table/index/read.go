@@ -20,7 +20,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: indexResource.getConnectionString(),
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.FromErr(err)

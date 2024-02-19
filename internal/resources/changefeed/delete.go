@@ -19,7 +19,7 @@ type dropCDCParams struct {
 func (h *handler) dropCDC(ctx context.Context, params dropCDCParams) diag.Diagnostics {
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: params.databaseEndpoint,
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{

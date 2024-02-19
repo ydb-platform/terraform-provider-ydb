@@ -11,9 +11,9 @@ import (
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
-func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -24,14 +24,14 @@ func ResourceCreateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 
-		h := coordination.NewHandler(token)
+		h := coordination.NewHandler(authCreds)
 		return h.Create(ctx, d, meta)
 	}
 }
 
-func ResourceUpdateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -42,14 +42,14 @@ func ResourceUpdateFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 
-		h := coordination.NewHandler(token)
+		h := coordination.NewHandler(authCreds)
 		return h.Update(ctx, d, meta)
 	}
 }
 
-func ResourceDeleteFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -60,14 +60,14 @@ func ResourceDeleteFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 
-		h := coordination.NewHandler(token)
+		h := coordination.NewHandler(authCreds)
 		return h.Delete(ctx, d, meta)
 	}
 }
 
-func ResourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
+func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-		token, err := cb(ctx)
+		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
 				{
@@ -78,7 +78,7 @@ func ResourceReadFunc(cb auth.GetTokenCallback) helpers.TerraformCRUD {
 			}
 		}
 
-		h := coordination.NewHandler(token)
+		h := coordination.NewHandler(authCreds)
 		return h.Read(ctx, d, meta)
 	}
 }

@@ -2,4 +2,10 @@ package auth
 
 import "context"
 
-type GetTokenCallback func(ctx context.Context) (string, error)
+type YdbCredentials struct {
+	Token    string
+	User     string
+	Password string
+}
+
+type GetAuthCallback func(ctx context.Context) (YdbCredentials, error)

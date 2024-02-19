@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/coordination"
 )
 
@@ -38,8 +39,8 @@ func ydbCoordinationDataSource() *schema.Resource {
 
 func resourceYDBCoordinationCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return coordination.ResourceCreateFunc(cb)(ctx, d, meta)
@@ -47,8 +48,8 @@ func resourceYDBCoordinationCreate(ctx context.Context, d *schema.ResourceData, 
 
 func resourceYDBCoordinationRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return coordination.ResourceReadFunc(cb)(ctx, d, meta)
@@ -56,8 +57,8 @@ func resourceYDBCoordinationRead(ctx context.Context, d *schema.ResourceData, me
 
 func resourceYDBCoordinationUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return coordination.ResourceUpdateFunc(cb)(ctx, d, meta)
@@ -65,8 +66,8 @@ func resourceYDBCoordinationUpdate(ctx context.Context, d *schema.ResourceData, 
 
 func resourceYDBCoordinationDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return coordination.ResourceDeleteFunc(cb)(ctx, d, meta)
@@ -74,8 +75,8 @@ func resourceYDBCoordinationDelete(ctx context.Context, d *schema.ResourceData, 
 
 func dataSourceYDBCoordinationRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return coordination.ResourceReadFunc(cb)(ctx, d, meta)

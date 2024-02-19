@@ -19,7 +19,7 @@ type dropIndexParams struct {
 func (h *handler) dropIndex(ctx context.Context, params dropIndexParams) diag.Diagnostics {
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: params.databaseEndpoint,
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{

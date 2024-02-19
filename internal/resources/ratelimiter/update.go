@@ -60,7 +60,7 @@ func (h handlerRateLimiter) Update(ctx context.Context, d *schema.ResourceData, 
 	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: rateLimiterResource.DatabaseEndpoint,
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{

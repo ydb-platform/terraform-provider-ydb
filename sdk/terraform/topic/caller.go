@@ -15,10 +15,11 @@ import (
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/attributes"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 type caller struct {
-	token string
+	authCreds auth.YdbCredentials
 }
 
 const (
@@ -33,6 +34,7 @@ func (c *caller) createYDBConnection(
 	ydbEn *helpers.YDBEntity,
 ) (ydb.Connection, error) {
 	// TODO(shmel1k@): move to other level.
+	var opts []ydb.Option
 	var databaseEndpoint string
 	if ydbEn != nil {
 		databaseEndpoint = ydbEn.PrepareFullYDBEndpoint()
@@ -41,7 +43,14 @@ func (c *caller) createYDBConnection(
 		databaseEndpoint = d.Get(attributes.DatabaseEndpoint).(string)
 	}
 
-	sess, err := ydb.Open(ctx, databaseEndpoint, ydb.WithAccessTokenCredentials(c.token))
+	switch {
+	case c.authCreds.Token != "":
+		opts = append(opts, ydb.WithAccessTokenCredentials(c.authCreds.Token))
+	case c.authCreds.User != "":
+		opts = append(opts, ydb.WithStaticCredentials(c.authCreds.User, c.authCreds.Password))
+	}
+
+	sess, err := ydb.Open(ctx, databaseEndpoint, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create control-plane client: %w", err)
 	}

@@ -2,14 +2,15 @@ package table
 
 import (
 	"github.com/ydb-platform/terraform-provider-ydb/internal/resources"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 type handler struct {
-	token string
+	authCreds auth.YdbCredentials
 }
 
-func NewHandler(token string) resources.Handler {
+func NewHandler(authCreds auth.YdbCredentials) resources.Handler {
 	return &handler{
-		token: token,
+		authCreds: authCreds,
 	}
 }

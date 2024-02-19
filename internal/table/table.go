@@ -4,17 +4,22 @@ import (
 	"context"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
+
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 type ClientParams struct {
 	DatabaseEndpoint string
-	Token            string
+	AuthCreds        auth.YdbCredentials
 }
 
 func CreateDBConnection(ctx context.Context, params ClientParams) (ydb.Connection, error) {
 	var opts []ydb.Option
-	if params.Token != "" {
-		opts = append(opts, ydb.WithAccessTokenCredentials(params.Token))
+	switch {
+	case params.AuthCreds.Token != "":
+		opts = append(opts, ydb.WithAccessTokenCredentials(params.AuthCreds.Token))
+	case params.AuthCreds.User != "":
+		opts = append(opts, ydb.WithStaticCredentials(params.AuthCreds.User, params.AuthCreds.Password))
 	}
 
 	db, err := ydb.Open(ctx, params.DatabaseEndpoint, opts...)

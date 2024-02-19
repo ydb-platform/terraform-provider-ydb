@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/topic"
 )
 
@@ -38,8 +39,8 @@ func ydbTopicDataSource() *schema.Resource {
 
 func dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return topic.DataSourceReadFunc(cb)(ctx, d, meta)
@@ -47,8 +48,8 @@ func dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta in
 
 func resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return topic.ResourceCreateFunc(cb)(ctx, d, meta)
@@ -56,8 +57,8 @@ func resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceData, meta in
 
 func resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return topic.ResourceReadFunc(cb)(ctx, d, meta)
@@ -65,8 +66,8 @@ func resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, meta inte
 
 func resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return topic.ResourceUpdateFunc(cb)(ctx, d, meta)
@@ -74,8 +75,8 @@ func resourceYDBTopicUpdate(ctx context.Context, d *schema.ResourceData, meta in
 
 func resourceYDBTopicDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*Config)
-	cb := func(ctx context.Context) (string, error) {
-		return cfg.Token, nil
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
 	}
 
 	return topic.ResourceDeleteFunc(cb)(ctx, d, meta)

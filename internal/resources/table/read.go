@@ -28,7 +28,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: tableResource.getConnectionString(),
-		Token:            h.token,
+		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
 		return diag.Diagnostics{
