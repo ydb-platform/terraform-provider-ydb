@@ -47,7 +47,7 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v4 v4.3.12 // indirect
 	github.com/vmihailenco/tagparser v0.1.1 // indirect
-	github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f // indirect
+	github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f
 	github.com/zclconf/go-cty v1.10.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
@@ -55,8 +55,8 @@ require (
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
-	google.golang.org/grpc v1.56.3 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/grpc v1.56.3
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.0 // indirect
 )
