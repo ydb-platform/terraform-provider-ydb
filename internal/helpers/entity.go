@@ -12,6 +12,10 @@ type YDBEntity struct {
 	useTLS           bool
 }
 
+func (y *YDBEntity) IsTls() bool {
+	return y.useTLS
+}
+
 func (y *YDBEntity) PrepareFullYDBEndpoint() string {
 	prefix := "grpc://"
 	if y.useTLS {
