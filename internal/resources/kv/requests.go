@@ -52,7 +52,7 @@ func DescribeKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyVal
 			return nil, fmt.Errorf("unmarshal_to problem: %v", err)
 		}
 	} else {
-		return nil, fmt.Errorf("%s, %v\n", opResp.Operation.Status, opResp.Operation.Issues)
+		return nil, fmt.Errorf("operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
 	}
 	return result, nil
 }
