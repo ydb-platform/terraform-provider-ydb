@@ -21,7 +21,10 @@ type ChannelConfig struct {
 type Resource struct {
 	Entity *helpers.YDBEntity
 
+	UseTls               bool
 	FullPath             string
+	Endpoint             string
+	Database             string
 	Path                 string
 	DatabaseEndpoint     string
 	PartitionCount       int
@@ -64,9 +67,17 @@ func kvResourceSchemaToKvResource(d *schema.ResourceData) (*Resource, error) {
 		databaseEndpoint = d.Get("connection_string").(string)
 	}
 
+	baseEndp, database, useTLS, err := helpers.ParseYDBDatabaseEndpoint(databaseEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("can't parse protocol scheme: %w", err)
+	}
+
 	return &Resource{
 		Entity:           entity,
+		UseTls:           useTLS,
 		FullPath:         path,
+		Endpoint:         baseEndp,
+		Database:         database,
 		Path:             helpers.TrimPath(d.Get("path").(string)),
 		DatabaseEndpoint: databaseEndpoint,
 		PartitionCount:   partitionCount,

@@ -2,11 +2,11 @@ package kv
 
 import (
 	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/kv"
-
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -24,8 +24,8 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 	conn, err := kv.CreateDBConnection(ctx, kv.ClientParams{
-		DatabaseEndpoint: kvResource.DatabaseEndpoint,
-		UseTls:           kvResource.Entity.IsTls(),
+		DatabaseEndpoint: kvResource.Endpoint,
+		UseTls:           kvResource.UseTls,
 	})
 	if err != nil {
 		return diag.Diagnostics{
@@ -56,7 +56,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	ctx, stub := kv.AddMetaDataKvStub(ctx, kv.ClientParams{
-		Database: kvResource.FullPath,
+		Database: kvResource.Database,
 		AuthCreds: auth.YdbCredentials{
 			Token: token,
 		},

@@ -16,8 +16,8 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 	}
 
 	conn, err := kv.CreateDBConnection(ctx, kv.ClientParams{
-		DatabaseEndpoint: kvResource.DatabaseEndpoint,
-		UseTls:           kvResource.Entity.IsTls(),
+		DatabaseEndpoint: kvResource.Endpoint,
+		UseTls:           kvResource.UseTls,
 	})
 	if err != nil {
 		return diag.Diagnostics{
@@ -48,7 +48,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 	}
 
 	ctx, stub := kv.AddMetaDataKvStub(ctx, kv.ClientParams{
-		Database: kvResource.FullPath,
+		Database: kvResource.Database,
 		AuthCreds: auth.YdbCredentials{
 			Token: token,
 		},

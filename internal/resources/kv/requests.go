@@ -1,8 +1,9 @@
 package kv
 
 import (
-	"fmt"
 	"context"
+	"fmt"
+
 	"github.com/ydb-platform/ydb-go-genproto/draft/Ydb_KeyValue_V1"
 	"github.com/ydb-platform/ydb-go-genproto/draft/protos/Ydb_KeyValue"
 )
@@ -27,7 +28,7 @@ if err != nil {
 	return fmt.Errorf("create_volume problem: %v", err)
 }
 if opResp.Operation.Status.String() != "SUCCESS" {
-	return fmt.Errorf("operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
+	return fmt.Errorf("create operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
 }
 
 return nil
@@ -36,7 +37,7 @@ return nil
 
 func DescribeKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyValue_V1.KeyValueServiceClient) (*Ydb_KeyValue.DescribeVolumeResult, error) {
 	request := &Ydb_KeyValue.DescribeVolumeRequest{
-		Path: kvResource.FullPath,
+		Path: kvResource.Entity.GetFullEntityPath(),
 	}
 
 	result := &Ydb_KeyValue.DescribeVolumeResult{}
@@ -52,14 +53,14 @@ func DescribeKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyVal
 			return nil, fmt.Errorf("unmarshal_to problem: %v", err)
 		}
 	} else {
-		return nil, fmt.Errorf("operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
+		return nil, fmt.Errorf("describe operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
 	}
 	return result, nil
 }
 
 func AlterKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyValue_V1.KeyValueServiceClient) error {
 	request := &Ydb_KeyValue.AlterVolumeRequest{
-		Path:                kvResource.FullPath,
+		Path:                kvResource.Entity.GetFullEntityPath(),
 		AlterPartitionCount: uint32(kvResource.PartitionCount),
 	}
 
@@ -69,14 +70,14 @@ func AlterKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyValue_
 	}
 
 	if opResp.Operation.Status.String() != "SUCCESS" {
-		return fmt.Errorf("operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
+		return fmt.Errorf("alter operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
 	}
 	return nil
 }
 
 func DropKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyValue_V1.KeyValueServiceClient) error {
 	request := &Ydb_KeyValue.DropVolumeRequest{
-		Path: kvResource.FullPath,
+		Path: kvResource.Entity.GetFullEntityPath(),
 	}
 
 	opResp, err := stub.DropVolume(ctx, request)
@@ -85,7 +86,7 @@ func DropKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyValue_V
 	}
 
 	if opResp.Operation.Status.String() != "SUCCESS" {
-		return fmt.Errorf("operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
+		return fmt.Errorf("drop operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
 	}
 	return nil
 }

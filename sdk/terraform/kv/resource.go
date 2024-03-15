@@ -42,6 +42,7 @@ func ResourceSchema() map[string]*schema.Schema {
 							Schema: map[string]*schema.Schema{
 								"media" :{
 									Type: schema.TypeString,
+									Required: true,
 								},
 							},
 						},
