@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
-	"github.com/sourcecd/ydb-go-genproto/draft/Ydb_KeyValue_V1"
+	"github.com/ydb-platform/ydb-go-genproto/draft/Ydb_KeyValue_V1"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 

@@ -43,11 +43,10 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sourcecd/ydb-go-genproto v0.0.0-20240309125031-8dd88c884ec9
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v4 v4.3.12 // indirect
 	github.com/vmihailenco/tagparser v0.1.1 // indirect
-	github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f
+	github.com/ydb-platform/ydb-go-genproto v0.0.0-20240315124112-fc0fbffd6613
 	github.com/zclconf/go-cty v1.10.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect

@@ -3,8 +3,8 @@ package kv
 import (
 	"fmt"
 	"context"
-	"github.com/sourcecd/ydb-go-genproto/draft/Ydb_KeyValue_V1"
-	"github.com/sourcecd/ydb-go-genproto/draft/protos/Ydb_KeyValue"
+	"github.com/ydb-platform/ydb-go-genproto/draft/Ydb_KeyValue_V1"
+	"github.com/ydb-platform/ydb-go-genproto/draft/protos/Ydb_KeyValue"
 )
 
 func CreateKvVolume(ctx context.Context, kvResource *Resource, stub Ydb_KeyValue_V1.KeyValueServiceClient) error {

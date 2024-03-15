@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/sourcecd/ydb-go-genproto/draft/protos/Ydb_KeyValue"
+	"github.com/ydb-platform/ydb-go-genproto/draft/protos/Ydb_KeyValue"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 )
 
