@@ -130,7 +130,8 @@ linters:
   disable-all: true
   enable:
 #    - cyclop
-    - deadcode
+#    - deadcode
+#    - depguard
     - dogsled
 #    - dupl
     - errcheck
@@ -141,7 +142,7 @@ linters:
 #    - funlen
 #    - gci
 #    - gocognit
-    - goconst
+#    - goconst
     - gocritic
     - gocyclo
 #    - godot
@@ -160,9 +161,9 @@ linters:
 #    - ireturn
 #    - lll # disable due to kubebuilder comments
     - makezero
-    - misspell
     - ineffassign
     - misspell
+#    - nakedret
     - nestif
 #    - nilnil
 #    - nlreturn
@@ -173,7 +174,7 @@ linters:
     - revive
     - staticcheck
     - stylecheck
-    - structcheck
+#    - structcheck
 #    - tagliatelle
 #    - testpackage
 #    - thelper
@@ -183,7 +184,7 @@ linters:
     - unparam
     - unused
 #    - varnamelen
-    - varcheck
+#    - varcheck
     - whitespace
 #    - wrapcheck
 #    - wsl
