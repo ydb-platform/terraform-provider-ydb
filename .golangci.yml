@@ -131,7 +131,6 @@ linters:
   enable:
 #    - cyclop
     - deadcode
-    - depguard
     - dogsled
 #    - dupl
     - errcheck
@@ -157,7 +156,6 @@ linters:
     - gosec
     - gosimple
     - govet
-    - depguard
 #    - ifshort
 #    - ireturn
 #    - lll # disable due to kubebuilder comments
