@@ -163,7 +163,6 @@ linters:
     - misspell
     - ineffassign
     - misspell
-    - nakedret
     - nestif
 #    - nilnil
 #    - nlreturn
