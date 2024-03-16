@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/ydb-platform/terraform-provider-ydb/internal/kv"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
@@ -25,7 +26,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 	conn, err := kv.CreateDBConnection(ctx, kv.ClientParams{
 		DatabaseEndpoint: kvResource.Endpoint,
-		UseTls:           kvResource.UseTls,
+		UseTLS:           kvResource.UseTLS,
 	})
 	if err != nil {
 		return diag.Diagnostics{

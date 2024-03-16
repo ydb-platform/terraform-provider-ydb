@@ -2,9 +2,10 @@ package auth
 
 import (
 	"context"
-	"google.golang.org/grpc"
+
 	"github.com/ydb-platform/ydb-go-genproto/Ydb_Auth_V1"
 	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb_Auth"
+	"google.golang.org/grpc"
 )
 
 type YdbCredentials struct {

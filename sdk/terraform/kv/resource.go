@@ -2,12 +2,14 @@ package kv
 
 import (
 	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/kv"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 func ResourceSchema() map[string]*schema.Schema {
@@ -24,8 +26,8 @@ func ResourceSchema() map[string]*schema.Schema {
 			ValidateFunc: helpers.YdbTablePathCheck,
 		},
 		"partition_count": {
-			Type:     schema.TypeInt,
-			Required: true,
+			Type:         schema.TypeInt,
+			Required:     true,
 			ValidateFunc: validation.NoZeroValues,
 		},
 		"storage_config": {
@@ -35,13 +37,13 @@ func ResourceSchema() map[string]*schema.Schema {
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"channel": {
-						Type:         schema.TypeList,
-						Required:     true,
+						Type:     schema.TypeList,
+						Required: true,
 						MinItems: 3,
 						Elem: &schema.Resource{
 							Schema: map[string]*schema.Schema{
-								"media" :{
-									Type: schema.TypeString,
+								"media": {
+									Type:     schema.TypeString,
 									Required: true,
 								},
 							},

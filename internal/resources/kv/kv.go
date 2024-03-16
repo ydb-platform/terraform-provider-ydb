@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-genproto/draft/protos/Ydb_KeyValue"
+
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 )
 
@@ -21,14 +22,14 @@ type ChannelConfig struct {
 type Resource struct {
 	Entity *helpers.YDBEntity
 
-	UseTls               bool
-	FullPath             string
-	Endpoint             string
-	Database             string
-	Path                 string
-	DatabaseEndpoint     string
-	PartitionCount       int
-	StorageConfig        *ChannelConfig
+	UseTLS           bool
+	FullPath         string
+	Endpoint         string
+	Database         string
+	Path             string
+	DatabaseEndpoint string
+	PartitionCount   int
+	StorageConfig    *ChannelConfig
 }
 
 func kvResourceSchemaToKvResource(d *schema.ResourceData) (*Resource, error) {
@@ -74,7 +75,7 @@ func kvResourceSchemaToKvResource(d *schema.ResourceData) (*Resource, error) {
 
 	return &Resource{
 		Entity:           entity,
-		UseTls:           useTLS,
+		UseTLS:           useTLS,
 		FullPath:         path,
 		Endpoint:         baseEndp,
 		Database:         database,

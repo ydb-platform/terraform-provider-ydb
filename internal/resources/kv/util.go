@@ -7,7 +7,7 @@ import (
 )
 
 func expandStorageConfig(d *schema.ResourceData) (*ChannelConfig, error) {
-	channel_config := &ChannelConfig{}
+	channelConfig := &ChannelConfig{}
 	stcfg, ok := d.Get("storage_config").([]interface{})
 	if !ok {
 		return nil, errors.New("can't parse storage_config")
@@ -25,7 +25,7 @@ func expandStorageConfig(d *schema.ResourceData) (*ChannelConfig, error) {
 		if !ok {
 			return nil, errors.New("wrong media")
 		}
-		channel_config.Channel = append(channel_config.Channel, &MediaConfig{Media: sttype})
+		channelConfig.Channel = append(channelConfig.Channel, &MediaConfig{Media: sttype})
 	}
-	return channel_config, nil
+	return channelConfig, nil
 }
