@@ -54,7 +54,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, cfg interf
 		},
 	}, conn)
 
-	err = AlterKvVolume(ctx, kvResource, stub)
+	err = AlterKvVolume(ctx, d, kvResource, stub)
 	if err != nil {
 		return diag.FromErr(err)
 	}
