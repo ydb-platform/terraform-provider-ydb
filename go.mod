@@ -3,6 +3,7 @@ module github.com/ydb-platform/terraform-provider-ydb
 go 1.18
 
 require (
+	github.com/golang/mock v1.6.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0
 	github.com/stretchr/testify v1.7.1
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.42.9
