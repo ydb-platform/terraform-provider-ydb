@@ -2,9 +2,11 @@ package kv
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/ydb-platform/ydb-go-genproto/draft/protos/Ydb_KeyValue"
 	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
 	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb_Operations"
@@ -19,31 +21,34 @@ type mockBehavior func(
 )
 
 func TestCreateKvVolume(t *testing.T) {
+	createVolume := &Ydb_KeyValue.CreateVolumeRequest{
+		Path:           "/Root/testpath",
+		PartitionCount: 100,
+		StorageConfig: &Ydb_KeyValue.StorageConfig{
+			Channel: []*Ydb_KeyValue.StorageConfig_ChannelConfig{
+				{
+					Media: "ssd",
+				},
+				{
+					Media: "ssd",
+				},
+				{
+					Media: "ssd",
+				},
+			},
+		},
+	}
+
 	testTable := []struct {
 		name             string
 		expectedRequest  *Ydb_KeyValue.CreateVolumeRequest
 		expectedResponse *Ydb_KeyValue.CreateVolumeResponse
 		mockBehavior     mockBehavior
+		expectedError    error
 	}{
 		{
-			name: "OK",
-			expectedRequest: &Ydb_KeyValue.CreateVolumeRequest{
-				Path:           "/Root/testpath",
-				PartitionCount: 100,
-				StorageConfig: &Ydb_KeyValue.StorageConfig{
-					Channel: []*Ydb_KeyValue.StorageConfig_ChannelConfig{
-						{
-							Media: "ssd",
-						},
-						{
-							Media: "ssd",
-						},
-						{
-							Media: "ssd",
-						},
-					},
-				},
-			},
+			name:            "OK",
+			expectedRequest: createVolume,
 			expectedResponse: &Ydb_KeyValue.CreateVolumeResponse{
 				Operation: &Ydb_Operations.Operation{
 					Status: Ydb.StatusIds_SUCCESS,
@@ -52,6 +57,33 @@ func TestCreateKvVolume(t *testing.T) {
 			mockBehavior: func(mockClient *kv_mock.MockKeyValueServiceClient, req *Ydb_KeyValue.CreateVolumeRequest, expectedResponse *Ydb_KeyValue.CreateVolumeResponse) {
 				mockClient.EXPECT().CreateVolume(gomock.Any(), req).Return(expectedResponse, nil)
 			},
+			expectedError: nil,
+		},
+		{
+			name:            "ERROR CREATE",
+			expectedRequest: createVolume,
+			expectedResponse: &Ydb_KeyValue.CreateVolumeResponse{
+				Operation: &Ydb_Operations.Operation{
+					Status: Ydb.StatusIds_STATUS_CODE_UNSPECIFIED,
+				},
+			},
+			mockBehavior: func(mockClient *kv_mock.MockKeyValueServiceClient, req *Ydb_KeyValue.CreateVolumeRequest, expectedResponse *Ydb_KeyValue.CreateVolumeResponse) {
+				mockClient.EXPECT().CreateVolume(gomock.Any(), req).Return(expectedResponse, fmt.Errorf("INTERNAL"))
+			},
+			expectedError: fmt.Errorf("create_volume problem: %w", fmt.Errorf("INTERNAL")),
+		},
+		{
+			name:            "ERROR CODE",
+			expectedRequest: createVolume,
+			expectedResponse: &Ydb_KeyValue.CreateVolumeResponse{
+				Operation: &Ydb_Operations.Operation{
+					Status: Ydb.StatusIds_INTERNAL_ERROR,
+				},
+			},
+			mockBehavior: func(mockClient *kv_mock.MockKeyValueServiceClient, req *Ydb_KeyValue.CreateVolumeRequest, expectedResponse *Ydb_KeyValue.CreateVolumeResponse) {
+				mockClient.EXPECT().CreateVolume(gomock.Any(), req).Return(expectedResponse, nil)
+			},
+			expectedError: fmt.Errorf("create operation code not success: INTERNAL_ERROR, []"),
 		},
 	}
 
@@ -81,9 +113,7 @@ func TestCreateKvVolume(t *testing.T) {
 					},
 				},
 			}, mockClient)
-			if err != nil {
-				t.Error(err)
-			}
+			assert.Equal(t, testCase.expectedError, err)
 		})
 	}
 }
