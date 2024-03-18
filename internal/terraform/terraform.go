@@ -48,7 +48,7 @@ func Provider() *schema.Provider {
 			"ydb_table_index":      ydbTableIndexResource(),
 			"ydb_coordination":     ydbCoordinationResource(),
 			"ydb_ratelimiter":      ydbRateLimiterResource(),
-			"ydb_kv":               ydbKvResource(),
+			"ydb_kv_volume":        ydbKvResource(),
 		},
 	}
 
