@@ -6,12 +6,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/internal/kv"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interface{}) diag.Diagnostics {
-	var token string
 	kvResource, err := kvResourceSchemaToKvResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -36,19 +36,15 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interf
 		_ = conn.Close()
 	}()
 
-	if h.authCreds.User != "" {
-		token, err = auth.GetTokenFromStaticCreds(ctx, h.authCreds.User, h.authCreds.Password, conn)
-		if err != nil {
-			return diag.Diagnostics{
-				diag.Diagnostic{
-					Severity: diag.Error,
-					Summary:  "failed to get auth token for static creds",
-					Detail:   err.Error(),
-				},
-			}
+	token, err := helpers.GetToken(ctx, h.authCreds, conn)
+	if err != nil {
+		return diag.Diagnostics{
+			{
+				Severity: diag.Error,
+				Summary:  "failed to get token",
+				Detail:   err.Error(),
+			},
 		}
-	} else {
-		token = h.authCreds.Token
 	}
 
 	ctx, stub := kv.AddMetaDataKvStub(ctx, kv.ClientParams{

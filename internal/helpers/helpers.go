@@ -7,6 +7,10 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"google.golang.org/grpc"
+
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 type TerraformCRUD func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
@@ -95,4 +99,15 @@ func YDBUnitToUnit(unit string) string {
 
 func TrimPath(path string) string {
 	return strings.Trim(path, "/")
+}
+
+func GetToken(ctx context.Context, creds auth.YdbCredentials, conn *grpc.ClientConn) (string, error) {
+	if creds.User != "" {
+		token, err := auth.GetTokenFromStaticCreds(ctx, creds.User, creds.Password, conn)
+		if err != nil {
+			return "", err
+		}
+		return token, nil
+	}
+	return creds.Token, nil
 }
