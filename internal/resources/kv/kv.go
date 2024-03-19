@@ -22,7 +22,6 @@ type ChannelConfig struct {
 type Resource struct {
 	Entity *helpers.YDBEntity
 
-	UseTLS           bool
 	FullPath         string
 	Endpoint         string
 	Database         string
@@ -30,6 +29,7 @@ type Resource struct {
 	DatabaseEndpoint string
 	PartitionCount   int
 	StorageConfig    *ChannelConfig
+	UseTLS           bool
 }
 
 func kvResourceSchemaToKvResource(d *schema.ResourceData) (*Resource, error) {
@@ -44,7 +44,7 @@ func kvResourceSchemaToKvResource(d *schema.ResourceData) (*Resource, error) {
 
 	storageConfig, err := expandStorageConfig(d)
 	if err != nil {
-		return nil, errors.New("can't expandStorageConfig")
+		return nil, fmt.Errorf("failed to expand storage config: %w", err)
 	}
 
 	partitionCount, ok := d.Get("partition_count").(int)

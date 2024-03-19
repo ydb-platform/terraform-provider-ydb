@@ -58,9 +58,5 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interf
 		},
 	}, conn)
 
-	err = DropKvVolume(ctx, kvResource, stub)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-	return nil
+	return diag.FromErr(DropKvVolume(ctx, kvResource, stub))
 }

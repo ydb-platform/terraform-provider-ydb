@@ -23,20 +23,15 @@ type ClientParams struct {
 func CreateDBConnection(ctx context.Context, params ClientParams) (*grpc.ClientConn, error) {
 	var opts grpc.DialOption
 
-	switch params.UseTLS {
-	case true:
+	if params.UseTLS {
 		pool, _ := x509.SystemCertPool()
 		creds := credentials.NewClientTLSFromCert(pool, "")
 		opts = grpc.WithTransportCredentials(creds)
-	case false:
+	} else {
 		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
 	}
 
-	conn, err := grpc.Dial(params.DatabaseEndpoint, opts)
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
+	return grpc.Dial(params.DatabaseEndpoint, opts)
 }
 
 func AddMetaDataKvStub(ctx context.Context, metaParams ClientParams, conn *grpc.ClientConn) (context.Context, Ydb_KeyValue_V1.KeyValueServiceClient) {
