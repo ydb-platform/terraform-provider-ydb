@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/ydb-platform/ydb-go-genproto/draft/protos/Ydb_KeyValue"
 	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
 	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb_Operations"
 	"google.golang.org/protobuf/types/known/anypb"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	kv_mock "github.com/ydb-platform/terraform-provider-ydb/internal/resources/kv/mocks"
