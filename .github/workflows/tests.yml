@@ -1,0 +1,39 @@
+name: tests
+on:
+  push:
+    branches:
+      - main
+      - release-*
+  pull_request:
+  workflow_dispatch:
+jobs:
+  unit:
+    concurrency:
+      group: unit-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [1.21.x, 1.22.x]
+        os: [ubuntu, windows, macOS]
+    env:
+      OS: ${{ matrix.os }}-latest
+      GO: ${{ matrix.go-version }}
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+      - name: Test
+        run: go test -race -coverprofile unit.txt -covermode atomic ./...
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./unit.txt
+          flags: unit,${{ matrix.os }},go-${{ matrix.go-version }}
+          name: unit
+
