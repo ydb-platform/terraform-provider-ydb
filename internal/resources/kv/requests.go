@@ -85,18 +85,12 @@ func AlterKvVolume(ctx context.Context, d *schema.ResourceData, kvResource *Reso
 
 	if opResp.Operation.Status.String() != success {
 		if d.HasChange("storage_config") {
-			err = d.Set("storage_config", oldval)
-			if err != nil {
-				return fmt.Errorf("can't set storage_config attrs: %w", err)
-			}
+			_ = d.Set("storage_config", oldval)
 		}
 		return fmt.Errorf("alter operation code not success: %s, %v", opResp.Operation.Status.String(), opResp.Operation.Issues)
 	}
 	if d.HasChange("storage_config") {
-		err = d.Set("storage_config", newval)
-		if err != nil {
-			return fmt.Errorf("can't set storage_config attrs: %w", err)
-		}
+		_ = d.Set("storage_config", newval)
 	}
 	return nil
 }
