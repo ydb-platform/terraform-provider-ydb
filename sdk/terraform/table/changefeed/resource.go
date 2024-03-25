@@ -157,7 +157,7 @@ func ResourceSchema() map[string]*schema.Schema {
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"supported_codecs": {
-						Type:     schema.TypeList,
+						Type:     schema.TypeSet,
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,
