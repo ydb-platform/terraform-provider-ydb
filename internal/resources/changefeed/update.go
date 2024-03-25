@@ -72,10 +72,10 @@ func mergeConsumerSettings(d *schema.ResourceData, readRules []topictypes.Consum
 
 		consumersMap[consumerName] = struct{}{}
 
-		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
+		supportedCodecs, ok := consumer["supported_codecs"].(*schema.Set)
 		if !ok {
 			for _, vv := range topic.YDBTopicAllowedCodecs {
-				supportedCodecs = append(supportedCodecs, vv)
+				supportedCodecs.Add(vv)
 			}
 		}
 		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
@@ -86,8 +86,8 @@ func mergeConsumerSettings(d *schema.ResourceData, readRules []topictypes.Consum
 		r, ok := rules[consumerName]
 		if !ok {
 			// consumer was deleted by someone outside terraform or does not exist.
-			codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
-			for _, c := range supportedCodecs {
+			codecs := make([]topictypes.Codec, 0, len(supportedCodecs.List()))
+			for _, c := range supportedCodecs.List() {
 				codec := c.(string)
 				codecs = append(codecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(codec)])
 			}
@@ -106,8 +106,8 @@ func mergeConsumerSettings(d *schema.ResourceData, readRules []topictypes.Consum
 			opts = append(opts, topicoptions.AlterConsumerWithReadFrom(consumerName, readFrom))
 		}
 
-		newCodecs := make([]topictypes.Codec, 0, len(supportedCodecs))
-		for _, codec := range supportedCodecs {
+		newCodecs := make([]topictypes.Codec, 0, len(supportedCodecs.List()))
+		for _, codec := range supportedCodecs.List() {
 			c := topic.YDBTopicCodecNameToCodec[strings.ToLower(codec.(string))]
 			newCodecs = append(newCodecs, c)
 		}
