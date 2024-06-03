@@ -71,6 +71,11 @@ func MergeConsumerSettings(
 			startingMessageTS = 0
 		}
 
+		important, ok := consumer["important"].(bool)
+		if !ok {
+			important = false
+		}
+
 		r, ok := rules[consumerName]
 		if !ok {
 			// consumer was deleted by someone outside terraform or does not exist.
@@ -84,9 +89,14 @@ func MergeConsumerSettings(
 					Name:            consumerName,
 					ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
 					SupportedCodecs: codecs,
+					Important:       important,
 				},
 			))
 			continue
+		}
+
+		if r.Important != important {
+			opts = append(opts, topicoptions.AlterConsumerWithImportant(consumerName, important))
 		}
 
 		readFrom := time.UnixMilli(int64(startingMessageTS))
@@ -126,10 +136,15 @@ func ExpandConsumers(consumers *schema.Set) []topictypes.Consumer {
 			codec := c.(string)
 			codecs = append(codecs, YDBTopicCodecNameToCodec[strings.ToLower(codec)])
 		}
+		important, ok := consumer["important"].(bool)
+		if !ok {
+			important = false
+		}
 		result = append(result, topictypes.Consumer{
 			Name:            consumerName,
 			SupportedCodecs: codecs,
 			ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
+			Important:       important,
 		})
 	}
 
@@ -149,6 +164,7 @@ func FlattenConsumersDescription(consumers []topictypes.Consumer) []map[string]i
 			"name":                          r.Name,
 			"starting_message_timestamp_ms": r.ReadFrom.UnixMilli(),
 			"supported_codecs":              codecs,
+			"important":                     r.Important,
 		})
 	}
 

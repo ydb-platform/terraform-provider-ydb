@@ -156,6 +156,10 @@ func DataSourceSchema() map[string]*schema.Schema {
 						Type:     schema.TypeString,
 						Optional: true,
 					},
+					"important": {
+						Type:     schema.TypeBool,
+						Optional: true,
+					},
 				},
 			},
 		},
@@ -240,6 +244,11 @@ func ResourceSchema() map[string]*schema.Schema {
 					},
 					attributeConsumerStartingMessageTimestampMS: {
 						Type:     schema.TypeInt,
+						Optional: true,
+						Computed: true,
+					},
+					attributeConsumerImportant: {
+						Type:     schema.TypeBool,
 						Optional: true,
 						Computed: true,
 					},

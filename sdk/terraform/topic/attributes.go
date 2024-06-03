@@ -10,4 +10,5 @@ const (
 	attributeConsumer                           = "consumer"
 	attributeName                               = "name" // NOTE(shmel1k@): deprecated, use 'attributes.Path' instead.
 	attributeConsumerStartingMessageTimestampMS = "starting_message_timestamp_ms"
+	attributeConsumerImportant                  = "important"
 )
