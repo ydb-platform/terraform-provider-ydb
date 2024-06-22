@@ -170,6 +170,10 @@ func ResourceSchema() map[string]*schema.Schema {
 						Optional: true,
 						Computed: true,
 					},
+					"important": {
+						Type:     schema.TypeBool,
+						Optional: true,
+					},
 				},
 			},
 		},
