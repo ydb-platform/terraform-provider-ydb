@@ -70,10 +70,10 @@ func configureProvider(ctx context.Context, d *schema.ResourceData) (interface{}
 
 func defaultTimeouts() *schema.ResourceTimeout {
 	return &schema.ResourceTimeout{
-		Create:  schema.DefaultTimeout(time.Minute * 20),
-		Read:    schema.DefaultTimeout(time.Minute * 20),
-		Update:  schema.DefaultTimeout(time.Minute * 20),
-		Delete:  schema.DefaultTimeout(time.Minute * 20),
-		Default: schema.DefaultTimeout(time.Minute * 20),
+		Create:  schema.DefaultTimeout(time.Minute * 1),
+		Read:    schema.DefaultTimeout(time.Minute * 1),
+		Update:  schema.DefaultTimeout(time.Minute * 1),
+		Delete:  schema.DefaultTimeout(time.Minute * 1),
+		Default: schema.DefaultTimeout(time.Minute * 1),
 	}
 }
