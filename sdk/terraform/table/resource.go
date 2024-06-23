@@ -159,6 +159,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"ttl": {
 			Type:     schema.TypeSet,
+			MaxItems: 1,
 			Optional: true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
