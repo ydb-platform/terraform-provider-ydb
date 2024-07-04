@@ -49,6 +49,9 @@ func indexResourceSchemaToIndexResource(d *schema.ResourceData) (*resource, erro
 	tablePath := d.Get("table_path").(string)
 	connectionString := d.Get("connection_string").(string)
 	name := d.Get("name").(string)
+	if name == "" && entity != nil {
+		name = parseIndexNameFromIndexEntity(entity.GetFullEntityPath())
+	}
 	typ := d.Get("type").(string)
 	colsRaw := d.Get("columns").([]interface{})
 	colsArr := make([]string, 0, len(colsRaw))
@@ -80,7 +83,10 @@ func (r *resource) getConnectionString() string {
 	if r.ConnectionString != "" {
 		return r.ConnectionString
 	}
-	return r.TableEntity.PrepareFullYDBEndpoint()
+	if r.TableEntity != nil {
+		return r.TableEntity.PrepareFullYDBEndpoint()
+	}
+	return r.Entity.PrepareFullYDBEndpoint()
 }
 
 func (r *resource) getTablePath() string {
@@ -88,7 +94,10 @@ func (r *resource) getTablePath() string {
 	if r.TablePath != "" {
 		return r.TablePath
 	}
-	return r.TableEntity.GetEntityPath()
+	if r.TableEntity != nil {
+		return r.TableEntity.GetEntityPath()
+	}
+	return parseTablePathFromIndexEntity(r.Entity.GetEntityPath())
 }
 
 func NewHandler(authCreds auth.YdbCredentials) resources.Handler {
@@ -118,6 +127,10 @@ func flattenIndexDescription(
 	if err != nil {
 		return
 	}
+	err = d.Set("type", getIndexType(indexDescription.Type))
+	if err != nil {
+		return
+	}
 	cols := make([]interface{}, 0, len(indexDescription.IndexColumns))
 	for _, c := range indexDescription.IndexColumns {
 		cols = append(cols, c)
@@ -137,4 +150,19 @@ func flattenIndexDescription(
 func parseTablePathFromIndexEntity(entityPath string) string {
 	split := strings.Split(entityPath, "/")
 	return strings.Join(split[:len(split)-1], "/")
+}
+
+func parseIndexNameFromIndexEntity(entityPath string) string {
+	split := strings.Split(entityPath, "/")
+	return split[len(split)-1]
+}
+
+func getIndexType(index options.IndexType) string {
+	switch index {
+	case 0:
+		return "global_sync"
+	case 1:
+		return "global_async"
+	}
+	return ""
 }
