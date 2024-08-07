@@ -45,6 +45,7 @@ func MergeConsumerSettings(
 	consumers *schema.Set,
 	readRules []topictypes.Consumer,
 ) (opts []topicoptions.AlterOption) {
+	var newConsumers []topictypes.Consumer
 	rules := make(map[string]topictypes.Consumer, len(readRules))
 	for i := 0; i < len(readRules); i++ {
 		rules[readRules[i].Name] = readRules[i]
@@ -84,14 +85,14 @@ func MergeConsumerSettings(
 				codec := c.(string)
 				codecs = append(codecs, YDBTopicCodecNameToCodec[strings.ToLower(codec)])
 			}
-			opts = append(opts, topicoptions.AlterWithAddConsumers(
+			newConsumers = append(newConsumers,
 				topictypes.Consumer{
 					Name:            consumerName,
 					ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
 					SupportedCodecs: codecs,
 					Important:       important,
 				},
-			))
+			)
 			continue
 		}
 
@@ -113,6 +114,7 @@ func MergeConsumerSettings(
 			opts = append(opts, topicoptions.AlterConsumerWithSupportedCodecs(consumerName, newCodecs))
 		}
 	}
+	opts = append(opts, topicoptions.AlterWithAddConsumers(newConsumers...))
 	return opts
 }
 
