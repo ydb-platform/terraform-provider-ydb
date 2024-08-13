@@ -52,6 +52,15 @@ func (c *caller) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceD
 		return diag.FromErr(fmt.Errorf("datasource: failed to describe stream: %w", err))
 	}
 
+	// generate id for datasource
+	dbEndpoint := d.Get("database_endpoint").(string)
+	topicName := d.Get("name").(string)
+	if dbEndpoint == "" || topicName == "" {
+		return diag.FromErr(fmt.Errorf("database_endpoint or topic name are empty"))
+	}
+	constructId := fmt.Sprintf("%s?path=%s", dbEndpoint, topicName)
+	d.SetId(constructId)
+
 	err = flattenYDBTopicDescription(d, description)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to flatten stream description: %w", err))
