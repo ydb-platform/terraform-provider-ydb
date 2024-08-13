@@ -58,8 +58,8 @@ func (c *caller) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceD
 	if dbEndpoint == "" || topicName == "" {
 		return diag.FromErr(fmt.Errorf("database_endpoint or topic name are empty"))
 	}
-	constructId := fmt.Sprintf("%s?path=%s", dbEndpoint, topicName)
-	d.SetId(constructId)
+	constructID := fmt.Sprintf("%s?path=%s", dbEndpoint, topicName)
+	d.SetId(constructID)
 
 	err = flattenYDBTopicDescription(d, description)
 	if err != nil {
