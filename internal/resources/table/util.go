@@ -121,11 +121,11 @@ func expandAttributes(d *schema.ResourceData) map[string]string {
 	return attributes
 }
 
+// https://ydb.tech/docs/en/yql/reference/builtins/basic#syntax
 func ttlToISO8601(ttl time.Duration) string {
 	const (
-		day   = 24 * time.Hour
-		month = 30 * day
-		year  = 365 * day
+		day  = 24 * time.Hour
+		week = 7 * day
 	)
 
 	if ttl == 0 {
@@ -134,18 +134,13 @@ func ttlToISO8601(ttl time.Duration) string {
 
 	result := make([]byte, 0, 16)
 	result = append(result, "P"...)
-	y := ttl / year
-	if y > 0 {
-		result = strconv.AppendInt(result, int64(y), 10)
-		result = append(result, 'Y')
+	w := ttl / week
+	if w > 0 {
+		result = strconv.AppendInt(result, int64(w), 10)
+		result = append(result, 'W')
 	}
-	ttl %= year
-	mn := ttl / month
-	if mn > 0 {
-		result = strconv.AppendInt(result, int64(mn), 10)
-		result = append(result, 'M')
-	}
-	ttl %= month
+
+	ttl %= week
 	d := ttl / day
 	if d > 0 {
 		result = strconv.AppendInt(result, int64(d), 10)
