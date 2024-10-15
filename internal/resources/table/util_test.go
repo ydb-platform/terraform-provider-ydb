@@ -35,9 +35,9 @@ func TestTTLToISO8601(t *testing.T) {
 			expected: "PT1H",
 		},
 		{
-			testName: "three years four month five days twelve hours",
-			ttl:      3*year + 4*month + 5*day + 12*time.Hour,
-			expected: "P3Y4M5DT12H",
+			testName: "three years four month five days twelve hours, BUT ONLY WEEK MAX UNIT",
+			ttl:      3*year + 4*month + 5*day + 12*time.Hour, // 1220 days + 12 hours
+			expected: "P174W2DT12H", // BUT ONLY WEEK MAX UNIT (You can't use units of measurement exceeding one week.)
 		},
 	}
 
