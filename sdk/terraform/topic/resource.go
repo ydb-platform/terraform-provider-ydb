@@ -200,17 +200,11 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:     schema.TypeInt,
 			Optional: true,
 			Computed: true,
-			ConflictsWith: []string{
-				attributeRetentionStorageMB,
-			},
 		},
 		attributeRetentionStorageMB: {
 			Type:     schema.TypeInt,
 			Optional: true,
 			Computed: true,
-			ConflictsWith: []string{
-				attributeRetentionPeriodHours,
-			},
 		},
 		attributePartitionWriteSpeedKBPS: {
 			Type:     schema.TypeInt,
