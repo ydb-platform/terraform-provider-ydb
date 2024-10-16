@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/senseyeio/duration"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
@@ -372,6 +373,10 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, e
 			// only one ttl
 			ttlOpts := ttl.List()[0].(map[string]interface{})
 			interval = ttlOpts["expire_interval"].(string)
+			d, _ := duration.ParseISO8601(interval)
+			if !d.IsZero() {
+				interval = ""
+			}
 		}
 
 		ttlSettings = append(ttlSettings, map[string]interface{}{
