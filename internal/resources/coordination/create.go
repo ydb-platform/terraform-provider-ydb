@@ -40,7 +40,7 @@ func (h handlerCoordination) Create(ctx context.Context, d *schema.ResourceData,
 	}()
 	id := coordinationResource.DatabaseEndpoint + "?path=" + coordinationResource.Path
 	d.SetId(id)
-	err = db.Coordination().CreateNode(ctx, coordinationResource.Path, ResourceToNodeConfig(coordinationResource))
+	err = db.Coordination().CreateNode(ctx, coordinationResource.toFullPath(), ResourceToNodeConfig(coordinationResource))
 	if err != nil {
 		return diag.FromErr(err)
 	}

@@ -3,6 +3,7 @@ package coordination
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/coordination"
@@ -20,6 +21,14 @@ type Resource struct {
 	ReadConsistencyMode      coordination.ConsistencyMode
 	AttachConsistencyMode    coordination.ConsistencyMode
 	RatelimiterCountersMode  coordination.RatelimiterCountersMode
+}
+
+func (r *Resource) toFullPath() string {
+	trimmedDbPath := strings.Trim(r.DatabaseEndpoint, "/")
+	if strings.HasPrefix(r.Path, trimmedDbPath) {
+		return r.Path
+	}
+	return r.FullPath
 }
 
 func ResourceToNodeConfig(resource *Resource) coordination.NodeConfig {
@@ -132,9 +141,8 @@ func ResourceSchemaToCoordinationResource(d *schema.ResourceData) (*Resource, er
 
 	var path string
 	if entity != nil {
-		path = entity.GetEntityPath()
+		path = entity.GetFullEntityPath()
 		databaseEndpoint = entity.PrepareFullYDBEndpoint()
-		path = databaseEndpoint + "/" + path
 	} else {
 		path = databaseURL.Query().Get("database") + "/" + d.Get("path").(string)
 		databaseEndpoint = d.Get("connection_string").(string)

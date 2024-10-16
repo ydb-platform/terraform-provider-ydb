@@ -40,9 +40,9 @@ func (h handlerCoordination) Delete(ctx context.Context, d *schema.ResourceData,
 		_ = db.Close(ctx)
 	}()
 
-	err = db.Coordination().DropNode(ctx, coordinationResource.Path)
+	err = db.Coordination().DropNode(ctx, coordinationResource.toFullPath())
 	if err != nil {
-		return diag.Errorf("failed to drop coordination %q: %s", coordinationResource.Path, err)
+		return diag.Errorf("failed to drop coordination %q: %s", coordinationResource.toFullPath(), err)
 	}
 	return nil
 }
