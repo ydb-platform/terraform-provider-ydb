@@ -2,6 +2,7 @@ package index
 
 import (
 	"context"
+	"errors"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -55,7 +56,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	if indexDescription.Name == "" {
 		d.SetId("")
-		return h.Create(ctx, d, meta)
+		return diag.FromErr(errors.New("index for table not found"))
 	}
 
 	return diag.FromErr(flattenIndexDescription(d, indexResource, indexDescription))
