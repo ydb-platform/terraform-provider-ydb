@@ -25,8 +25,8 @@ type Resource struct {
 }
 
 func (r *Resource) toFullPath() string {
-	trimmedDbPath := strings.Trim(r.DatabasePath, "/")
-	if strings.HasPrefix(r.Path, trimmedDbPath) {
+	trimmedDBPath := strings.Trim(r.DatabasePath, "/")
+	if strings.HasPrefix(r.Path, trimmedDBPath) {
 		return r.Path
 	}
 	return r.FullPath
