@@ -16,6 +16,7 @@ type Resource struct {
 	FullPath                 string
 	Path                     string
 	DatabaseEndpoint         string
+	DatabasePath             string
 	SelfCheckPeriodMillis    int
 	SessionGracePeriodMillis int
 	ReadConsistencyMode      coordination.ConsistencyMode
@@ -24,7 +25,7 @@ type Resource struct {
 }
 
 func (r *Resource) toFullPath() string {
-	trimmedDbPath := strings.Trim(r.DatabaseEndpoint, "/")
+	trimmedDbPath := strings.Trim(r.DatabasePath, "/")
 	if strings.HasPrefix(r.Path, trimmedDbPath) {
 		return r.Path
 	}
@@ -139,12 +140,14 @@ func ResourceSchemaToCoordinationResource(d *schema.ResourceData) (*Resource, er
 		return nil, fmt.Errorf("failed to parse database endpoint: %w", err)
 	}
 
-	var path string
+	var path, databasePath string
 	if entity != nil {
+		databasePath = entity.GetDatabasePath()
 		path = entity.GetFullEntityPath()
 		databaseEndpoint = entity.PrepareFullYDBEndpoint()
 	} else {
-		path = databaseURL.Query().Get("database") + "/" + d.Get("path").(string)
+		databasePath = databaseURL.Query().Get("database")
+		path = databasePath + "/" + d.Get("path").(string)
 		databaseEndpoint = d.Get("connection_string").(string)
 	}
 	return &Resource{
@@ -152,6 +155,7 @@ func ResourceSchemaToCoordinationResource(d *schema.ResourceData) (*Resource, er
 		FullPath:                 path,
 		Path:                     d.Get("path").(string),
 		DatabaseEndpoint:         databaseEndpoint,
+		DatabasePath:             databasePath,
 		SelfCheckPeriodMillis:    d.Get("self_check_period_ms").(int),
 		SessionGracePeriodMillis: d.Get("session_grace_period_ms").(int),
 		ReadConsistencyMode:      convertStringToConsistencyMode(d.Get("read_consistency_mode").(string)),
