@@ -28,6 +28,10 @@ func (y *YDBEntity) GetEntityPath() string {
 	return y.entityPath
 }
 
+func (y *YDBEntity) GetDatabasePath() string {
+	return y.database
+}
+
 func (y *YDBEntity) ID() string {
 	return y.PrepareFullYDBEndpoint() + "?path=" + y.entityPath
 }

@@ -42,13 +42,13 @@ func (h handlerCoordination) Read(ctx context.Context, d *schema.ResourceData, m
 		_ = db.Close(ctx)
 	}()
 	var description *coordination.NodeConfig
-	_, description, err = db.Coordination().DescribeNode(ctx, coordinationResource.Path)
+	_, description, err = db.Coordination().DescribeNode(ctx, coordinationResource.toFullPath())
 	if err != nil {
 		if ydb.IsOperationErrorSchemeError(err) {
 			d.SetId("")
 			return nil
 		}
-		return diag.Errorf("failed to describe coordination %q: %s", coordinationResource.Path, err)
+		return diag.Errorf("failed to describe coordination %q: %s", coordinationResource.toFullPath(), err)
 	}
 	return diag.FromErr(flattenCoordinationDescription(d, description, coordinationResource.Entity))
 }

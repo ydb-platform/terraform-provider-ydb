@@ -75,7 +75,7 @@ func (h handlerCoordination) Update(ctx context.Context, d *schema.ResourceData,
 		_ = db.Close(ctx)
 	}()
 	config := coordinationDiff(d)
-	err = db.Coordination().AlterNode(ctx, coordinationResource.Path, config)
+	err = db.Coordination().AlterNode(ctx, coordinationResource.toFullPath(), config)
 	if err != nil {
 		return diag.FromErr(err)
 	}
