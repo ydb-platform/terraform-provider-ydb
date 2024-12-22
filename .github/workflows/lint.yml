@@ -11,7 +11,7 @@ jobs:
     concurrency:
       group: lint-golangci-${{ github.ref }}
       cancel-in-progress: true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04 #ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: golangci-lint
