@@ -94,8 +94,12 @@ func ResourceImportFunc(ctx context.Context, d *schema.ResourceData, m interface
 	pathParts := strings.Split(entity.ID(), "/")
 	tableIDPath := strings.Join(pathParts[:len(pathParts)-1], "/")
 	resName := pathParts[len(pathParts)-1]
-	d.Set("table_id", tableIDPath)
-	d.Set("name", resName)
+	if err := d.Set("table_id", tableIDPath); err != nil {
+		return nil, err
+	}
+	if err := d.Set("name", resName); err != nil {
+		return nil, err
+	}
 	return []*schema.ResourceData{d}, nil
 }
 
