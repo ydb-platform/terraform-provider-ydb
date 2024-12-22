@@ -158,13 +158,13 @@ func ttlToISO8601(ttl time.Duration) string {
 	}
 	ttl %= time.Hour
 
-	min := ttl / time.Minute
-	if min > 0 {
+	minutes := ttl / time.Minute
+	if minutes > 0 {
 		if !hasT {
 			result = append(result, 'T')
 		}
 		hasT = true
-		result = strconv.AppendInt(result, int64(min), 10)
+		result = strconv.AppendInt(result, int64(minutes), 10)
 		result = append(result, 'M')
 	}
 	ttl %= time.Minute

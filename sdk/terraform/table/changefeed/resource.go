@@ -2,6 +2,7 @@ package changefeed
 
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -83,6 +84,23 @@ func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		h := changefeed.NewHandler(authCreds)
 		return h.Delete(ctx, d, meta)
 	}
+}
+
+func ResourceImportFunc(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	entity, err := helpers.ParseYDBEntityID(d.Id())
+	if err != nil {
+		return nil, err
+	}
+	pathParts := strings.Split(entity.ID(), "/")
+	tableIDPath := strings.Join(pathParts[:len(pathParts)-1], "/")
+	resName := pathParts[len(pathParts)-1]
+	if err := d.Set("table_id", tableIDPath); err != nil {
+		return nil, err
+	}
+	if err := d.Set("name", resName); err != nil {
+		return nil, err
+	}
+	return []*schema.ResourceData{d}, nil
 }
 
 func ResourceSchema() map[string]*schema.Schema {

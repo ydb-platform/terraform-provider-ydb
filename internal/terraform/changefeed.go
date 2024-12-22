@@ -76,7 +76,7 @@ func ydbTableChangeFeedResource() *schema.Resource {
 		UpdateContext: resourceYDBTableChangefeedUpdate,
 		DeleteContext: resourceYDBTableChangefeedDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: changefeed.ResourceImportFunc,
 		},
 		Timeouts: defaultTimeouts(),
 	}
