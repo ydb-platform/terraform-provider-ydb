@@ -44,7 +44,7 @@ func (h *handler) dropCDC(ctx context.Context, params dropCDCParams) diag.Diagno
 }
 
 func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
+	cdcResource, err := changefeedResourceSchemaToChangefeedResource(ctx, d)
 	if err != nil {
 		return diag.FromErr(err)
 	}

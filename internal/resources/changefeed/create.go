@@ -13,7 +13,7 @@ import (
 )
 
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
+	cdcResource, err := changefeedResourceSchemaToChangefeedResource(ctx, d)
 	if err != nil {
 		return diag.FromErr(err)
 	}

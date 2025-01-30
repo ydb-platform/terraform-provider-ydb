@@ -14,7 +14,7 @@ import (
 )
 
 func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cdcResource, err := changefeedResourceSchemaToChangefeedResource(d)
+	cdcResource, err := changefeedResourceSchemaToChangefeedResource(ctx, d)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -76,5 +76,5 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		return diag.FromErr(err)
 	}
 
-	return diag.FromErr(flattenCDCDescription(d, cdcResource, cdcDescription, topicDesc.Consumers))
+	return diag.FromErr(flattenCDCDescription(ctx, d, cdcResource, cdcDescription, topicDesc.Consumers))
 }

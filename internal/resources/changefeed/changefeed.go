@@ -1,10 +1,12 @@
 package changefeed
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
@@ -56,12 +58,12 @@ func (c *changeDataCaptureSettings) getConnectionString() string {
 	return c.TableEntity.PrepareFullYDBEndpoint()
 }
 
-func expandConsumers(d *schema.ResourceData) []topictypes.Consumer {
+func expandConsumers(ctx context.Context, d *schema.ResourceData) []topictypes.Consumer {
 	v, ok := d.GetOk("consumer")
 	if !ok {
 		return nil
 	}
-
+	startTime := time.Now()
 	pSet := v.(*schema.Set)
 	result := make([]topictypes.Consumer, 0, len(pSet.List()))
 	for _, l := range pSet.List() {
@@ -88,11 +90,11 @@ func expandConsumers(d *schema.ResourceData) []topictypes.Consumer {
 			ReadFrom:        time.Unix(int64(startingMessageTS/1000), 0),
 		})
 	}
-
+	tflog.Info(ctx, fmt.Sprintf("EXPAND_CONSUMER: %v", time.Since(startTime)))
 	return result
 }
 
-func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*changeDataCaptureSettings, error) {
+func changefeedResourceSchemaToChangefeedResource(ctx context.Context, d *schema.ResourceData) (*changeDataCaptureSettings, error) {
 	var entity *helpers.YDBEntity
 	var err error
 	if d.Id() != "" {
@@ -128,17 +130,19 @@ func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*chan
 	if retentionPeriod, ok := d.Get("retention_period").(string); ok && retentionPeriod != "" {
 		settings.RetentionPeriod = &retentionPeriod
 	}
-	settings.Consumers = expandConsumers(d)
+	settings.Consumers = expandConsumers(ctx, d)
 
 	return settings, nil
 }
 
 func flattenCDCDescription(
+	ctx context.Context,
 	d *schema.ResourceData,
 	changefeedResource *changeDataCaptureSettings,
 	cdcDescription options.ChangefeedDescription,
 	consumers []topictypes.Consumer,
 ) (err error) {
+	startTime := time.Now()
 	err = d.Set("table_path", changefeedResource.getTablePath())
 	if err != nil {
 		return
@@ -163,8 +167,9 @@ func flattenCDCDescription(
 	if err != nil {
 		return
 	}
-
-	return d.Set("consumer", topic.FlattenConsumersDescription(consumers))
+	err = d.Set("consumer", topic.FlattenConsumersDescription(consumers))
+	tflog.Info(ctx, fmt.Sprintf("FLATTEN_CDC_DESCRIPTION: %v", time.Since(startTime)))
+	return
 }
 
 func parseTablePathFromCDCEntity(entityPath string) string {
