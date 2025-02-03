@@ -62,14 +62,14 @@ func expandConsumers(d *schema.ResourceData) []topictypes.Consumer {
 		return nil
 	}
 
-	pSet := v.(*schema.Set)
-	result := make([]topictypes.Consumer, 0, len(pSet.List()))
-	for _, l := range pSet.List() {
+	pList := v.([]interface{})
+	result := make([]topictypes.Consumer, 0, len(pList))
+	for _, l := range pList {
 		consumer := l.(map[string]interface{})
-		supportedCodecs, ok := consumer["supported_codecs"].(*schema.Set)
+		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
 		if !ok {
 			for _, vv := range topic.YDBTopicAllowedCodecs {
-				supportedCodecs.Add(vv)
+				supportedCodecs = append(supportedCodecs, vv)
 			}
 		}
 		consumerName := consumer["name"].(string)
@@ -77,8 +77,8 @@ func expandConsumers(d *schema.ResourceData) []topictypes.Consumer {
 		if !ok {
 			startingMessageTS = 0
 		}
-		codecs := make([]topictypes.Codec, 0, len(supportedCodecs.List()))
-		for _, c := range supportedCodecs.List() {
+		codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
+		for _, c := range supportedCodecs {
 			codec := c.(string)
 			codecs = append(codecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(codec)])
 		}
