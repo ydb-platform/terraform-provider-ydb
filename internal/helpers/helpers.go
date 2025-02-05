@@ -115,49 +115,49 @@ func GetToken(ctx context.Context, creds auth.YdbCredentials, conn *grpc.ClientC
 }
 
 func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictypes.Consumer {
-		// Создаем массивы для хранения потребителей
-		var cons, consTail []topictypes.Consumer
+	// Создаем массивы для хранения потребителей
+	var cons, consTail []topictypes.Consumer
 
-		// Получаем потребителей из данных
-		curConsRaw := schRaw.([]interface{})
+	// Получаем потребителей из данных
+	curConsRaw := schRaw.([]interface{})
 
-		// Создаем карту для быстрого поиска по имени потребителя
-		nameMap := make(map[string]topictypes.Consumer)
-		for _, v := range descRaw {
-			nameMap[v.Name] = v
-		}
+	// Создаем карту для быстрого поиска по имени потребителя
+	nameMap := make(map[string]topictypes.Consumer)
+	for _, v := range descRaw {
+		nameMap[v.Name] = v
+	}
 
-		// Добавляем потребителей в массив cons
-		for _, v := range curConsRaw {
-			schCons := v.(map[string]interface{})
-			consName := schCons["name"].(string)
-			if consumer, ok := nameMap[consName]; ok {
-				var supCodecs, supCodecsTail []topictypes.Codec
-				codecsRaw := schCons["supported_codecs"].([]interface{})
-				for _, v := range codecsRaw {
-					vv := v.(string)
-					if slices.Contains(consumer.SupportedCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)]) {
-						supCodecs = append(supCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
-						continue
-					}
-					supCodecsTail = append(supCodecsTail, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
+	// Добавляем потребителей в массив cons
+	for _, v := range curConsRaw {
+		schCons := v.(map[string]interface{})
+		consName := schCons["name"].(string)
+		if consumer, ok := nameMap[consName]; ok {
+			var supCodecs, supCodecsTail []topictypes.Codec
+			codecsRaw := schCons["supported_codecs"].([]interface{})
+			for _, v := range codecsRaw {
+				vv := v.(string)
+				if slices.Contains(consumer.SupportedCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)]) {
+					supCodecs = append(supCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
+					continue
 				}
-				supCodecs = append(supCodecs, supCodecsTail...)
-
-				consumer.SupportedCodecs = supCodecs
-
-				cons = append(cons, consumer)
-				delete(nameMap, consName)
+				supCodecsTail = append(supCodecsTail, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
 			}
+			supCodecs = append(supCodecs, supCodecsTail...)
+
+			consumer.SupportedCodecs = supCodecs
+
+			cons = append(cons, consumer)
+			delete(nameMap, consName)
 		}
+	}
 
-		// Добавляем оставшихся потребителей в consTail
-		for _, v := range nameMap {
-			consTail = append(consTail, v)
-		}
+	// Добавляем оставшихся потребителей в consTail
+	for _, v := range nameMap {
+		consTail = append(consTail, v)
+	}
 
-		// Объединяем массивы cons и consTail
-		cons = append(cons, consTail...)
+	// Объединяем массивы cons и consTail
+	cons = append(cons, consTail...)
 
-		return cons
+	return cons
 }
