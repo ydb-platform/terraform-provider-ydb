@@ -3,13 +3,16 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"google.golang.org/grpc"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
 
 type TerraformCRUD func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics
@@ -109,4 +112,52 @@ func GetToken(ctx context.Context, creds auth.YdbCredentials, conn *grpc.ClientC
 		return token, nil
 	}
 	return creds.Token, nil
+}
+
+func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictypes.Consumer {
+		// Создаем массивы для хранения потребителей
+		var cons, consTail []topictypes.Consumer
+
+		// Получаем потребителей из данных
+		curConsRaw := schRaw.([]interface{})
+
+		// Создаем карту для быстрого поиска по имени потребителя
+		nameMap := make(map[string]topictypes.Consumer)
+		for _, v := range descRaw {
+			nameMap[v.Name] = v
+		}
+
+		// Добавляем потребителей в массив cons
+		for _, v := range curConsRaw {
+			schCons := v.(map[string]interface{})
+			consName := schCons["name"].(string)
+			if consumer, ok := nameMap[consName]; ok {
+				var supCodecs, supCodecsTail []topictypes.Codec
+				codecsRaw := schCons["supported_codecs"].([]interface{})
+				for _, v := range codecsRaw {
+					vv := v.(string)
+					if slices.Contains(consumer.SupportedCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)]) {
+						supCodecs = append(supCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
+						continue
+					}
+					supCodecsTail = append(supCodecsTail, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
+				}
+				supCodecs = append(supCodecs, supCodecsTail...)
+
+				consumer.SupportedCodecs = supCodecs
+
+				cons = append(cons, consumer)
+				delete(nameMap, consName)
+			}
+		}
+
+		// Добавляем оставшихся потребителей в consTail
+		for _, v := range nameMap {
+			consTail = append(consTail, v)
+		}
+
+		// Объединяем массивы cons и consTail
+		cons = append(cons, consTail...)
+
+		return cons
 }
