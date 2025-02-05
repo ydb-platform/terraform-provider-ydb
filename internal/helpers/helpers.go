@@ -117,7 +117,8 @@ func GetToken(ctx context.Context, creds auth.YdbCredentials, conn *grpc.ClientC
 
 func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictypes.Consumer {
 	// Создаем массивы для хранения потребителей
-	var cons, consTail []topictypes.Consumer
+	cons := make([]topictypes.Consumer, 0, len(descRaw))
+	consTail := make([]topictypes.Consumer, 0, len(descRaw))
 
 	// Получаем потребителей из данных
 	curConsRaw := schRaw.([]interface{})
@@ -133,8 +134,9 @@ func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictype
 		schCons := v.(map[string]interface{})
 		consName := schCons["name"].(string)
 		if consumer, ok := nameMap[consName]; ok {
-			var supCodecs, supCodecsTail []topictypes.Codec
 			codecsRaw := schCons["supported_codecs"].([]interface{})
+			supCodecs := make([]topictypes.Codec, 0, len(codecsRaw))
+			supCodecsTail := make([]topictypes.Codec, 0, len(codecsRaw))
 			for _, v := range codecsRaw {
 				vv := v.(string)
 				if slices.Contains(consumer.SupportedCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)]) {
