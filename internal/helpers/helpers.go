@@ -8,9 +8,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"google.golang.org/grpc"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+	"google.golang.org/grpc"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
