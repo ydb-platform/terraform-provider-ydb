@@ -147,7 +147,8 @@ func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictype
 				}
 			}
 
-			consumer.SupportedCodecs = append(supHead, supTail...)
+			supHead = append(supHead, supTail...)
+			consumer.SupportedCodecs = supHead
 			result = append(result, consumer)
 			delete(nameMap, name)
 		}
