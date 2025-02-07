@@ -3,7 +3,6 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -115,51 +114,79 @@ func GetToken(ctx context.Context, creds auth.YdbCredentials, conn *grpc.ClientC
 }
 
 func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictypes.Consumer {
-	// Создаем массивы для хранения потребителей
-	cons := make([]topictypes.Consumer, 0, len(descRaw))
-	consTail := make([]topictypes.Consumer, 0, len(descRaw))
-
-	// Получаем потребителей из данных
-	curConsRaw := schRaw.([]interface{})
-
-	// Создаем карту для быстрого поиска по имени потребителя
-	nameMap := make(map[string]topictypes.Consumer)
-	for _, v := range descRaw {
-		nameMap[v.Name] = v
+	nameMap := make(map[string]topictypes.Consumer, len(descRaw))
+	for _, c := range descRaw {
+		nameMap[c.Name] = c
 	}
 
-	// Добавляем потребителей в массив cons
-	for _, v := range curConsRaw {
-		schCons := v.(map[string]interface{})
-		consName := schCons["name"].(string)
-		if consumer, ok := nameMap[consName]; ok {
+	result := make([]topictypes.Consumer, 0, len(descRaw))
+
+	for _, raw := range schRaw.([]interface{}) {
+		schCons := raw.(map[string]interface{})
+		name := schCons["name"].(string)
+
+		if consumer, ok := nameMap[name]; ok {
 			codecsRaw := schCons["supported_codecs"].([]interface{})
-			supCodecs := make([]topictypes.Codec, 0, len(codecsRaw))
-			supCodecsTail := make([]topictypes.Codec, 0, len(codecsRaw))
-			for _, v := range codecsRaw {
-				vv := v.(string)
-				if slices.Contains(consumer.SupportedCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)]) {
-					supCodecs = append(supCodecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
-					continue
-				}
-				supCodecsTail = append(supCodecsTail, topic.YDBTopicCodecNameToCodec[strings.ToLower(vv)])
+			supported := make(map[topictypes.Codec]struct{}, len(consumer.SupportedCodecs))
+			for _, c := range consumer.SupportedCodecs {
+				supported[c] = struct{}{}
 			}
-			supCodecs = append(supCodecs, supCodecsTail...)
 
-			consumer.SupportedCodecs = supCodecs
+			var supHead, supTail []topictypes.Codec
+			supHead = make([]topictypes.Codec, 0, len(codecsRaw))
+			supTail = make([]topictypes.Codec, 0, len(codecsRaw))
 
-			cons = append(cons, consumer)
-			delete(nameMap, consName)
+			for _, cr := range codecsRaw {
+				codecName := strings.ToLower(cr.(string))
+				codec := topic.YDBTopicCodecNameToCodec[codecName]
+
+				if _, ok := supported[codec]; ok {
+					supHead = append(supHead, codec)
+				} else {
+					supTail = append(supTail, codec)
+				}
+			}
+
+			consumer.SupportedCodecs = append(supHead, supTail...)
+			result = append(result, consumer)
+			delete(nameMap, name)
 		}
 	}
 
-	// Добавляем оставшихся потребителей в consTail
-	for _, v := range nameMap {
-		consTail = append(consTail, v)
+	for _, c := range nameMap {
+		result = append(result, c)
 	}
 
-	// Объединяем массивы cons и consTail
-	cons = append(cons, consTail...)
+	return result
+}
 
-	return cons
+func AreAllElementsUnique(consumers []topictypes.Consumer) error {
+	// Используем struct{} вместо bool для экономии памяти
+	uniqueConsumers := make(map[string]struct{}, len(consumers))
+	var codecCache map[topictypes.Codec]struct{} // Будем переиспользовать мапу
+
+	for _, consumer := range consumers {
+		// Проверка уникальности имени потребителя
+		if _, exists := uniqueConsumers[consumer.Name]; exists {
+			return fmt.Errorf("non unique consumer: %s", consumer.Name)
+		}
+		uniqueConsumers[consumer.Name] = struct{}{}
+
+		// Переиспользуем мапу с очисткой вместо создания новой
+		if codecCache == nil {
+			codecCache = make(map[topictypes.Codec]struct{}, len(consumer.SupportedCodecs))
+		} else {
+			clear(codecCache)
+		}
+
+		// Проверка уникальности кодеков
+		for _, codec := range consumer.SupportedCodecs {
+			if _, exists := codecCache[codec]; exists {
+				codecName := topic.YDBTopicCodecToCodecName[codec] // Выносим преобразование
+				return fmt.Errorf("non unique codec: %s in consumer: %s", codecName, consumer.Name)
+			}
+			codecCache[codec] = struct{}{}
+		}
+	}
+	return nil
 }
