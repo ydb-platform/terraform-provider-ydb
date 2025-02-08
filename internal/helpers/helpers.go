@@ -3,6 +3,7 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -167,9 +168,14 @@ func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictype
 		}
 	}
 
-	for _, c := range nameMap {
-		result = append(result, c)
+	consVal := make([]topictypes.Consumer, 0, len(nameMap))
+	for _, v := range nameMap {
+		consVal = append(consVal, v)
 	}
+	sort.Slice(consVal, func(i, j int) bool {
+		return consVal[i].Name < consVal[j].Name
+	})
+	result = append(result, consVal...)
 
 	return result
 }
