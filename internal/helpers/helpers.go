@@ -113,6 +113,40 @@ func GetToken(ctx context.Context, creds auth.YdbCredentials, conn *grpc.ClientC
 	return creds.Token, nil
 }
 
+func codecsSort(schCodecs []interface{}, descCodecs []topictypes.Codec) []topictypes.Codec {
+	// Создаем множество элементов из b
+	setDescCodecs := make(map[topictypes.Codec]struct{})
+	for _, codec := range descCodecs {
+		setDescCodecs[codec] = struct{}{}
+	}
+
+	// Создаем множество элементов из a
+	setSchCodecs := make(map[topictypes.Codec]struct{})
+	for _, codecRaw := range schCodecs {
+		codecStr := topic.YDBTopicCodecNameToCodec[strings.ToLower(codecRaw.(string))]
+		setSchCodecs[codecStr] = struct{}{}
+	}
+
+	var res []topictypes.Codec
+
+	// Добавляем элементы из a, которые есть в b (в порядке a)
+	for _, codecRaw := range schCodecs {
+		codecStr := topic.YDBTopicCodecNameToCodec[strings.ToLower(codecRaw.(string))]
+		if _, ok := setDescCodecs[codecStr]; ok {
+			res = append(res, codecStr)
+		}
+	}
+
+	// Добавляем элементы из b, которых нет в a (в порядке b)
+	for _, codec := range descCodecs {
+		if _, ok := setSchCodecs[codec]; !ok {
+			res = append(res, codec)
+		}
+	}
+
+	return res
+}
+
 func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictypes.Consumer {
 	nameMap := make(map[string]topictypes.Consumer, len(descRaw))
 	for _, c := range descRaw {
@@ -127,28 +161,7 @@ func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictype
 
 		if consumer, ok := nameMap[name]; ok {
 			codecsRaw := schCons["supported_codecs"].([]interface{})
-			supported := make(map[topictypes.Codec]struct{}, len(consumer.SupportedCodecs))
-			for _, c := range consumer.SupportedCodecs {
-				supported[c] = struct{}{}
-			}
-
-			var supHead, supTail []topictypes.Codec
-			supHead = make([]topictypes.Codec, 0, len(codecsRaw))
-			supTail = make([]topictypes.Codec, 0, len(codecsRaw))
-
-			for _, cr := range codecsRaw {
-				codecName := strings.ToLower(cr.(string))
-				codec := topic.YDBTopicCodecNameToCodec[codecName]
-
-				if _, ok := supported[codec]; ok {
-					supHead = append(supHead, codec)
-				} else {
-					supTail = append(supTail, codec)
-				}
-			}
-
-			supHead = append(supHead, supTail...)
-			consumer.SupportedCodecs = supHead
+			consumer.SupportedCodecs = codecsSort(codecsRaw, consumer.SupportedCodecs)
 			result = append(result, consumer)
 			delete(nameMap, name)
 		}
