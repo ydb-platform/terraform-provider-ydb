@@ -133,6 +133,14 @@ func TestConsumerSort(t *testing.T) {
 				4,
 			},
 		},
+		{
+			Name: "cons4",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
 	}
 
 	res := ConsumerSort(sch, consDesc)
@@ -161,5 +169,73 @@ func TestConsumerSort(t *testing.T) {
 				4,
 			},
 		},
+		{
+			Name: "cons4",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
 	}, res)
+}
+
+func TestAreAllElementsUnique(t *testing.T) {
+	consDesc := []topictypes.Consumer{
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons1",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+	}
+	consDescDup := []topictypes.Consumer{
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+	}
+	consDescCodecDup := []topictypes.Consumer{
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons1",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				2,
+			},
+		},
+	}
+	assert.NoError(t, AreAllElementsUnique(consDesc))
+	assert.Error(t, AreAllElementsUnique(consDescDup))
+	assert.Error(t, AreAllElementsUnique(consDescCodecDup))
 }
