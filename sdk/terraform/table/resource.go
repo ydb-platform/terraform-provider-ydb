@@ -152,6 +152,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		"primary_key": {
 			Type:     schema.TypeList,
 			Required: true,
+			ForceNew: true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
 				ValidateFunc: validation.NoZeroValues, // TODO(shmel1k@): think about validate func
