@@ -163,6 +163,10 @@ func flattenCDCDescription(
 	if err != nil {
 		return
 	}
+	err = d.Set("virtual_timestamps", cdcDescription.VirtualTimestamp)
+	if err != nil {
+		return
+	}
 
 	curConsRaw := d.Get("consumer")
 	cons := helpers.ConsumerSort(curConsRaw, consumers)
