@@ -32,7 +32,7 @@ func (c *caller) createYDBConnection(
 	ctx context.Context,
 	d helpers.ResourceDataProxy,
 	ydbEn *helpers.YDBEntity,
-) (ydb.Connection, error) {
+) (*ydb.Driver, error) {
 	// TODO(shmel1k@): move to other level.
 	var opts []ydb.Option
 	var databaseEndpoint string
