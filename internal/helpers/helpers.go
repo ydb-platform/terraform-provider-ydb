@@ -3,12 +3,15 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 	"google.golang.org/grpc"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers/topic"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
@@ -109,4 +112,101 @@ func GetToken(ctx context.Context, creds auth.YdbCredentials, conn *grpc.ClientC
 		return token, nil
 	}
 	return creds.Token, nil
+}
+
+func codecsSort(schCodecs []interface{}, descCodecs []topictypes.Codec) []topictypes.Codec {
+	// Создаем множество элементов из b
+	setDescCodecs := make(map[topictypes.Codec]struct{})
+	for _, codec := range descCodecs {
+		setDescCodecs[codec] = struct{}{}
+	}
+
+	// Создаем множество элементов из a
+	setSchCodecs := make(map[topictypes.Codec]struct{})
+	for _, codecRaw := range schCodecs {
+		codecStr := topic.YDBTopicCodecNameToCodec[strings.ToLower(codecRaw.(string))]
+		setSchCodecs[codecStr] = struct{}{}
+	}
+
+	var res []topictypes.Codec
+
+	// Добавляем элементы из a, которые есть в b (в порядке a)
+	for _, codecRaw := range schCodecs {
+		codecStr := topic.YDBTopicCodecNameToCodec[strings.ToLower(codecRaw.(string))]
+		if _, ok := setDescCodecs[codecStr]; ok {
+			res = append(res, codecStr)
+		}
+	}
+
+	// Добавляем элементы из b, которых нет в a (в порядке b)
+	for _, codec := range descCodecs {
+		if _, ok := setSchCodecs[codec]; !ok {
+			res = append(res, codec)
+		}
+	}
+
+	return res
+}
+
+func ConsumerSort(schRaw interface{}, descRaw []topictypes.Consumer) []topictypes.Consumer {
+	nameMap := make(map[string]topictypes.Consumer, len(descRaw))
+	for _, c := range descRaw {
+		nameMap[c.Name] = c
+	}
+
+	result := make([]topictypes.Consumer, 0, len(descRaw))
+
+	for _, raw := range schRaw.([]interface{}) {
+		schCons := raw.(map[string]interface{})
+		name := schCons["name"].(string)
+
+		if consumer, ok := nameMap[name]; ok {
+			codecsRaw := schCons["supported_codecs"].([]interface{})
+			consumer.SupportedCodecs = codecsSort(codecsRaw, consumer.SupportedCodecs)
+			result = append(result, consumer)
+			delete(nameMap, name)
+		}
+	}
+
+	consVal := make([]topictypes.Consumer, 0, len(nameMap))
+	for _, v := range nameMap {
+		consVal = append(consVal, v)
+	}
+	sort.Slice(consVal, func(i, j int) bool {
+		return consVal[i].Name < consVal[j].Name
+	})
+	result = append(result, consVal...)
+
+	return result
+}
+
+func AreAllElementsUnique(consumers []topictypes.Consumer) error {
+	// Используем struct{} вместо bool для экономии памяти
+	uniqueConsumers := make(map[string]struct{}, len(consumers))
+	var codecCache map[topictypes.Codec]struct{} // Будем переиспользовать мапу
+
+	for _, consumer := range consumers {
+		// Проверка уникальности имени потребителя
+		if _, exists := uniqueConsumers[consumer.Name]; exists {
+			return fmt.Errorf("non unique consumer: %s", consumer.Name)
+		}
+		uniqueConsumers[consumer.Name] = struct{}{}
+
+		// Переиспользуем мапу с очисткой вместо создания новой
+		if codecCache == nil {
+			codecCache = make(map[topictypes.Codec]struct{}, len(consumer.SupportedCodecs))
+		} else {
+			clear(codecCache)
+		}
+
+		// Проверка уникальности кодеков
+		for _, codec := range consumer.SupportedCodecs {
+			if _, exists := codecCache[codec]; exists {
+				codecName := topic.YDBTopicCodecToCodecName[codec] // Выносим преобразование
+				return fmt.Errorf("non unique codec: %s in consumer: %s", codecName, consumer.Name)
+			}
+			codecCache[codec] = struct{}{}
+		}
+	}
+	return nil
 }

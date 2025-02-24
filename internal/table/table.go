@@ -13,7 +13,7 @@ type ClientParams struct {
 	AuthCreds        auth.YdbCredentials
 }
 
-func CreateDBConnection(ctx context.Context, params ClientParams) (ydb.Connection, error) {
+func CreateDBConnection(ctx context.Context, params ClientParams) (*ydb.Driver, error) {
 	var opts []ydb.Option
 	switch {
 	case params.AuthCreds.Token != "":

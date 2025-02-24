@@ -164,7 +164,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			ForceNew:     true,
 		},
 		"consumer": {
-			Type:     schema.TypeSet,
+			Type:     schema.TypeList,
 			Optional: true,
 			Computed: true,
 			Elem: &schema.Resource{
@@ -175,7 +175,7 @@ func ResourceSchema() map[string]*schema.Schema {
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"supported_codecs": {
-						Type:     schema.TypeSet,
+						Type:     schema.TypeList,
 						Optional: true,
 						Elem: &schema.Schema{
 							Type:         schema.TypeString,

@@ -21,6 +21,10 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
+	if err := helpers.AreAllElementsUnique(cdcResource.Consumers); err != nil {
+		return diag.FromErr(err)
+	}
+
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: cdcResource.getConnectionString(),
 		AuthCreds:        h.authCreds,
@@ -62,8 +66,8 @@ func mergeConsumerSettings(d *schema.ResourceData, readRules []topictypes.Consum
 	// TODO(shmel1k@): remove copypaste
 	consumersMap := make(map[string]struct{})
 
-	pSet := d.Get("consumer").(*schema.Set)
-	for _, v := range pSet.List() {
+	pList := d.Get("consumer").([]interface{})
+	for _, v := range pList {
 		consumer := v.(map[string]interface{})
 		consumerName, ok := consumer["name"].(string)
 		if !ok {
@@ -72,10 +76,10 @@ func mergeConsumerSettings(d *schema.ResourceData, readRules []topictypes.Consum
 
 		consumersMap[consumerName] = struct{}{}
 
-		supportedCodecs, ok := consumer["supported_codecs"].(*schema.Set)
+		supportedCodecs, ok := consumer["supported_codecs"].([]interface{})
 		if !ok {
 			for _, vv := range topic.YDBTopicAllowedCodecs {
-				supportedCodecs.Add(vv)
+				supportedCodecs = append(supportedCodecs, vv)
 			}
 		}
 		startingMessageTS, ok := consumer["starting_message_timestamp_ms"].(int)
@@ -86,8 +90,8 @@ func mergeConsumerSettings(d *schema.ResourceData, readRules []topictypes.Consum
 		r, ok := rules[consumerName]
 		if !ok {
 			// consumer was deleted by someone outside terraform or does not exist.
-			codecs := make([]topictypes.Codec, 0, len(supportedCodecs.List()))
-			for _, c := range supportedCodecs.List() {
+			codecs := make([]topictypes.Codec, 0, len(supportedCodecs))
+			for _, c := range supportedCodecs {
 				codec := c.(string)
 				codecs = append(codecs, topic.YDBTopicCodecNameToCodec[strings.ToLower(codec)])
 			}
@@ -106,8 +110,8 @@ func mergeConsumerSettings(d *schema.ResourceData, readRules []topictypes.Consum
 			opts = append(opts, topicoptions.AlterConsumerWithReadFrom(consumerName, readFrom))
 		}
 
-		newCodecs := make([]topictypes.Codec, 0, len(supportedCodecs.List()))
-		for _, codec := range supportedCodecs.List() {
+		newCodecs := make([]topictypes.Codec, 0, len(supportedCodecs))
+		for _, codec := range supportedCodecs {
 			c := topic.YDBTopicCodecNameToCodec[strings.ToLower(codec.(string))]
 			newCodecs = append(newCodecs, c)
 		}

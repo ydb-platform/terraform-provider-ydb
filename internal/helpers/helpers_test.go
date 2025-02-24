@@ -1,6 +1,11 @@
 package helpers
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+)
 
 func TestParseYDBDatabaseEndpoint(t *testing.T) {
 	testData := []struct {
@@ -83,4 +88,154 @@ func TestParseYDBDatabaseEndpoint(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConsumerSort(t *testing.T) {
+	sch := []interface{}{
+		map[string]interface{}{
+			"name": "cons1",
+			"supported_codecs": []interface{}{
+				"gzip", // 2
+				"raw",  // 1
+				// "zstd", // 4
+			},
+		},
+		map[string]interface{}{
+			"name": "cons2",
+			"supported_codecs": []interface{}{
+				"gzip",
+				"raw",
+			},
+		},
+	}
+	consDesc := []topictypes.Consumer{
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons1",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons3",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons4",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+	}
+
+	res := ConsumerSort(sch, consDesc)
+	assert.Equal(t, []topictypes.Consumer{
+		{
+			Name: "cons1",
+			SupportedCodecs: []topictypes.Codec{
+				2,
+				1,
+				4,
+			},
+		},
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				2,
+				1,
+				4,
+			},
+		},
+		{
+			Name: "cons3",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons4",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+	}, res)
+}
+
+func TestAreAllElementsUnique(t *testing.T) {
+	consDesc := []topictypes.Consumer{
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons1",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+	}
+	consDescDup := []topictypes.Consumer{
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+	}
+	consDescCodecDup := []topictypes.Consumer{
+		{
+			Name: "cons2",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				4,
+			},
+		},
+		{
+			Name: "cons1",
+			SupportedCodecs: []topictypes.Codec{
+				1,
+				2,
+				2,
+			},
+		},
+	}
+	assert.NoError(t, AreAllElementsUnique(consDesc))
+	assert.Error(t, AreAllElementsUnique(consDescDup))
+	assert.Error(t, AreAllElementsUnique(consDescCodecDup))
 }

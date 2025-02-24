@@ -26,6 +26,11 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 			},
 		}
 	}
+
+	if err := helpers.AreAllElementsUnique(cdcResource.Consumers); err != nil {
+		return diag.FromErr(err)
+	}
+
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: cdcResource.getConnectionString(),
 		AuthCreds:        h.authCreds,

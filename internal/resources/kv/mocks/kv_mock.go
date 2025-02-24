@@ -6,10 +6,11 @@ package mock_Ydb_KeyValue_V1
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	Ydb_KeyValue "github.com/ydb-platform/ydb-go-genproto/draft/protos/Ydb_KeyValue"
 	grpc "google.golang.org/grpc"
-	reflect "reflect"
 )
 
 // MockKeyValueServiceClient is a mock of KeyValueServiceClient interface
