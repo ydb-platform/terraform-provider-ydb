@@ -88,61 +88,72 @@ func ResourceSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"path": {
 			Type:         schema.TypeString,
+			Description:  "Table path.",
 			Required:     true,
 			ForceNew:     true,
 			ValidateFunc: helpers.YdbTablePathCheck,
 		},
 		"connection_string": {
-			Type:     schema.TypeString,
-			ForceNew: true,
-			Required: true,
+			Type:        schema.TypeString,
+			Description: "Connection string for database.",
+			ForceNew:    true,
+			Required:    true,
 		},
 		"column": {
-			Type:     schema.TypeSet,
-			Required: true,
+			Type:        schema.TypeSet,
+			Description: "A list of column configuration options.",
+			Required:    true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"name": {
 						Type:         schema.TypeString,
+						Description:  "Column name.",
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"type": {
 						Type:         schema.TypeString,
+						Description:  "Column data type. YQL data types are used.",
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"family": {
 						Type:         schema.TypeString,
+						Description:  "Column group.",
 						Optional:     true,
 						Computed:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"not_null": {
-						Type:     schema.TypeBool,
-						Optional: true,
-						Computed: true,
+						Type:        schema.TypeBool,
+						Description: "A column cannot have the NULL data type. Default: `false`.",
+						Optional:    true,
+						Computed:    true,
 					},
 				},
 			},
 		},
 		"family": {
-			Type:     schema.TypeList,
-			Optional: true,
+			Type:        schema.TypeList,
+			Description: "A list of column group configuration options. The `family` block may be used to group columns into [families](https://ydb.tech/en/docs/yql/reference/syntax/create_table#column-family) to set shared parameters for them.",
+			Optional:    true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"name": {
 						Type:         schema.TypeString,
+						Description:  "Column family name.",
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"data": {
 						Type:         schema.TypeString,
+						Description:  "Type of storage device for column data in this group (acceptable values: ssd, rot (from HDD spindle rotation)).",
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"compression": {
 						Type:         schema.TypeString,
+						Description:  "Data codec (acceptable values: off, lz4).",
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
@@ -150,27 +161,31 @@ func ResourceSchema() map[string]*schema.Schema {
 			},
 		},
 		"primary_key": {
-			Type:     schema.TypeList,
-			Required: true,
-			ForceNew: true,
+			Type:        schema.TypeList,
+			Description: "A list of table columns to be used as primary key.",
+			Required:    true,
+			ForceNew:    true,
 			Elem: &schema.Schema{
 				Type:         schema.TypeString,
 				ValidateFunc: validation.NoZeroValues, // TODO(shmel1k@): think about validate func
 			},
 		},
 		"ttl": {
-			Type:     schema.TypeSet,
-			MaxItems: 1,
-			Optional: true,
+			Type:        schema.TypeSet,
+			Description: "The `TTL` block supports allow you to create a special column type, [TTL column](https://ydb.tech/en/docs/concepts/ttl), whose values determine the time-to-live for rows.",
+			MaxItems:    1,
+			Optional:    true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"column_name": {
 						Type:         schema.TypeString,
+						Description:  "Column name for TTL.",
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"expire_interval": {
 						Type:         schema.TypeString,
+						Description:  "Interval in the ISO 8601 format.",
 						Required:     true,
 						ValidateFunc: validation.NoZeroValues,
 					},
@@ -184,16 +199,18 @@ func ResourceSchema() map[string]*schema.Schema {
 			},
 		},
 		"attributes": {
-			Type:     schema.TypeMap,
-			Optional: true,
-			Computed: true,
-			Elem:     &schema.Schema{Type: schema.TypeString},
+			Type:        schema.TypeMap,
+			Description: "A map of table attributes.",
+			Optional:    true,
+			Computed:    true,
+			Elem:        &schema.Schema{Type: schema.TypeString},
 		},
 		"partitioning_settings": {
-			Type:     schema.TypeList,
-			MaxItems: 1,
-			Optional: true,
-			Computed: true,
+			Type:        schema.TypeList,
+			Description: "Table partitioning settings.",
+			MaxItems:    1,
+			Optional:    true,
+			Computed:    true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"uniform_partitions": {
@@ -246,14 +263,16 @@ func ResourceSchema() map[string]*schema.Schema {
 			},
 		},
 		"key_bloom_filter": {
-			Type:     schema.TypeBool,
-			Optional: true,
-			Computed: true,
+			Type:        schema.TypeBool,
+			Description: "Use the Bloom filter for the primary key.",
+			Optional:    true,
+			Computed:    true,
 		},
 		"read_replicas_settings": {
-			Type:     schema.TypeString,
-			Optional: true,
-			Computed: true,
+			Type:        schema.TypeString,
+			Description: "Read replication settings.",
+			Optional:    true,
+			Computed:    true,
 		},
 	}
 }
