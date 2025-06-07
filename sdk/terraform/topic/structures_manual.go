@@ -16,10 +16,23 @@ import (
 func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
 	_ = d.Set(attributeName, d.Get(attributeName).(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
 	_ = d.Set(attributePartitionsCount, desc.PartitionSettings.MinActivePartitions)
+	_ = d.Set(attributeMaxPartitionsCount, desc.PartitionSettings.MaxActivePartitions)
 	_ = d.Set(attributeRetentionPeriodHours, desc.RetentionPeriod.Hours())
 	_ = d.Set(attributeRetentionStorageMB, desc.RetentionStorageMB)
 	_ = d.Set(attributeMeteringMode, MeteringModeToString(desc.MeteringMode))
 	_ = d.Set(attributePartitionWriteSpeedKBPS, desc.PartitionWriteSpeedBytesPerSecond/1024)
+	_ = d.Set(attributeAutoPartitioningSettings, []map[string]interface{}{
+		{
+			attributeAutoPartitioningStrategy: convertFromAutoPartitioningStrategy(desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningStrategy),
+			attributeAutoPartitioningWriteSpeedStrategy: []map[string]interface{}{
+				{
+					attributeStabilizationWindow:    desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.StabilizationWindow,
+					attributeUpUtilizationPercent:   desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.UpUtilizationPercent,
+					attributeDownUtilizationPercent: desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.DownUtilizationPercent,
+				},
+			},
+		},
+	})
 
 	supportedCodecs := make([]string, 0, len(desc.SupportedCodecs))
 	for _, v := range desc.SupportedCodecs {
