@@ -26,7 +26,7 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 			attributeAutoPartitioningStrategy: convertFromAutoPartitioningStrategy(desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningStrategy),
 			attributeAutoPartitioningWriteSpeedStrategy: []map[string]interface{}{
 				{
-					attributeStabilizationWindow:    desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.StabilizationWindow,
+					attributeStabilizationWindow:    desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.StabilizationWindow / time.Second,
 					attributeUpUtilizationPercent:   desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.UpUtilizationPercent,
 					attributeDownUtilizationPercent: desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.DownUtilizationPercent,
 				},
