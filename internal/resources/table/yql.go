@@ -81,10 +81,7 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req = append(req, '\n')
 	indent--
 
-	needWith := false
-	if r.TTL != nil {
-		needWith = true
-	}
+	needWith := r.TTL != nil
 	if len(r.Attributes) != 0 {
 		needWith = true
 	}

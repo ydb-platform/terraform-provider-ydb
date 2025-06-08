@@ -31,7 +31,7 @@ func CreateDBConnection(ctx context.Context, params ClientParams) (*grpc.ClientC
 		opts = grpc.WithTransportCredentials(insecure.NewCredentials())
 	}
 
-	return grpc.Dial(params.DatabaseEndpoint, opts)
+	return grpc.NewClient(params.DatabaseEndpoint, opts)
 }
 
 func AddMetaDataKvStub(ctx context.Context, metaParams ClientParams, conn *grpc.ClientConn) (context.Context, Ydb_KeyValue_V1.KeyValueServiceClient) {
