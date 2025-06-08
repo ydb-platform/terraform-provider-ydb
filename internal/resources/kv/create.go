@@ -44,7 +44,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	token, err := helpers.GetToken(ctx, h.authCreds, conn)
 	if err != nil {
 		return diag.Diagnostics{
-			{
+			diag.Diagnostic{
 				Severity: diag.Error,
 				Summary:  "failed to get token",
 				Detail:   err.Error(),
@@ -62,7 +62,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	err = CreateKvVolume(ctx, kvResource, stub)
 	if err != nil {
 		return diag.Diagnostics{
-			{
+			diag.Diagnostic{
 				Severity: diag.Error,
 				Summary:  "failed to create kv volume",
 				Detail:   err.Error(),

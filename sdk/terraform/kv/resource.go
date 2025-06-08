@@ -60,7 +60,7 @@ func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
@@ -78,7 +78,7 @@ func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
@@ -96,7 +96,7 @@ func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
@@ -114,7 +114,7 @@ func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
