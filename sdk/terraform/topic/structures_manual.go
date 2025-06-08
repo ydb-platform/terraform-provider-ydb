@@ -68,6 +68,9 @@ func prepareYDBTopicAlterSettings(
 		opts = append(opts, topicoptions.AlterWithPartitionCountLimit(int64(d.Get("partitions_count").(int))))
 		opts = append(opts, topicoptions.AlterWithMinActivePartitions(int64(d.Get("partitions_count").(int))))
 	}
+	if d.HasChange(attributeMaxPartitionsCount) {
+		opts = append(opts, topicoptions.AlterWithMaxActivePartitions(int64(d.Get(attributeMaxPartitionsCount).(int))))
+	}
 	if d.HasChange(attributeMeteringMode) {
 		opts = append(opts, topicoptions.AlterWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
 	}
@@ -97,6 +100,20 @@ func prepareYDBTopicAlterSettings(
 	if d.HasChange(attributeConsumer) {
 		additionalOpts := topic.MergeConsumerSettings(d.Get(attributeConsumer).(*schema.Set), settings.Consumers)
 		opts = append(opts, additionalOpts...)
+	}
+	if d.HasChange(attributeAutoPartitioningSettings) {
+		autoPartitioningSettings := d.Get(attributeAutoPartitioningSettings).([]interface{})
+		if len(autoPartitioningSettings) > 0 {
+			settings := autoPartitioningSettings[0].(map[string]interface{})
+			opts = append(opts, topicoptions.AlterWithAutoPartitioningStrategy(convertToAutoPartitioningStrategy(settings[attributeAutoPartitioningStrategy].(string))))
+			speedStrategy := settings[attributeAutoPartitioningWriteSpeedStrategy].([]interface{})
+			if len(speedStrategy) > 0 {
+				writeSpeedStrategy := speedStrategy[0].(map[string]interface{})
+				opts = append(opts, topicoptions.AlterWithAutoPartitioningWriteSpeedStabilizationWindow(time.Duration(writeSpeedStrategy[attributeStabilizationWindow].(int))*time.Second))
+				opts = append(opts, topicoptions.AlterWithAutoPartitioningWriteSpeedUpUtilizationPercent(int32(writeSpeedStrategy[attributeUpUtilizationPercent].(int))))
+				opts = append(opts, topicoptions.AlterWithAutoPartitioningWriteSpeedDownUtilizationPercent(int32(writeSpeedStrategy[attributeDownUtilizationPercent].(int))))
+			}
+		}
 	}
 
 	return opts
