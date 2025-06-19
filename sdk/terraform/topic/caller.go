@@ -101,6 +101,42 @@ func MeteringModeToString(mode topictypes.MeteringMode) string {
 	return meteringModeUnspecified
 }
 
+// Helper function to convert string to AutoPartitioningStrategy
+func convertToAutoPartitioningStrategy(s string) topictypes.AutoPartitioningStrategy {
+	switch s {
+	case "UNSPECIFIED":
+		return topictypes.AutoPartitioningStrategyUnspecified
+	case "DISABLED":
+		return topictypes.AutoPartitioningStrategyDisabled
+	case "SCALE_UP":
+		return topictypes.AutoPartitioningStrategyScaleUp
+	case "SCALE_UP_AND_DOWN":
+		return topictypes.AutoPartitioningStrategyScaleUpAndDown
+	case "PAUSED":
+		return topictypes.AutoPartitioningStrategyPaused
+	default:
+		return topictypes.AutoPartitioningStrategyUnspecified
+	}
+}
+
+// Helper function to convert AutoPartitioningStrategy to string
+func convertFromAutoPartitioningStrategy(strategy topictypes.AutoPartitioningStrategy) string {
+	switch strategy {
+	case topictypes.AutoPartitioningStrategyUnspecified:
+		return "UNSPECIFIED"
+	case topictypes.AutoPartitioningStrategyDisabled:
+		return "DISABLED"
+	case topictypes.AutoPartitioningStrategyScaleUp:
+		return "SCALE_UP"
+	case topictypes.AutoPartitioningStrategyScaleUpAndDown:
+		return "SCALE_UP_AND_DOWN"
+	case topictypes.AutoPartitioningStrategyPaused:
+		return "PAUSED"
+	default:
+		return "UNSPECIFIED"
+	}
+}
+
 func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	topic, err := helpers.ParseYDBEntityID(d.Id())
 	if err != nil {
@@ -163,10 +199,28 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		}
 	}
 
+	autoPartitioningTopicOptions := topictypes.AutoPartitioningSettings{}
+	autoPartitioningSettings := d.Get(attributeAutoPartitioningSettings).([]interface{})
+	if len(autoPartitioningSettings) > 0 {
+		settings := autoPartitioningSettings[0].(map[string]interface{})
+		autoPartitioningTopicOptions.AutoPartitioningStrategy = convertToAutoPartitioningStrategy(settings[attributeAutoPartitioningStrategy].(string))
+		speedStrategy := settings[attributeAutoPartitioningWriteSpeedStrategy].([]interface{})
+		if len(speedStrategy) > 0 {
+			writeSpeedStrategy := speedStrategy[0].(map[string]interface{})
+			autoPartitioningTopicOptions.AutoPartitioningWriteSpeedStrategy = topictypes.AutoPartitioningWriteSpeedStrategy{
+				StabilizationWindow:    time.Duration(writeSpeedStrategy[attributeStabilizationWindow].(int)) * time.Second,
+				UpUtilizationPercent:   int32(writeSpeedStrategy[attributeUpUtilizationPercent].(int)),
+				DownUtilizationPercent: int32(writeSpeedStrategy[attributeDownUtilizationPercent].(int)),
+			}
+		}
+	}
+
 	consumers := topic.ExpandConsumers(d.Get(attributeConsumer).(*schema.Set))
 	options := []topicoptions.CreateOption{
 		topicoptions.CreateWithSupportedCodecs(supportedCodecs...),
 		topicoptions.CreateWithMinActivePartitions(int64(d.Get(attributePartitionsCount).(int))),
+		topicoptions.CreateWithMaxActivePartitions(int64(d.Get(attributeMaxPartitionsCount).(int))),
+		topicoptions.CreateWithAutoPartitioningSettings(autoPartitioningTopicOptions),
 		topicoptions.CreateWithConsumer(consumers...),
 	}
 	if d.Get(attributeRetentionPeriodHours) != 0 {

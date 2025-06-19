@@ -24,7 +24,7 @@ func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
@@ -43,7 +43,7 @@ func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
@@ -62,7 +62,7 @@ func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
@@ -81,7 +81,7 @@ func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),
@@ -187,7 +187,13 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		attributePartitionsCount: {
 			Type:        schema.TypeInt,
-			Description: "Number of partitions. Default value `2`.",
+			Description: "Number of min partitions. Default value `1`.",
+			Optional:    true,
+			Computed:    true,
+		},
+		attributeMaxPartitionsCount: {
+			Type:        schema.TypeInt,
+			Description: "Number of max active partitions. Default value `1`.",
 			Optional:    true,
 			Computed:    true,
 		},
@@ -223,6 +229,57 @@ func ResourceSchema() map[string]*schema.Schema {
 			Description: "Resource metering mode (`reserved_capacity` - based on the allocated resources or `request_units` - based on actual usage). This option applies to topics in serverless databases.",
 			Optional:    true,
 			Computed:    true,
+		},
+		attributeAutoPartitioningSettings: {
+			Type:     schema.TypeList,
+			Optional: true,
+			Computed: true,
+			MaxItems: 1,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					attributeAutoPartitioningStrategy: {
+						Type:     schema.TypeString,
+						Optional: true,
+						Computed: true,
+						ValidateFunc: validation.StringInSlice([]string{
+							attributeAutoPartitioningStrategyUnspecified,
+							attributeAutoPartitioningStrategyDisabled,
+							attributeAutoPartitioningStrategyScaleUp,
+							attributeAutoPartitioningStrategyScaleUpAndDown,
+							attributeAutoPartitioningStrategyPaused,
+						}, false),
+						Description: "The auto partitioning strategy to use",
+					},
+					attributeAutoPartitioningWriteSpeedStrategy: {
+						Type:     schema.TypeList,
+						Optional: true,
+						Computed: true,
+						MaxItems: 1,
+						Elem: &schema.Resource{
+							Schema: map[string]*schema.Schema{
+								attributeStabilizationWindow: {
+									Type:        schema.TypeInt,
+									Optional:    true,
+									Computed:    true,
+									Description: "The stabilization window in seconds",
+								},
+								attributeUpUtilizationPercent: {
+									Type:        schema.TypeInt,
+									Optional:    true,
+									Computed:    true,
+									Description: "The up utilization percentage threshold",
+								},
+								attributeDownUtilizationPercent: {
+									Type:        schema.TypeInt,
+									Optional:    true,
+									Computed:    true,
+									Description: "The down utilization percentage threshold",
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		attributeConsumer: {
 			Type:        schema.TypeSet,

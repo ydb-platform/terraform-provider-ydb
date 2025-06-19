@@ -46,7 +46,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	})
 	if err != nil {
 		return diag.Diagnostics{
-			{
+			diag.Diagnostic{
 				Severity: diag.Error,
 				Summary:  "failed to create table",
 				Detail:   err.Error(),

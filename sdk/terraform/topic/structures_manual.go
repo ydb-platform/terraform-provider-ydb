@@ -16,10 +16,23 @@ import (
 func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDescription) error {
 	_ = d.Set(attributeName, d.Get(attributeName).(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
 	_ = d.Set(attributePartitionsCount, desc.PartitionSettings.MinActivePartitions)
+	_ = d.Set(attributeMaxPartitionsCount, desc.PartitionSettings.MaxActivePartitions)
 	_ = d.Set(attributeRetentionPeriodHours, desc.RetentionPeriod.Hours())
 	_ = d.Set(attributeRetentionStorageMB, desc.RetentionStorageMB)
 	_ = d.Set(attributeMeteringMode, MeteringModeToString(desc.MeteringMode))
 	_ = d.Set(attributePartitionWriteSpeedKBPS, desc.PartitionWriteSpeedBytesPerSecond/1024)
+	_ = d.Set(attributeAutoPartitioningSettings, []map[string]interface{}{
+		{
+			attributeAutoPartitioningStrategy: convertFromAutoPartitioningStrategy(desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningStrategy),
+			attributeAutoPartitioningWriteSpeedStrategy: []map[string]interface{}{
+				{
+					attributeStabilizationWindow:    desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.StabilizationWindow / time.Second,
+					attributeUpUtilizationPercent:   desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.UpUtilizationPercent,
+					attributeDownUtilizationPercent: desc.PartitionSettings.AutoPartitioningSettings.AutoPartitioningWriteSpeedStrategy.DownUtilizationPercent,
+				},
+			},
+		},
+	})
 
 	supportedCodecs := make([]string, 0, len(desc.SupportedCodecs))
 	for _, v := range desc.SupportedCodecs {
@@ -55,6 +68,9 @@ func prepareYDBTopicAlterSettings(
 		opts = append(opts, topicoptions.AlterWithPartitionCountLimit(int64(d.Get("partitions_count").(int))))
 		opts = append(opts, topicoptions.AlterWithMinActivePartitions(int64(d.Get("partitions_count").(int))))
 	}
+	if d.HasChange(attributeMaxPartitionsCount) {
+		opts = append(opts, topicoptions.AlterWithMaxActivePartitions(int64(d.Get(attributeMaxPartitionsCount).(int))))
+	}
 	if d.HasChange(attributeMeteringMode) {
 		opts = append(opts, topicoptions.AlterWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
 	}
@@ -84,6 +100,20 @@ func prepareYDBTopicAlterSettings(
 	if d.HasChange(attributeConsumer) {
 		additionalOpts := topic.MergeConsumerSettings(d.Get(attributeConsumer).(*schema.Set), settings.Consumers)
 		opts = append(opts, additionalOpts...)
+	}
+	if d.HasChange(attributeAutoPartitioningSettings) {
+		autoPartitioningSettings := d.Get(attributeAutoPartitioningSettings).([]interface{})
+		if len(autoPartitioningSettings) > 0 {
+			settings := autoPartitioningSettings[0].(map[string]interface{})
+			opts = append(opts, topicoptions.AlterWithAutoPartitioningStrategy(convertToAutoPartitioningStrategy(settings[attributeAutoPartitioningStrategy].(string))))
+			speedStrategy := settings[attributeAutoPartitioningWriteSpeedStrategy].([]interface{})
+			if len(speedStrategy) > 0 {
+				writeSpeedStrategy := speedStrategy[0].(map[string]interface{})
+				opts = append(opts, topicoptions.AlterWithAutoPartitioningWriteSpeedStabilizationWindow(time.Duration(writeSpeedStrategy[attributeStabilizationWindow].(int))*time.Second))
+				opts = append(opts, topicoptions.AlterWithAutoPartitioningWriteSpeedUpUtilizationPercent(int32(writeSpeedStrategy[attributeUpUtilizationPercent].(int))))
+				opts = append(opts, topicoptions.AlterWithAutoPartitioningWriteSpeedDownUtilizationPercent(int32(writeSpeedStrategy[attributeDownUtilizationPercent].(int))))
+			}
+		}
 	}
 
 	return opts

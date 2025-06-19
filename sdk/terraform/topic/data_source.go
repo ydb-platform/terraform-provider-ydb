@@ -17,7 +17,7 @@ func DataSourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{
+				diag.Diagnostic{
 					Severity: diag.Error,
 					Summary:  "failed to create token for YDB request",
 					Detail:   err.Error(),

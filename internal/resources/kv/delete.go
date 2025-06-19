@@ -39,7 +39,7 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, cfg interf
 	token, err := helpers.GetToken(ctx, h.authCreds, conn)
 	if err != nil {
 		return diag.Diagnostics{
-			{
+			diag.Diagnostic{
 				Severity: diag.Error,
 				Summary:  "failed to get token",
 				Detail:   err.Error(),

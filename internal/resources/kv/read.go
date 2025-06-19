@@ -45,7 +45,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 	token, err := helpers.GetToken(ctx, h.authCreds, conn)
 	if err != nil {
 		return diag.Diagnostics{
-			{
+			diag.Diagnostic{
 				Severity: diag.Error,
 				Summary:  "failed to get token",
 				Detail:   err.Error(),
@@ -63,7 +63,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, cfg interfac
 	describe, err := DescribeKvVolume(ctx, kvResource, stub)
 	if err != nil {
 		return diag.Diagnostics{
-			{
+			diag.Diagnostic{
 				Severity: diag.Error,
 				Summary:  "failed to create kv volume",
 				Detail:   err.Error(),

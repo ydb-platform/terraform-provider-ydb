@@ -15,9 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.60.3
+          version: v2.1.6
   autoformatter:
     name: autoformat check
     concurrency:
