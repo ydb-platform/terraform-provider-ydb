@@ -1,14 +1,12 @@
 module github.com/ydb-platform/terraform-provider-ydb
 
-go 1.23.0
-
-toolchain go1.24.3
+go 1.22.5
 
 require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.109.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.111.3
 )
 
 require google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
@@ -54,10 +52,10 @@ require (
 	github.com/vmihailenco/tagparser v0.1.1 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20241112172322-ea1f63298f77
 	github.com/zclconf/go-cty v1.10.0 // indirect
-	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/grpc v1.69.4
 	google.golang.org/protobuf v1.35.1
