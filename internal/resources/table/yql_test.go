@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 )
 
 func TestPrepareCreateRequest(t *testing.T) {
@@ -273,6 +274,138 @@ func TestPrepareCreateRequest(t *testing.T) {
 				")" + "\n" +
 				"WITH (" + "\n" +
 				"\tREAD_REPLICAS_SETTINGS = \"PER_AZ\"" + "\n" +
+				")",
+		},
+		{
+			testName: "table with column store without partition_by",
+			resource: &Resource{
+				FullPath: "hello/world",
+				Columns: []*Column{
+					{
+						Name: "mir",
+						Type: "Utf8",
+					},
+					{
+						Name:    "ttl",
+						Type:    "Timestamp",
+						NotNull: true,
+					},
+				},
+				PrimaryKey: &PrimaryKey{
+					Columns: []string{
+						"mir",
+					},
+				},
+				StoreType: options.StoreTypeColumn,
+			},
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
+				"\t`mir` Utf8," + "\n" +
+				"\t`ttl` Timestamp NOT NULL," + "\n" +
+				"\tPRIMARY KEY (`mir`)" + "\n" +
+				")" + "\n" +
+				"WITH (" + "\n" +
+				"\tSTORE = COLUMN\n" +
+				")",
+		},
+		{
+			testName: "table with column store with partition_by",
+			resource: &Resource{
+				FullPath: "hello/world",
+				Columns: []*Column{
+					{
+						Name: "mir",
+						Type: "Utf8",
+					},
+					{
+						Name:    "ttl",
+						Type:    "Timestamp",
+						NotNull: true,
+					},
+				},
+				PrimaryKey: &PrimaryKey{
+					Columns: []string{
+						"mir",
+						"ttl",
+					},
+				},
+				StoreType: options.StoreTypeColumn,
+				PartitioningSettings: &PartitioningSettings{
+					PartitionBy: &PrimaryKey{
+						Columns: []string{
+							"ttl",
+							"mir",
+						},
+					},
+				},
+			},
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
+				"\t`mir` Utf8," + "\n" +
+				"\t`ttl` Timestamp NOT NULL," + "\n" +
+				"\tPRIMARY KEY (`mir`,`ttl`)" + "\n" +
+				")" + "\n" +
+				"PARTITION BY HASH (`ttl`,`mir`)\n" +
+				"WITH (" + "\n" +
+				"\tSTORE = COLUMN\n" +
+				")",
+		},
+		{
+			testName: "table with column store with partition_by and partition_settings",
+			resource: &Resource{
+				FullPath: "hello/world",
+				Columns: []*Column{
+					{
+						Name: "mir",
+						Type: "Utf8",
+					},
+					{
+						Name:    "ttl",
+						Type:    "Timestamp",
+						NotNull: true,
+					},
+				},
+				PrimaryKey: &PrimaryKey{
+					Columns: []string{"mir", "ttl"},
+				},
+				StoreType: options.StoreTypeColumn,
+				PartitioningSettings: &PartitioningSettings{
+					MinPartitionsCount: 4,
+					PartitionBy: &PrimaryKey{
+						Columns: []string{"ttl", "mir"},
+					},
+				},
+			},
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
+				"\t`mir` Utf8," + "\n" +
+				"\t`ttl` Timestamp NOT NULL," + "\n" +
+				"\tPRIMARY KEY (`mir`,`ttl`)" + "\n" +
+				")" + "\n" +
+				"PARTITION BY HASH (`ttl`,`mir`)\n" +
+				"WITH (" + "\n" +
+				"\tSTORE = COLUMN,\n" +
+				"\tAUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 4\n" +
+				")",
+		},
+		{
+			testName: "table with row store (undocumented)",
+			resource: &Resource{
+				FullPath: "hello/world",
+				Columns: []*Column{
+					{
+						Name: "mir",
+						Type: "Uint32",
+					},
+				},
+				PrimaryKey: &PrimaryKey{
+					Columns: []string{"mir"},
+				},
+				StoreType: options.StoreTypeRow,
+			},
+			expected: "CREATE TABLE `hello\\/world`(" + "\n" +
+				"\t`mir` Uint32," + "\n" +
+				"\tPRIMARY KEY (`mir`)" + "\n" +
+				")" + "\n" +
+				"WITH (" + "\n" +
+				"\tSTORE = ROW\n" +
 				")",
 		},
 	}

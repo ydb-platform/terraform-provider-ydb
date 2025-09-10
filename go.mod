@@ -6,7 +6,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.111.3
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.115.7
 )
 
 require google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect

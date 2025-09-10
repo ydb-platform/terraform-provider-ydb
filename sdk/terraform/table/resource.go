@@ -170,6 +170,13 @@ func ResourceSchema() map[string]*schema.Schema {
 				ValidateFunc: validation.NoZeroValues, // TODO(shmel1k@): think about validate func
 			},
 		},
+		"store": {
+			Type:         schema.TypeString,
+			Description:  "",
+			Optional:     true,
+			ForceNew:     true,
+			ValidateFunc: validation.StringInSlice([]string{"column"}, true),
+		},
 		"ttl": {
 			Type:        schema.TypeSet,
 			Description: "The `TTL` block supports allow you to create a special column type, [TTL column](https://ydb.tech/en/docs/concepts/ttl), whose values determine the time-to-live for rows.",
@@ -240,24 +247,41 @@ func ResourceSchema() map[string]*schema.Schema {
 						Computed: true,
 					},
 					"auto_partitioning_max_partitions_count": {
-						Type:     schema.TypeInt,
-						Optional: true,
-						Computed: true,
+						Type:             schema.TypeInt,
+						Optional:         true,
+						Computed:         true,
+						DiffSuppressFunc: suppressWhenColumnStore,
 					},
 					"auto_partitioning_partition_size_mb": {
-						Type:     schema.TypeInt,
-						Optional: true,
-						Computed: true,
+						Type:             schema.TypeInt,
+						Optional:         true,
+						Computed:         true,
+						DiffSuppressFunc: suppressWhenColumnStore,
 					},
 					"auto_partitioning_by_load": {
-						Type:     schema.TypeBool,
-						Optional: true,
-						Default:  false,
+						Type:             schema.TypeBool,
+						Optional:         true,
+						Default:          false,
+						DiffSuppressFunc: suppressWhenColumnStore,
 					},
 					"auto_partitioning_by_size_enabled": {
-						Type:     schema.TypeBool,
-						Optional: true,
-						Default:  true,
+						Type:             schema.TypeBool,
+						Optional:         true,
+						Default:          true,
+						DiffSuppressFunc: suppressWhenColumnStore,
+					},
+					"partition_by": {
+						Type:         schema.TypeList,
+						Description:  "Partitioning keys constitute a subset of the table's primary keys. If not set, primary keys will be used.",
+						Optional:     true,
+						Computed:     true,
+						ForceNew:     true,
+						RequiredWith: []string{"store"},
+						Elem: &schema.Schema{
+							Type:         schema.TypeString,
+							ValidateFunc: validation.NoZeroValues,
+							MinItems:     1,
+						},
 					},
 				},
 			},
@@ -275,4 +299,17 @@ func ResourceSchema() map[string]*schema.Schema {
 			Computed:    true,
 		},
 	}
+}
+
+// suppressWhenColumnStore suppresses diff changes on partition settings.
+// From the YDB documentation:
+//
+//	To manage data partitioning, use the AUTO_PARTITIONING_MIN_PARTITIONS_COUNT additional parameter.
+//	The system ignores other partitioning parameters for column-oriented tables.
+//
+// https://ydb.tech/docs/en/concepts/datamodel/table?version=v25.1#olap-tables-partitioning
+func suppressWhenColumnStore(k, oldValue, newValue string, d *schema.ResourceData) bool {
+	store, ok := d.Get("store").(string)
+
+	return ok && store == "column"
 }
