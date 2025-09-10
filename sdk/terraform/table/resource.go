@@ -172,7 +172,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"store": {
 			Type:         schema.TypeString,
-			Description:  "",
+			Description:  "Table storage type. Set to `column` for column-oriented tables. Omit for row-oriented tables (default).",
 			Optional:     true,
 			ForceNew:     true,
 			ValidateFunc: validation.StringInSlice([]string{"column"}, true),
