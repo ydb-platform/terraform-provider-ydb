@@ -80,6 +80,7 @@ type PartitionAtKeys struct {
 }
 
 type PartitioningSettings struct {
+	PartitionBy        *PrimaryKey
 	BySize             *bool
 	ByLoad             *bool
 	PartitionSizeMb    *int
@@ -113,6 +114,7 @@ type Resource struct {
 	ReplicationSettings  *ReplicationSettings
 	PartitioningSettings *PartitioningSettings
 	EnableBloomFilter    *bool
+	StoreType            options.StoreType
 }
 
 func (r *Resource) getConnectionString() string {
@@ -120,6 +122,21 @@ func (r *Resource) getConnectionString() string {
 		return r.DatabaseEndpoint
 	}
 	return r.Entity.PrepareFullYDBEndpoint()
+}
+
+func (r *Resource) isStoreNeeded() bool {
+	return r.StoreType != options.StoreTypeUnspecified
+}
+
+func (r *Resource) storeYQLStmt() string {
+	switch r.StoreType {
+	case options.StoreTypeRow:
+		return "ROW"
+	case options.StoreTypeColumn:
+		return "COLUMN"
+	}
+
+	return ""
 }
 
 func expandTableTTLSettings(d *schema.ResourceData) (ttl *TTL) {
@@ -222,9 +239,28 @@ func expandTablePartitioningPolicySettings(d *schema.ResourceData, columns []*Co
 		if partitionSizeMb, ok := m["auto_partitioning_partition_size_mb"].(int); ok && partitionSizeMb != 0 {
 			p.PartitionSizeMb = &partitionSizeMb
 		}
+		if partitionBy, ok := m["partition_by"].([]any); ok {
+			p.PartitionBy = &PrimaryKey{
+				Columns: make([]string, 0, len(partitionBy)),
+			}
+			for _, v := range partitionBy {
+				p.PartitionBy.Columns = append(p.PartitionBy.Columns, v.(string))
+			}
+		}
 	}
 
 	return p, nil
+}
+
+func expandTableStore(d *schema.ResourceData) options.StoreType {
+	switch d.Get("store") {
+	case "column":
+		return options.StoreTypeColumn
+	case "row":
+		return options.StoreTypeRow
+	default:
+		return options.StoreTypeUnspecified
+	}
 }
 
 func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, error) {
@@ -288,6 +324,7 @@ func tableResourceSchemaToTableResource(d *schema.ResourceData) (*Resource, erro
 		PartitioningSettings: partitioningSettings,
 		ReplicationSettings:  replicasSettings,
 		EnableBloomFilter:    bloomFilterEnabled,
+		StoreType:            expandTableStore(d),
 	}, nil
 }
 
@@ -299,6 +336,7 @@ func flattenTablePartitioningSettings(d *schema.ResourceData, settings options.P
 	partitioningSettings["auto_partitioning_partition_size_mb"] = settings.PartitionSizeMb
 	partitioningSettings["auto_partitioning_min_partitions_count"] = settings.MinPartitionsCount
 	partitioningSettings["auto_partitioning_max_partitions_count"] = settings.MaxPartitionsCount
+	partitioningSettings["partition_by"] = settings.PartitionBy
 	pList := d.Get("partitioning_settings").([]interface{})
 	for _, l := range pList {
 		m := l.(map[string]interface{})
@@ -358,6 +396,18 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, e
 		pk = append(pk, p)
 	}
 	err = d.Set("primary_key", pk)
+	if err != nil {
+		return
+	}
+
+	var store string
+	switch desc.StoreType {
+	case options.StoreTypeRow:
+		store = "row"
+	case options.StoreTypeColumn:
+		store = "column"
+	}
+	err = d.Set("store", store)
 	if err != nil {
 		return
 	}

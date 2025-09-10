@@ -81,6 +81,24 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req = append(req, '\n')
 	indent--
 
+	// PARTITION BY HASH
+	if r.PartitioningSettings != nil &&
+		r.PartitioningSettings.PartitionBy != nil &&
+		len(r.PartitioningSettings.PartitionBy.Columns) > 0 {
+		req = appendIndent(req, indent)
+		req = append(req, "PARTITION BY HASH"...)
+		req = append(req, ' ')
+		req = append(req, '(')
+		for _, v := range r.PartitioningSettings.PartitionBy.Columns {
+			req = append(req, '`')
+			req = helpers.AppendWithEscape(req, v)
+			req = append(req, '`')
+			req = append(req, ',')
+		}
+		req[len(req)-1] = ')'
+		req = append(req, '\n')
+	}
+
 	needWith := r.TTL != nil
 	if len(r.Attributes) != 0 {
 		needWith = true
@@ -89,6 +107,9 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 		needWith = true
 	}
 	if r.ReplicationSettings != nil {
+		needWith = true
+	}
+	if r.isStoreNeeded() {
 		needWith = true
 	}
 
@@ -100,6 +121,17 @@ func PrepareCreateRequest(r *Resource) string { //nolint:gocyclo
 	req = append(req, ' ', '(', '\n')
 	indent++
 	needComma := false
+
+	if r.isStoreNeeded() {
+		if needComma {
+			req = append(req, ',', '\n')
+		}
+		req = appendIndent(req, indent)
+		req = append(req, "STORE = "...)
+		req = append(req, r.storeYQLStmt()...)
+		needComma = true
+	}
+
 	if r.TTL != nil {
 		req = appendIndent(req, indent)
 		req = append(req, "TTL = Interval(\""...)
