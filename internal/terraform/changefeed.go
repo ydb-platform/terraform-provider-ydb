@@ -58,15 +58,6 @@ func resourceYDBTableChangefeedDelete(ctx context.Context, d *schema.ResourceDat
 	return changefeed.ResourceDeleteFunc(cb)(ctx, d, meta)
 }
 
-// func dataSourceYDBTableChangefeedRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-// 	cfg := meta.(*Config)
-// 	cb := func(ctx context.Context) (string, error) {
-// 		return cfg.Token, nil
-// 	}
-//
-// 	return changefeed.ResourceReadFunc(cb)(ctx, d, meta)
-// }
-
 func ydbTableChangeFeedResource() *schema.Resource {
 	return &schema.Resource{
 		Schema:        changefeed.ResourceSchema(),
