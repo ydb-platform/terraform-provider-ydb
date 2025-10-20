@@ -66,9 +66,9 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, meta interfa
 		}
 	}
 	if cdcDescription.Name == "" {
-		// NOTE(shmel1k@): changefeed was not found.
+		// NOTE: marking as non-existing resource
 		d.SetId("")
-		return h.Create(ctx, d, meta)
+		return nil
 	}
 
 	topicDesc, err := db.Topic().Describe(ctx, helpers.TrimPath(cdcResource.Entity.GetEntityPath()))
