@@ -160,6 +160,10 @@ func DataSourceSchema() map[string]*schema.Schema {
 						Type:     schema.TypeBool,
 						Optional: true,
 					},
+					attributeConsumerAvailabilityPeriodHours: {
+						Type:     schema.TypeInt,
+						Optional: true,
+					},
 				},
 			},
 		},
@@ -315,6 +319,11 @@ func ResourceSchema() map[string]*schema.Schema {
 						Description: "Defines an important consumer. No data will be deleted from the topic until all the important consumers read them. Default value `false`.",
 						Optional:    true,
 						Computed:    true,
+					},
+					attributeConsumerAvailabilityPeriodHours: {
+						Type:        schema.TypeInt,
+						Description: "Minimum time period in hours during which messages for this consumer will not expire due to retention if they aren't committed.",
+						Optional:    true,
 					},
 				},
 			},
