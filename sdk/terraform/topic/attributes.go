@@ -12,6 +12,7 @@ const (
 	attributeName                                   = "name" // NOTE(shmel1k@): deprecated, use 'attributes.Path' instead.
 	attributeConsumerStartingMessageTimestampMS     = "starting_message_timestamp_ms"
 	attributeConsumerImportant                      = "important"
+	attributeConsumerAvailabilityPeriodHours        = "availability_period_hours"
 	attributeAutoPartitioningSettings               = "auto_partitioning_settings"
 	attributeAutoPartitioningStrategy               = "auto_partitioning_strategy"
 	attributeAutoPartitioningStrategyUnspecified    = "UNSPECIFIED"

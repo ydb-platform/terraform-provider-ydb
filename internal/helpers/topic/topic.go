@@ -77,6 +77,12 @@ func MergeConsumerSettings(
 			important = false
 		}
 
+		var availabilityPeriod *time.Duration
+		if availabilityPeriodHours, ok := consumer["availability_period_hours"].(int); ok && availabilityPeriodHours > 0 {
+			period := time.Duration(availabilityPeriodHours) * time.Hour
+			availabilityPeriod = &period
+		}
+
 		r, ok := rules[consumerName]
 		if !ok {
 			// consumer was deleted by someone outside terraform or does not exist.
@@ -87,10 +93,11 @@ func MergeConsumerSettings(
 			}
 			newConsumers = append(newConsumers,
 				topictypes.Consumer{
-					Name:            consumerName,
-					ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
-					SupportedCodecs: codecs,
-					Important:       important,
+					Name:               consumerName,
+					ReadFrom:           time.UnixMilli(int64(startingMessageTS)),
+					SupportedCodecs:    codecs,
+					Important:          important,
+					AvailabilityPeriod: availabilityPeriod,
 				},
 			)
 			continue
@@ -103,6 +110,13 @@ func MergeConsumerSettings(
 		readFrom := time.UnixMilli(int64(startingMessageTS))
 		if r.ReadFrom != readFrom {
 			opts = append(opts, topicoptions.AlterConsumerWithReadFrom(consumerName, readFrom))
+		}
+
+		// Compare availability_period
+		if availabilityPeriod == nil && r.AvailabilityPeriod != nil {
+			opts = append(opts, topicoptions.AlterConsumerResetAvailabilityPeriod(consumerName))
+		} else if availabilityPeriod != nil && (r.AvailabilityPeriod == nil || *availabilityPeriod != *r.AvailabilityPeriod) {
+			opts = append(opts, topicoptions.AlterConsumerWithAvailabilityPeriod(consumerName, *availabilityPeriod))
 		}
 
 		newCodecs := make([]topictypes.Codec, 0, len(supportedCodecs.List()))
@@ -149,11 +163,17 @@ func ExpandConsumers(consumers *schema.Set) []topictypes.Consumer {
 		if !ok {
 			important = false
 		}
+		var availabilityPeriod *time.Duration
+		if availabilityPeriodHours, ok := consumer["availability_period_hours"].(int); ok {
+			period := time.Duration(availabilityPeriodHours) * time.Hour
+			availabilityPeriod = &period
+		}
 		result = append(result, topictypes.Consumer{
-			Name:            consumerName,
-			SupportedCodecs: codecs,
-			ReadFrom:        time.UnixMilli(int64(startingMessageTS)),
-			Important:       important,
+			Name:               consumerName,
+			SupportedCodecs:    codecs,
+			ReadFrom:           time.UnixMilli(int64(startingMessageTS)),
+			Important:          important,
+			AvailabilityPeriod: availabilityPeriod,
 		})
 	}
 
@@ -169,12 +189,19 @@ func FlattenConsumersDescription(consumers []topictypes.Consumer) []map[string]i
 				codecs = append(codecs, c)
 			}
 		}
-		cons = append(cons, map[string]interface{}{
+
+		consumer := map[string]any{
 			"name":                          r.Name,
 			"starting_message_timestamp_ms": r.ReadFrom.UnixMilli(),
 			"supported_codecs":              codecs,
 			"important":                     r.Important,
-		})
+		}
+
+		if r.AvailabilityPeriod != nil {
+			consumer["availability_period_hours"] = int64(r.AvailabilityPeriod.Hours())
+		}
+
+		cons = append(cons, consumer)
 	}
 
 	return cons
