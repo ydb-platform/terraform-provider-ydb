@@ -1,0 +1,109 @@
+package secret
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	secretHandler "github.com/ydb-platform/terraform-provider-ydb/internal/resources/secret"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+)
+
+func ResourceSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"connection_string": {
+			Type:        schema.TypeString,
+			Required:    true,
+			ForceNew:    true,
+			Description: "Connection string for YDB database.",
+		},
+		"name": {
+			Type:        schema.TypeString,
+			Required:    true,
+			ForceNew:    true,
+			Description: "Secret name.",
+		},
+		"value": {
+			Type:        schema.TypeString,
+			Required:    true,
+			Sensitive:   true,
+			Description: "Secret value. This value is sensitive and will not be displayed in plan output.",
+		},
+		"inherit_permissions": {
+			Type:        schema.TypeBool,
+			Optional:    true,
+			Default:     false,
+			ForceNew:    true,
+			Description: "If true, the secret inherits access rights from its parent directory. If false (default), only DESCRIBE SCHEMA permission is inherited.",
+		},
+	}
+}
+
+func DataSourceSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"connection_string": {
+			Type:        schema.TypeString,
+			Required:    true,
+			Description: "Connection string for YDB database.",
+		},
+		"name": {
+			Type:        schema.TypeString,
+			Required:    true,
+			Description: "Secret name.",
+		},
+	}
+}
+
+func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
+	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		authCreds, err := cb(ctx)
+		if err != nil {
+			return diag.Diagnostics{
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+			}
+		}
+		h := secretHandler.NewHandler(authCreds)
+		return h.Create(ctx, d, meta)
+	}
+}
+
+func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
+	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		authCreds, err := cb(ctx)
+		if err != nil {
+			return diag.Diagnostics{
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+			}
+		}
+		h := secretHandler.NewHandler(authCreds)
+		return h.Read(ctx, d, meta)
+	}
+}
+
+func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
+	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		authCreds, err := cb(ctx)
+		if err != nil {
+			return diag.Diagnostics{
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+			}
+		}
+		h := secretHandler.NewHandler(authCreds)
+		return h.Update(ctx, d, meta)
+	}
+}
+
+func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
+	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		authCreds, err := cb(ctx)
+		if err != nil {
+			return diag.Diagnostics{
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+			}
+		}
+		h := secretHandler.NewHandler(authCreds)
+		return h.Delete(ctx, d, meta)
+	}
+}

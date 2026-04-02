@@ -8,3 +8,4 @@ This provider can be used for managing YDB schema resources in managed or on-pre
 - [ydb_table](./internal/resources/table/README.md)
 - [ydb_table_index](./internal/resources/table/index/README.md)
 - [ydb_table_changefeed](./internal/resources/changefeed/README.md)
+- [ydb_secret](./internal/resources/secret/README.md)
