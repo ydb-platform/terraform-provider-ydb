@@ -17,5 +17,5 @@ resource "ydb_secret" "secret" {
 
 - `connection_string` (Required) - Connection string for YDB database.
 - `name` (Required) - Secret name.
-- `value` (Required, Sensitive) - Secret value.
+- `value` (Required, Sensitive) - Secret value. Stored as a scrypt hash in Terraform state.
 - `inherit_permissions` (Optional, Default: `false`) - If `true`, the secret inherits access rights from its parent directory. If `false`, only `DESCRIBE SCHEMA` permission is inherited.

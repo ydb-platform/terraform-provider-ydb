@@ -17,7 +17,8 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
-	value := d.Get("value").(string)
+	_, newValue := d.GetChange("value")
+	value := newValue.(string)
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: entity.PrepareFullYDBEndpoint(),
