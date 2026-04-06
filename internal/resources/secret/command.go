@@ -46,7 +46,7 @@ func runCommand(ctx context.Context, cmdMap map[string]interface{}) (string, err
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("command %q failed: %v\nstdout: %s\nstderr: %s", path, err, stdout.String(), stderr.String())
+		return "", fmt.Errorf("command %q failed: %w\nstdout: %s\nstderr: %s", path, err, stdout.String(), stderr.String())
 	}
 
 	return stdout.String(), nil
