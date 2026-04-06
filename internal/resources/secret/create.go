@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
@@ -29,9 +30,10 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	q := fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s')", name, value)
+	escapedValue := helpers.EscapeYQLString(value)
+	q := fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s')", name, escapedValue)
 	if inheritPermissions {
-		q = fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s', inherit_permissions = True)", name, value)
+		q = fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s', inherit_permissions = True)", name, escapedValue)
 	}
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
