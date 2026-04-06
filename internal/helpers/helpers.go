@@ -55,6 +55,10 @@ func EscapeYQLString(s string) string {
 	return strings.ReplaceAll(s, "'", "\\'")
 }
 
+func EscapeYQLIdentifier(s string) string {
+	return strings.ReplaceAll(s, "`", "``")
+}
+
 func AppendWithEscape(buf []byte, s string) []byte {
 	for i := 0; i < len(s); i++ {
 		if s[i] == '"' || s[i] == '/' {

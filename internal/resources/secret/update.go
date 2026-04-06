@@ -33,7 +33,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	q := fmt.Sprintf("ALTER SECRET `%s` WITH (value = '%s')", entity.GetEntityPath(), helpers.EscapeYQLString(value))
+	q := fmt.Sprintf("ALTER SECRET `%s` WITH (value = '%s')", helpers.EscapeYQLIdentifier(entity.GetEntityPath()), helpers.EscapeYQLString(value))
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
 		return diag.Diagnostics{

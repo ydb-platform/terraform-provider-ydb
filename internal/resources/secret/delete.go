@@ -28,7 +28,7 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, _ interfac
 		_ = db.Close(ctx)
 	}()
 
-	q := fmt.Sprintf("DROP SECRET `%s`", entity.GetEntityPath())
+	q := fmt.Sprintf("DROP SECRET `%s`", helpers.EscapeYQLIdentifier(entity.GetEntityPath()))
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
 		return diag.Diagnostics{

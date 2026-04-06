@@ -30,10 +30,11 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
+	escapedName := helpers.EscapeYQLIdentifier(name)
 	escapedValue := helpers.EscapeYQLString(value)
-	q := fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s')", name, escapedValue)
+	q := fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s')", escapedName, escapedValue)
 	if inheritPermissions {
-		q = fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s', inherit_permissions = True)", name, escapedValue)
+		q = fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s', inherit_permissions = True)", escapedName, escapedValue)
 	}
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
