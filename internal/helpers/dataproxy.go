@@ -7,6 +7,7 @@ type ResourceDataProxy interface {
 	GetOk(key string) (interface{}, bool)
 
 	// GetOkExists and methods below are bypassed (i.e. call schema.ResourceData directly)
+
 	// Deprecated: calls a deprecated method
 	GetOkExists(key string) (interface{}, bool)
 
