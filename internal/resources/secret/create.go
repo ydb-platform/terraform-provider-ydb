@@ -14,8 +14,12 @@ import (
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connectionString := d.Get("connection_string").(string)
 	name := d.Get("name").(string)
-	value := d.Get("value").(string)
 	inheritPermissions := d.Get("inherit_permissions").(bool)
+
+	value, err := resolveSecretValue(ctx, d)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: connectionString,

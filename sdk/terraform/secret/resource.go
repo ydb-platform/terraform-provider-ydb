@@ -46,11 +46,42 @@ func ResourceSchema() map[string]*schema.Schema {
 			Description: "Secret name.",
 		},
 		"value": {
-			Type:        schema.TypeString,
-			Required:    true,
-			Sensitive:   true,
-			StateFunc:   hashSecretValue,
-			Description: "Secret value. This value is sensitive and will not be displayed in plan output.",
+			Type:          schema.TypeString,
+			Optional:      true,
+			Sensitive:     true,
+			StateFunc:     hashSecretValue,
+			Description:   "Secret value. This value is sensitive and will not be displayed in plan output. Mutually exclusive with `command`.",
+			ExactlyOneOf:  []string{"value", "command"},
+			ConflictsWith: []string{"command"},
+		},
+		"command": {
+			Type:          schema.TypeList,
+			Optional:      true,
+			MaxItems:      1,
+			Description:   "Command to execute to generate the secret value. The command's stdout is used as the value. Mutually exclusive with `value`.",
+			ExactlyOneOf:  []string{"value", "command"},
+			ConflictsWith: []string{"value"},
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"path": {
+						Type:        schema.TypeString,
+						Required:    true,
+						Description: "Path to the executable.",
+					},
+					"args": {
+						Type:        schema.TypeList,
+						Optional:    true,
+						Description: "Arguments to pass to the command.",
+						Elem:        &schema.Schema{Type: schema.TypeString},
+					},
+					"env": {
+						Type:        schema.TypeMap,
+						Optional:    true,
+						Description: "Environment variables to set for the command.",
+						Elem:        &schema.Schema{Type: schema.TypeString},
+					},
+				},
+			},
 		},
 		"inherit_permissions": {
 			Type:        schema.TypeBool,
