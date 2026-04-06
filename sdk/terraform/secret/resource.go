@@ -14,6 +14,9 @@ import (
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
+// hashSecretValue hashes the secret using scrypt so the plaintext is not stored in Terraform state.
+// See rationale for scrypt choice:
+// https://github.com/yandex-cloud/terraform-provider-yandex/blob/master/yandex/resource_yandex_lockbox_secret_version_hashed.go#L121-L128
 func hashSecretValue(v interface{}) string {
 	value := v.(string)
 	if value == "" {
