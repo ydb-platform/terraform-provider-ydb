@@ -104,7 +104,7 @@ func TestValidateResourceAuth(t *testing.T) {
 		{
 			name: "AWS missing region",
 			r: res(map[string]string{
-				"auth_method":                       "AWS",
+				"auth_method":                   "AWS",
 				"aws_access_key_id_secret_path": "/key", "aws_secret_access_key_secret_path": "/secret",
 			}),
 			wantErr: `AWS_REGION is required for AUTH_METHOD = "AWS"`,

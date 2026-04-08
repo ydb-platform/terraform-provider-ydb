@@ -3,6 +3,7 @@ package externaldatasource
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -275,13 +276,7 @@ func validateSourceType(r *Resource) error {
 	if method != "" {
 		allowed, ok := sourceTypeAuthMethods[srcType]
 		if ok {
-			found := false
-			for _, a := range allowed {
-				if a == method {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(allowed, method)
 			if !found {
 				return fmt.Errorf("AUTH_METHOD %q is not supported for SOURCE_TYPE %q (allowed: %v)", method, srcType, allowed)
 			}
