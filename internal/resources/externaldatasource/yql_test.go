@@ -45,7 +45,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 					"location":             "clickhouse-host:9000",
 					"auth_method":          "BASIC",
 					"login":                "user",
-					"password_secret_name": "my_password_secret",
+					"password_secret_path": "/local/my_password_secret",
 					"database_name":        "default",
 					"protocol":             "NATIVE",
 				},
@@ -53,7 +53,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 			},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/ch_source`" +
 				` WITH ( SOURCE_TYPE = "ClickHouse", LOCATION = "clickhouse-host:9000",` +
-				` AUTH_METHOD = "BASIC", LOGIN = "user", PASSWORD_SECRET_NAME = "my_password_secret",` +
+				` AUTH_METHOD = "BASIC", LOGIN = "user", PASSWORD_SECRET_PATH = "/local/my_password_secret",` +
 				` DATABASE_NAME = "default", PROTOCOL = "NATIVE", USE_TLS = "TRUE" )`,
 		},
 		{
@@ -64,12 +64,12 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"location":                    "storage.yandexcloud.net",
 				"auth_method":                 "SERVICE_ACCOUNT",
 				"service_account_id":          "sa-id-123",
-				"service_account_secret_name": "sa_secret",
+				"service_account_secret_path": "/local/sa_secret",
 			}},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/sa_source`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "storage.yandexcloud.net",` +
 				` AUTH_METHOD = "SERVICE_ACCOUNT", SERVICE_ACCOUNT_ID = "sa-id-123",` +
-				` SERVICE_ACCOUNT_SECRET_NAME = "sa_secret" )`,
+				` SERVICE_ACCOUNT_SECRET_PATH = "/local/sa_secret" )`,
 		},
 		{
 			testName: "with aws auth",
@@ -78,14 +78,14 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"source_type":                       "ObjectStorage",
 				"location":                          "s3.us-east-1.amazonaws.com",
 				"auth_method":                       "AWS",
-				"aws_access_key_id_secret_name":     "aws_key_id",
-				"aws_secret_access_key_secret_name": "aws_secret_key",
+				"aws_access_key_id_secret_path":     "/local/aws_key_id",
+				"aws_secret_access_key_secret_path": "/local/aws_secret_key",
 				"aws_region":                        "us-east-1",
 			}},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/aws_source`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "s3.us-east-1.amazonaws.com",` +
-				` AUTH_METHOD = "AWS", AWS_ACCESS_KEY_ID_SECRET_NAME = "aws_key_id",` +
-				` AWS_SECRET_ACCESS_KEY_SECRET_NAME = "aws_secret_key", AWS_REGION = "us-east-1" )`,
+				` AUTH_METHOD = "AWS", AWS_ACCESS_KEY_ID_SECRET_PATH = "/local/aws_key_id",` +
+				` AWS_SECRET_ACCESS_KEY_SECRET_PATH = "/local/aws_secret_key", AWS_REGION = "us-east-1" )`,
 		},
 		{
 			testName: "with mdb cluster",
@@ -96,7 +96,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 					"location":             "rc1a-xxx.mdb.yandexcloud.net:6432",
 					"auth_method":          "MDB_BASIC",
 					"login":                "pguser",
-					"password_secret_name": "pg_pass",
+					"password_secret_path": "/local/pg_pass",
 					"database_name":        "mydb",
 					"mdb_cluster_id":       "c9q1234567890",
 				},
@@ -104,7 +104,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 			},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/mdb_source`" +
 				` WITH ( SOURCE_TYPE = "PostgreSQL", LOCATION = "rc1a-xxx.mdb.yandexcloud.net:6432",` +
-				` AUTH_METHOD = "MDB_BASIC", LOGIN = "pguser", PASSWORD_SECRET_NAME = "pg_pass",` +
+				` AUTH_METHOD = "MDB_BASIC", LOGIN = "pguser", PASSWORD_SECRET_PATH = "/local/pg_pass",` +
 				` DATABASE_NAME = "mydb", MDB_CLUSTER_ID = "c9q1234567890", USE_TLS = "TRUE" )`,
 		},
 		{
@@ -127,7 +127,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 					"location":             "localhost:5432",
 					"auth_method":          "BASIC",
 					"login":                "pguser",
-					"password_secret_name": "pg_pass",
+					"password_secret_path": "/local/pg_pass",
 					"database_name":        "mydb",
 					"protocol":             "NATIVE",
 					"schema":               "public",
@@ -136,9 +136,8 @@ func TestPrepareCreateQuery(t *testing.T) {
 			},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/pg_source`" +
 				` WITH ( SOURCE_TYPE = "PostgreSQL", LOCATION = "localhost:5432",` +
-				` AUTH_METHOD = "BASIC", LOGIN = "pguser", PASSWORD_SECRET_NAME = "pg_pass",` +
+				` AUTH_METHOD = "BASIC", LOGIN = "pguser", PASSWORD_SECRET_PATH = "/local/pg_pass",` +
 				` DATABASE_NAME = "mydb", PROTOCOL = "NATIVE", SCHEMA = "public", USE_TLS = "TRUE" )`,
-
 		},
 		{
 			testName: "oracle with service_name",
@@ -148,13 +147,13 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"location":             "localhost:1521",
 				"auth_method":          "BASIC",
 				"login":                "orauser",
-				"password_secret_name": "ora_pass",
+				"password_secret_path": "/local/ora_pass",
 				"database_name":        "ORCL",
 				"service_name":         "my_service",
 			}},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/oracle_source`" +
 				` WITH ( SOURCE_TYPE = "Oracle", LOCATION = "localhost:1521",` +
-				` AUTH_METHOD = "BASIC", LOGIN = "orauser", PASSWORD_SECRET_NAME = "ora_pass",` +
+				` AUTH_METHOD = "BASIC", LOGIN = "orauser", PASSWORD_SECRET_PATH = "/local/ora_pass",` +
 				` DATABASE_NAME = "ORCL", SERVICE_NAME = "my_service" )`,
 		},
 		{
@@ -162,18 +161,20 @@ func TestPrepareCreateQuery(t *testing.T) {
 			fullPath: "/local/solomon_source",
 			resource: &Resource{
 				Values: map[string]string{
-					"source_type":   "Solomon",
-					"location":      "localhost:9090",
-					"auth_method":   "TOKEN",
-					"grpc_location": "vla",
-					"project":       "myproject",
-					"cluster":       "production",
+					"source_type":        "Solomon",
+					"location":           "localhost:9090",
+					"auth_method":        "TOKEN",
+					"token_secret_path":  "/local/tok",
+					"grpc_location":      "vla",
+					"project":            "myproject",
+					"cluster":            "production",
 				},
 				UseTLS: boolPtr(true),
 			},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/solomon_source`" +
 				` WITH ( SOURCE_TYPE = "Solomon", LOCATION = "localhost:9090",` +
-				` AUTH_METHOD = "TOKEN", GRPC_LOCATION = "vla", PROJECT = "myproject",` +
+				` AUTH_METHOD = "TOKEN", TOKEN_SECRET_PATH = "/local/tok",` +
+				` GRPC_LOCATION = "vla", PROJECT = "myproject",` +
 				` CLUSTER = "production", USE_TLS = "TRUE" )`,
 		},
 		{
@@ -199,13 +200,13 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"location":                    "localhost:8080",
 				"auth_method":                 "SERVICE_ACCOUNT",
 				"service_account_id":          "sa123",
-				"service_account_secret_name": "sa_secret",
+				"service_account_secret_path": "/local/sa_secret",
 				"folder_id":                   "b1g456",
 			}},
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/logging_source`" +
 				` WITH ( SOURCE_TYPE = "Logging", LOCATION = "localhost:8080",` +
 				` AUTH_METHOD = "SERVICE_ACCOUNT", SERVICE_ACCOUNT_ID = "sa123",` +
-				` SERVICE_ACCOUNT_SECRET_NAME = "sa_secret", FOLDER_ID = "b1g456" )`,
+				` SERVICE_ACCOUNT_SECRET_PATH = "/local/sa_secret", FOLDER_ID = "b1g456" )`,
 		},
 	}
 

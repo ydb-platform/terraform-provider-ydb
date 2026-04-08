@@ -25,12 +25,12 @@ type Resource struct {
 // Slice order is only the stable iteration order for reads/writes and WITH emission (not a semantic contract).
 var allStringAttrKeys = []string{
 	"source_type", "location",
-	"auth_method", "login", "password_secret_name", "password_secret_path",
-	"service_account_id", "service_account_secret_name", "service_account_secret_path",
-	"aws_access_key_id_secret_name", "aws_access_key_id_secret_path",
-	"aws_secret_access_key_secret_name", "aws_secret_access_key_secret_path",
+	"auth_method", "login", "password_secret_path",
+	"service_account_id", "service_account_secret_path",
+	"aws_access_key_id_secret_path",
+	"aws_secret_access_key_secret_path",
 	"aws_region",
-	"token_secret_name", "token_secret_path",
+	"token_secret_path",
 	"database_name", "protocol", "mdb_cluster_id",
 	"schema", "service_name", "folder_id",
 	"grpc_location", "project", "cluster",
@@ -99,90 +99,17 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 	return res, nil
 }
 
-// secretPair is a secret referenced by name or path (mutually exclusive).
-type secretPair struct {
-	Name, Path       string
-	NameKey, PathKey string
-}
-
-// secretPairState returns how the pair is set; err if both name and path are set.
-func secretPairState(p secretPair) (useName, usePath bool, err error) {
-	if p.Name != "" && p.Path != "" {
-		return false, false, fmt.Errorf("cannot specify both %s and %s", p.NameKey, p.PathKey)
-	}
-	return p.Name != "", p.Path != "", nil
-}
-
-// secretRefMix ensures all secrets for one auth method use only names or only paths.
-type secretRefMix struct {
-	usesName, usesPath bool
-}
-
-func (m *secretRefMix) add(useName, usePath bool, p secretPair) error {
-	switch {
-	case useName && m.usesPath:
-		return fmt.Errorf(
-			"cannot mix secret name and secret path references: %s conflicts with a *_SECRET_PATH field",
-			p.NameKey,
-		)
-	case usePath && m.usesName:
-		return fmt.Errorf(
-			"cannot mix secret name and secret path references: %s conflicts with a *_SECRET_NAME field",
-			p.PathKey,
-		)
-	case useName:
-		m.usesName = true
-	case usePath:
-		m.usesPath = true
-	}
-	return nil
-}
-
 type secretSpec struct {
-	pair      func(*Resource) secretPair
+	yqlKey    string // e.g. "PASSWORD_SECRET_PATH"
+	getter    func(*Resource) string
 	mandatory bool
 }
 
-// authMethodSpec describes one AUTH_METHOD: required plain fields, optional YQL keys, and secret pairs.
+// authMethodSpec describes one AUTH_METHOD: required plain fields, optional YQL keys, and secrets.
 type authMethodSpec struct {
 	mandatoryPlain map[string]func(*Resource) string
 	optionalKeys   []string // YQL keys allowed but not required (see authYQLKeys)
 	secrets        []secretSpec
-}
-
-func passwordSecret(r *Resource) secretPair {
-	return secretPair{
-		r.strAttr("password_secret_name"), r.strAttr("password_secret_path"),
-		"PASSWORD_SECRET_NAME", "PASSWORD_SECRET_PATH",
-	}
-}
-
-func serviceAccountSecret(r *Resource) secretPair {
-	return secretPair{
-		r.strAttr("service_account_secret_name"), r.strAttr("service_account_secret_path"),
-		"SERVICE_ACCOUNT_SECRET_NAME", "SERVICE_ACCOUNT_SECRET_PATH",
-	}
-}
-
-func awsAccessKeyIDSecret(r *Resource) secretPair {
-	return secretPair{
-		r.strAttr("aws_access_key_id_secret_name"), r.strAttr("aws_access_key_id_secret_path"),
-		"AWS_ACCESS_KEY_ID_SECRET_NAME", "AWS_ACCESS_KEY_ID_SECRET_PATH",
-	}
-}
-
-func awsSecretAccessKeySecret(r *Resource) secretPair {
-	return secretPair{
-		r.strAttr("aws_secret_access_key_secret_name"), r.strAttr("aws_secret_access_key_secret_path"),
-		"AWS_SECRET_ACCESS_KEY_SECRET_NAME", "AWS_SECRET_ACCESS_KEY_SECRET_PATH",
-	}
-}
-
-func tokenSecret(r *Resource) secretPair {
-	return secretPair{
-		r.strAttr("token_secret_name"), r.strAttr("token_secret_path"),
-		"TOKEN_SECRET_NAME", "TOKEN_SECRET_PATH",
-	}
 }
 
 var authSpecs = map[string]authMethodSpec{
@@ -191,7 +118,7 @@ var authSpecs = map[string]authMethodSpec{
 		mandatoryPlain: map[string]func(*Resource) string{
 			"LOGIN": yqlStr("LOGIN"),
 		},
-		secrets: []secretSpec{{pair: passwordSecret, mandatory: true}},
+		secrets: []secretSpec{{yqlKey: "PASSWORD_SECRET_PATH", getter: yqlStr("PASSWORD_SECRET_PATH"), mandatory: true}},
 	},
 	"MDB_BASIC": {
 		mandatoryPlain: map[string]func(*Resource) string{
@@ -200,8 +127,8 @@ var authSpecs = map[string]authMethodSpec{
 		},
 		optionalKeys: []string{"MDB_CLUSTER_ID"},
 		secrets: []secretSpec{
-			{pair: serviceAccountSecret, mandatory: true},
-			{pair: passwordSecret, mandatory: true},
+			{yqlKey: "SERVICE_ACCOUNT_SECRET_PATH", getter: yqlStr("SERVICE_ACCOUNT_SECRET_PATH"), mandatory: true},
+			{yqlKey: "PASSWORD_SECRET_PATH", getter: yqlStr("PASSWORD_SECRET_PATH"), mandatory: true},
 		},
 	},
 	"AWS": {
@@ -209,29 +136,29 @@ var authSpecs = map[string]authMethodSpec{
 			"AWS_REGION": yqlStr("AWS_REGION"),
 		},
 		secrets: []secretSpec{
-			{pair: awsAccessKeyIDSecret, mandatory: true},
-			{pair: awsSecretAccessKeySecret, mandatory: true},
+			{yqlKey: "AWS_ACCESS_KEY_ID_SECRET_PATH", getter: yqlStr("AWS_ACCESS_KEY_ID_SECRET_PATH"), mandatory: true},
+			{yqlKey: "AWS_SECRET_ACCESS_KEY_SECRET_PATH", getter: yqlStr("AWS_SECRET_ACCESS_KEY_SECRET_PATH"), mandatory: true},
 		},
 	},
 	"TOKEN": {
-		secrets: []secretSpec{{pair: tokenSecret, mandatory: true}},
+		secrets: []secretSpec{{yqlKey: "TOKEN_SECRET_PATH", getter: yqlStr("TOKEN_SECRET_PATH"), mandatory: true}},
 	},
 	"SERVICE_ACCOUNT": {
 		mandatoryPlain: map[string]func(*Resource) string{
 			"SERVICE_ACCOUNT_ID": yqlStr("SERVICE_ACCOUNT_ID"),
 		},
-		secrets: []secretSpec{{pair: serviceAccountSecret, mandatory: true}},
+		secrets: []secretSpec{{yqlKey: "SERVICE_ACCOUNT_SECRET_PATH", getter: yqlStr("SERVICE_ACCOUNT_SECRET_PATH"), mandatory: true}},
 	},
 }
 
 // authYQLKeys lists every auth-related YQL property name (uppercase) checked by validateResourceAuth.
 var authYQLKeys = []string{
-	"LOGIN", "PASSWORD_SECRET_NAME", "PASSWORD_SECRET_PATH",
-	"SERVICE_ACCOUNT_ID", "SERVICE_ACCOUNT_SECRET_NAME", "SERVICE_ACCOUNT_SECRET_PATH",
-	"AWS_ACCESS_KEY_ID_SECRET_NAME", "AWS_ACCESS_KEY_ID_SECRET_PATH",
-	"AWS_SECRET_ACCESS_KEY_SECRET_NAME", "AWS_SECRET_ACCESS_KEY_SECRET_PATH",
+	"LOGIN", "PASSWORD_SECRET_PATH",
+	"SERVICE_ACCOUNT_ID", "SERVICE_ACCOUNT_SECRET_PATH",
+	"AWS_ACCESS_KEY_ID_SECRET_PATH",
+	"AWS_SECRET_ACCESS_KEY_SECRET_PATH",
 	"AWS_REGION",
-	"TOKEN_SECRET_NAME", "TOKEN_SECRET_PATH",
+	"TOKEN_SECRET_PATH",
 	"MDB_CLUSTER_ID",
 }
 
@@ -247,24 +174,10 @@ func (s *authMethodSpec) allowedAuthFields(r *Resource, method string) (map[stri
 		allowed[key] = true
 	}
 
-	var mix secretRefMix
 	for _, sec := range s.secrets {
-		pair := sec.pair(r)
-		allowed[pair.NameKey] = true
-		allowed[pair.PathKey] = true
-
-		useName, usePath, err := secretPairState(pair)
-		if err != nil {
-			return nil, err
-		}
-		if sec.mandatory && !useName && !usePath {
-			return nil, fmt.Errorf(
-				"either %s or %s is required for AUTH_METHOD = %q",
-				pair.NameKey, pair.PathKey, method,
-			)
-		}
-		if err := mix.add(useName, usePath, pair); err != nil {
-			return nil, err
+		allowed[sec.yqlKey] = true
+		if sec.mandatory && sec.getter(r) == "" {
+			return nil, fmt.Errorf("%s is required for AUTH_METHOD = %q", sec.yqlKey, method)
 		}
 	}
 	return allowed, nil
@@ -423,7 +336,7 @@ func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, prope
 		}
 		yqlKey := strings.ToUpper(attr)
 		val, ok := properties[yqlKey]
-		if !ok {
+		if !ok || val == "" {
 			continue
 		}
 		if err := d.Set(attr, val); err != nil {

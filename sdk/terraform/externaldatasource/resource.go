@@ -123,12 +123,6 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:    true,
 			ForceNew:    true,
 		},
-		"password_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for the password.",
-			Optional:    true,
-			ForceNew:    true,
-		},
 		"password_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for the password.",
@@ -141,33 +135,15 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:    true,
 			ForceNew:    true,
 		},
-		"service_account_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for service account authentication.",
-			Optional:    true,
-			ForceNew:    true,
-		},
 		"service_account_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for service account authentication.",
 			Optional:    true,
 			ForceNew:    true,
 		},
-		"aws_access_key_id_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for AWS access key ID.",
-			Optional:    true,
-			ForceNew:    true,
-		},
 		"aws_access_key_id_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for AWS access key ID.",
-			Optional:    true,
-			ForceNew:    true,
-		},
-		"aws_secret_access_key_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for AWS secret access key.",
 			Optional:    true,
 			ForceNew:    true,
 		},
@@ -180,12 +156,6 @@ func ResourceSchema() map[string]*schema.Schema {
 		"aws_region": {
 			Type:        schema.TypeString,
 			Description: "AWS region.",
-			Optional:    true,
-			ForceNew:    true,
-		},
-		"token_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for TOKEN authentication.",
 			Optional:    true,
 			ForceNew:    true,
 		},
@@ -315,11 +285,6 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Description: "Login.",
 			Computed:    true,
 		},
-		"password_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for the password.",
-			Computed:    true,
-		},
 		"password_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for the password.",
@@ -330,29 +295,14 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Description: "Service account ID.",
 			Computed:    true,
 		},
-		"service_account_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for service account.",
-			Computed:    true,
-		},
 		"service_account_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for service account.",
 			Computed:    true,
 		},
-		"aws_access_key_id_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for AWS access key ID.",
-			Computed:    true,
-		},
 		"aws_access_key_id_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for AWS access key ID.",
-			Computed:    true,
-		},
-		"aws_secret_access_key_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for AWS secret access key.",
 			Computed:    true,
 		},
 		"aws_secret_access_key_secret_path": {
@@ -363,11 +313,6 @@ func DataSourceSchema() map[string]*schema.Schema {
 		"aws_region": {
 			Type:        schema.TypeString,
 			Description: "AWS region.",
-			Computed:    true,
-		},
-		"token_secret_name": {
-			Type:        schema.TypeString,
-			Description: "Secret name for TOKEN authentication.",
 			Computed:    true,
 		},
 		"token_secret_path": {
