@@ -37,6 +37,7 @@ type changeDataCaptureSettings struct {
 	Format            *string
 	RetentionPeriod   *string
 	VirtualTimestamps *bool
+	InitialScan       bool
 	Entity            *helpers.YDBEntity
 	TableEntity       *helpers.YDBEntity
 	Consumers         []topictypes.Consumer
@@ -128,6 +129,7 @@ func changefeedResourceSchemaToChangefeedResource(d *schema.ResourceData) (*chan
 	if retentionPeriod, ok := d.Get("retention_period").(string); ok && retentionPeriod != "" {
 		settings.RetentionPeriod = &retentionPeriod
 	}
+	settings.InitialScan = d.Get("initial_scan").(bool)
 	settings.Consumers = expandConsumers(d)
 
 	return settings, nil
@@ -164,6 +166,10 @@ func flattenCDCDescription(
 		return
 	}
 	err = d.Set("virtual_timestamps", cdcDescription.VirtualTimestamp)
+	if err != nil {
+		return
+	}
+	err = d.Set("initial_scan", changefeedResource.InitialScan)
 	if err != nil {
 		return
 	}
