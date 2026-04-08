@@ -32,6 +32,10 @@ var allStringAttrKeys = []string{
 	"aws_region",
 	"token_secret_name", "token_secret_path",
 	"database_name", "protocol", "mdb_cluster_id",
+	"schema", "service_name", "folder_id",
+	"grpc_location", "project", "cluster",
+	"database_id",
+	"reading_mode", "unexpected_type_display_mode", "unsupported_type_display_mode",
 }
 
 func (r *Resource) strAttr(key string) string {
@@ -290,6 +294,105 @@ func validateResourceAuth(r *Resource) error {
 	for _, yqlKey := range authYQLKeys {
 		if r.strAttr(strings.ToLower(yqlKey)) != "" && !allowed[yqlKey] {
 			return fmt.Errorf("%s is not supported for AUTH_METHOD = %q", yqlKey, method)
+		}
+	}
+	return nil
+}
+
+// sourceTypeAuthMethods maps each source type to its allowed AUTH_METHODs.
+// Source: https://github.com/ydb-platform/ydb/blob/1612d5af9e6dc3e283778ba18523a90b50177805/ydb/core/external_sources/external_source_factory.cpp#L114-L181
+var sourceTypeAuthMethods = map[string][]string{
+	"ObjectStorage": {"NONE", "BASIC", "MDB_BASIC", "AWS", "TOKEN", "SERVICE_ACCOUNT"},
+	"ClickHouse":    {"MDB_BASIC", "BASIC"},
+	"PostgreSQL":    {"MDB_BASIC", "BASIC"},
+	"MySQL":         {"MDB_BASIC", "BASIC"},
+	"Ydb":           {"NONE", "BASIC", "SERVICE_ACCOUNT", "TOKEN"},
+	"YT":            {"NONE", "TOKEN"},
+	"Greenplum":     {"MDB_BASIC", "BASIC"},
+	"MsSQLServer":   {"BASIC"},
+	"Oracle":        {"BASIC"},
+	"Logging":       {"SERVICE_ACCOUNT"},
+	"Solomon":       {"NONE", "TOKEN", "SERVICE_ACCOUNT"},
+	"Redis":         {"BASIC"},
+	"Prometheus":    {"BASIC"},
+	"MongoDB":       {"BASIC"},
+	"OpenSearch":    {"BASIC"},
+	"YdbTopics":     {"NONE", "BASIC", "TOKEN"},
+}
+
+// sourceTypeProperties maps each source type to its allowed non-auth properties.
+// Source: https://github.com/ydb-platform/ydb/blob/1612d5af9e6dc3e283778ba18523a90b50177805/ydb/core/external_sources/external_source_factory.cpp#L114-L181
+var sourceTypeProperties = map[string][]string{
+	"ObjectStorage": {},
+	"ClickHouse":    {"database_name", "protocol", "mdb_cluster_id", "use_tls"},
+	"PostgreSQL":    {"database_name", "protocol", "mdb_cluster_id", "use_tls", "schema"},
+	"MySQL":         {"database_name", "mdb_cluster_id", "use_tls"},
+	"Ydb":           {"database_name", "use_tls", "database_id"},
+	"YT":            {},
+	"Greenplum":     {"database_name", "mdb_cluster_id", "use_tls", "schema"},
+	"MsSQLServer":   {"database_name", "use_tls"},
+	"Oracle":        {"database_name", "use_tls", "service_name"},
+	"Logging":       {"folder_id"},
+	"Solomon":       {"use_tls", "grpc_location", "project", "cluster"},
+	"Redis":         {"database_name", "use_tls"},
+	"Prometheus":    {"protocol", "use_tls"},
+	"MongoDB":       {"database_name", "use_tls", "reading_mode", "unexpected_type_display_mode", "unsupported_type_display_mode"},
+	"OpenSearch":    {"database_name", "use_tls"},
+	"YdbTopics":     {"database_name", "use_tls"},
+}
+
+// allPropertyKeys lists every non-auth property attribute that can appear in sourceTypeProperties.
+var allPropertyKeys = []string{
+	"database_name", "protocol", "mdb_cluster_id", "use_tls",
+	"schema", "service_name", "folder_id",
+	"grpc_location", "project", "cluster",
+	"database_id",
+	"reading_mode", "unexpected_type_display_mode", "unsupported_type_display_mode",
+}
+
+// validateSourceType checks that auth_method and properties are valid for the given source_type.
+func validateSourceType(r *Resource) error {
+	srcType := r.strAttr("source_type")
+	if srcType == "" {
+		return nil
+	}
+
+	// Validate auth_method × source_type.
+	method := r.strAttr("auth_method")
+	if method != "" {
+		allowed, ok := sourceTypeAuthMethods[srcType]
+		if ok {
+			found := false
+			for _, a := range allowed {
+				if a == method {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("AUTH_METHOD %q is not supported for SOURCE_TYPE %q (allowed: %v)", method, srcType, allowed)
+			}
+		}
+	}
+
+	// Validate properties × source_type.
+	props, ok := sourceTypeProperties[srcType]
+	if !ok {
+		return nil
+	}
+	allowedSet := make(map[string]bool, len(props))
+	for _, p := range props {
+		allowedSet[p] = true
+	}
+	for _, key := range allPropertyKeys {
+		if key == "use_tls" {
+			if r.UseTLS != nil && !allowedSet[key] {
+				return fmt.Errorf("USE_TLS is not supported for SOURCE_TYPE %q", srcType)
+			}
+			continue
+		}
+		if r.strAttr(key) != "" && !allowedSet[key] {
+			return fmt.Errorf("%s is not supported for SOURCE_TYPE %q", strings.ToUpper(key), srcType)
 		}
 	}
 	return nil

@@ -22,7 +22,10 @@ func ydbExternalDataSourceResource() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
-			return externaldatasource.ValidateResourceDiffAuth(d)
+			if err := externaldatasource.ValidateResourceDiffAuth(d); err != nil {
+				return err
+			}
+			return externaldatasource.ValidateResourceDiffSourceType(d)
 		},
 		Timeouts: defaultTimeouts(),
 	}

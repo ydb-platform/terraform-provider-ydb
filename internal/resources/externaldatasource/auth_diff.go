@@ -6,10 +6,15 @@ import (
 
 // ValidateResourceDiffAuth validates auth fields from the planned diff (CustomizeDiff / plan).
 func ValidateResourceDiffAuth(d *schema.ResourceDiff) error {
-	return validateResourceAuth(resourceFromResourceDiffAuth(d))
+	return validateResourceAuth(resourceFromDiff(d))
 }
 
-func resourceFromResourceDiffAuth(d *schema.ResourceDiff) *Resource {
+// ValidateResourceDiffSourceType validates auth_method and properties against source_type.
+func ValidateResourceDiffSourceType(d *schema.ResourceDiff) error {
+	return validateSourceType(resourceFromDiff(d))
+}
+
+func resourceFromDiff(d *schema.ResourceDiff) *Resource {
 	vals := make(map[string]string, len(allStringAttrKeys))
 	for _, k := range allStringAttrKeys {
 		vals[k] = diffString(d, k)

@@ -118,6 +118,95 @@ func TestPrepareCreateQuery(t *testing.T) {
 			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/minimal`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "localhost:12345", AUTH_METHOD = "NONE" )`,
 		},
+		{
+			testName: "postgresql with schema",
+			fullPath: "/local/pg_source",
+			resource: &Resource{
+				Values: map[string]string{
+					"source_type":          "PostgreSQL",
+					"location":             "localhost:5432",
+					"auth_method":          "BASIC",
+					"login":                "pguser",
+					"password_secret_name": "pg_pass",
+					"database_name":        "mydb",
+					"protocol":             "NATIVE",
+					"schema":               "public",
+				},
+				UseTLS: boolPtr(true),
+			},
+			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/pg_source`" +
+				` WITH ( SOURCE_TYPE = "PostgreSQL", LOCATION = "localhost:5432",` +
+				` AUTH_METHOD = "BASIC", LOGIN = "pguser", PASSWORD_SECRET_NAME = "pg_pass",` +
+				` DATABASE_NAME = "mydb", PROTOCOL = "NATIVE", SCHEMA = "public", USE_TLS = "TRUE" )`,
+
+		},
+		{
+			testName: "oracle with service_name",
+			fullPath: "/local/oracle_source",
+			resource: &Resource{Values: map[string]string{
+				"source_type":          "Oracle",
+				"location":             "localhost:1521",
+				"auth_method":          "BASIC",
+				"login":                "orauser",
+				"password_secret_name": "ora_pass",
+				"database_name":        "ORCL",
+				"service_name":         "my_service",
+			}},
+			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/oracle_source`" +
+				` WITH ( SOURCE_TYPE = "Oracle", LOCATION = "localhost:1521",` +
+				` AUTH_METHOD = "BASIC", LOGIN = "orauser", PASSWORD_SECRET_NAME = "ora_pass",` +
+				` DATABASE_NAME = "ORCL", SERVICE_NAME = "my_service" )`,
+		},
+		{
+			testName: "solomon with properties",
+			fullPath: "/local/solomon_source",
+			resource: &Resource{
+				Values: map[string]string{
+					"source_type":   "Solomon",
+					"location":      "localhost:9090",
+					"auth_method":   "TOKEN",
+					"grpc_location": "vla",
+					"project":       "myproject",
+					"cluster":       "production",
+				},
+				UseTLS: boolPtr(true),
+			},
+			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/solomon_source`" +
+				` WITH ( SOURCE_TYPE = "Solomon", LOCATION = "localhost:9090",` +
+				` AUTH_METHOD = "TOKEN", GRPC_LOCATION = "vla", PROJECT = "myproject",` +
+				` CLUSTER = "production", USE_TLS = "TRUE" )`,
+		},
+		{
+			testName: "ydb with database_id",
+			fullPath: "/local/ydb_source",
+			resource: &Resource{Values: map[string]string{
+				"source_type":   "Ydb",
+				"location":      "localhost:2136",
+				"auth_method":   "NONE",
+				"database_name": "mydb",
+				"database_id":   "etn123",
+			}},
+			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/ydb_source`" +
+				` WITH ( SOURCE_TYPE = "Ydb", LOCATION = "localhost:2136",` +
+				` AUTH_METHOD = "NONE", DATABASE_NAME = "mydb",` +
+				` DATABASE_ID = "etn123" )`,
+		},
+		{
+			testName: "logging with folder_id",
+			fullPath: "/local/logging_source",
+			resource: &Resource{Values: map[string]string{
+				"source_type":                 "Logging",
+				"location":                    "localhost:8080",
+				"auth_method":                 "SERVICE_ACCOUNT",
+				"service_account_id":          "sa123",
+				"service_account_secret_name": "sa_secret",
+				"folder_id":                   "b1g456",
+			}},
+			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/logging_source`" +
+				` WITH ( SOURCE_TYPE = "Logging", LOCATION = "localhost:8080",` +
+				` AUTH_METHOD = "SERVICE_ACCOUNT", SERVICE_ACCOUNT_ID = "sa123",` +
+				` SERVICE_ACCOUNT_SECRET_NAME = "sa_secret", FOLDER_ID = "b1g456" )`,
+		},
 	}
 
 	for _, v := range testData {

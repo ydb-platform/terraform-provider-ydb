@@ -66,7 +66,12 @@ func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 
 // Allowed values for YDB EXTERNAL DATA SOURCE WITH options (resource config).
 var (
-	externalDataSourceSourceTypes = []string{"ObjectStorage", "ClickHouse", "PostgreSQL"}
+	externalDataSourceSourceTypes = []string{
+		"ObjectStorage", "ClickHouse", "PostgreSQL", "MySQL",
+		"Ydb", "YT", "Greenplum", "MsSQLServer",
+		"Oracle", "Logging", "Solomon", "Redis",
+		"Prometheus", "MongoDB", "OpenSearch", "YdbTopics",
+	}
 	externalDataSourceAuthMethods = []string{"NONE", "BASIC", "MDB_BASIC", "AWS", "TOKEN", "SERVICE_ACCOUNT"}
 	externalDataSourceProtocols   = []string{"NATIVE", "HTTP"}
 )
@@ -215,6 +220,66 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:    true,
 			ForceNew:    true,
 		},
+		"schema": {
+			Type:        schema.TypeString,
+			Description: "Schema name (for PostgreSQL, Greenplum).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"service_name": {
+			Type:        schema.TypeString,
+			Description: "Service name (for Oracle).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"folder_id": {
+			Type:        schema.TypeString,
+			Description: "Folder ID (for Logging).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"grpc_location": {
+			Type:        schema.TypeString,
+			Description: "gRPC location (for Solomon).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"project": {
+			Type:        schema.TypeString,
+			Description: "Project name (for Solomon).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"cluster": {
+			Type:        schema.TypeString,
+			Description: "Cluster name (for Solomon).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"database_id": {
+			Type:        schema.TypeString,
+			Description: "Database ID (for Ydb).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"reading_mode": {
+			Type:        schema.TypeString,
+			Description: "Reading mode (for MongoDB).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"unexpected_type_display_mode": {
+			Type:        schema.TypeString,
+			Description: "Unexpected type display mode (for MongoDB).",
+			Optional:    true,
+			ForceNew:    true,
+		},
+		"unsupported_type_display_mode": {
+			Type:        schema.TypeString,
+			Description: "Unsupported type display mode (for MongoDB).",
+			Optional:    true,
+			ForceNew:    true,
+		},
 	}
 }
 
@@ -328,6 +393,56 @@ func DataSourceSchema() map[string]*schema.Schema {
 		"mdb_cluster_id": {
 			Type:        schema.TypeString,
 			Description: "Managed Database cluster ID.",
+			Computed:    true,
+		},
+		"schema": {
+			Type:        schema.TypeString,
+			Description: "Schema name.",
+			Computed:    true,
+		},
+		"service_name": {
+			Type:        schema.TypeString,
+			Description: "Service name.",
+			Computed:    true,
+		},
+		"folder_id": {
+			Type:        schema.TypeString,
+			Description: "Folder ID.",
+			Computed:    true,
+		},
+		"grpc_location": {
+			Type:        schema.TypeString,
+			Description: "gRPC location.",
+			Computed:    true,
+		},
+		"project": {
+			Type:        schema.TypeString,
+			Description: "Project name.",
+			Computed:    true,
+		},
+		"cluster": {
+			Type:        schema.TypeString,
+			Description: "Cluster name.",
+			Computed:    true,
+		},
+		"database_id": {
+			Type:        schema.TypeString,
+			Description: "Database ID.",
+			Computed:    true,
+		},
+		"reading_mode": {
+			Type:        schema.TypeString,
+			Description: "Reading mode.",
+			Computed:    true,
+		},
+		"unexpected_type_display_mode": {
+			Type:        schema.TypeString,
+			Description: "Unexpected type display mode.",
+			Computed:    true,
+		},
+		"unsupported_type_display_mode": {
+			Type:        schema.TypeString,
+			Description: "Unsupported type display mode.",
 			Computed:    true,
 		},
 	}
