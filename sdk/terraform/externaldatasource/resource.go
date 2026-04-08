@@ -77,9 +77,13 @@ var (
 )
 
 func optionalEnum(valid []string) schema.SchemaValidateDiagFunc {
-	return validation.ToDiagFunc(
-		validation.Any(validation.StringIsEmpty, validation.StringInSlice(valid, false)),
-	)
+	check := validation.StringInSlice(valid, false)
+	return validation.ToDiagFunc(func(v interface{}, k string) ([]string, []error) {
+		if s, ok := v.(string); ok && s == "" {
+			return nil, nil
+		}
+		return check(v, k)
+	})
 }
 
 func ResourceSchema() map[string]*schema.Schema {
