@@ -421,10 +421,17 @@ func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, prope
 		if attr == "source_type" || attr == "location" {
 			continue
 		}
-		val := properties[strings.ToUpper(attr)]
+		yqlKey := strings.ToUpper(attr)
+		val, ok := properties[yqlKey]
+		if !ok {
+			continue
+		}
 		if err := d.Set(attr, val); err != nil {
 			return err
 		}
 	}
-	return d.Set("use_tls", ydbUseTLSString(properties[strings.ToUpper("use_tls")]))
+	if tlsVal, ok := properties["USE_TLS"]; ok {
+		return d.Set("use_tls", ydbUseTLSString(tlsVal))
+	}
+	return nil
 }
