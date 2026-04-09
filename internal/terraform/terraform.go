@@ -36,11 +36,11 @@ func Provider() *schema.Provider {
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"ydb_topic":           ydbTopicDataSource(),
-			"ydb_table":           ydbTableDataSource(),
-			"ydb_coordination":    ydbCoordinationDataSource(),
-			"ydb_rate_limiter":    ydbRateLimiterDataSource(),
-			"ydb_external_table":  ydbExternalTableDataSource(),
+			"ydb_topic":          ydbTopicDataSource(),
+			"ydb_table":          ydbTableDataSource(),
+			"ydb_coordination":   ydbCoordinationDataSource(),
+			"ydb_rate_limiter":   ydbRateLimiterDataSource(),
+			"ydb_external_table": ydbExternalTableDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"ydb_topic":            ydbTopicResource(),
