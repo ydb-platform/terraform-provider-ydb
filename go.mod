@@ -4,7 +4,7 @@ go 1.24.13
 
 require (
 	github.com/golang/mock v1.6.0
-	github.com/hashicorp/terraform-plugin-sdk/v2 v2.39.0
+	github.com/hashicorp/terraform-plugin-sdk/v2 v2.34.0
 	github.com/stretchr/testify v1.10.0
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.134.0
 	golang.org/x/crypto v0.48.0
