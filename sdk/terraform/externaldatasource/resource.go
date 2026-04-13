@@ -103,7 +103,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"source_type": {
 			Type:         schema.TypeString,
-			Description:  "Type of the external data source (e.g. ObjectStorage, ClickHouse, PostgreSQL).",
+			Description:  "Type of the external data source (e.g. ObjectStorage, Ydb, ClickHouse, PostgreSQL).",
 			Required:     true,
 			ForceNew:     true,
 			ValidateFunc: validation.StringInSlice(externalDataSourceSourceTypes, false),

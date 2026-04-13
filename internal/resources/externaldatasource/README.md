@@ -12,7 +12,7 @@ resource "ydb_external_data_source" "object_storage" {
     connection_string = "grpc://localhost:2136/?database=/local"
 
     source_type = "ObjectStorage"
-    location    = "localhost:12345"
+    location    = "https://storage.yandexcloud.net/my_bucket_name/"
     auth_method = "NONE"
 }
 ```
@@ -42,9 +42,9 @@ resource "ydb_external_data_source" "postgresql" {
     location                     = "rc1a-xxx.mdb.yandexcloud.net:6432"
     auth_method                  = "MDB_BASIC"
     service_account_id           = "sa-id-123"
-    service_account_secret_name  = "sa_secret"
+    service_account_secret_path  = "sa_secret"
     login                        = "pguser"
-    password_secret_name         = "pg_pass"
+    password_secret_path         = "pg_pass"
     database_name                = "mydb"
     mdb_cluster_id               = "c9q1234567890"
     use_tls                      = true
@@ -59,8 +59,8 @@ resource "ydb_external_data_source" "s3_aws" {
     source_type                        = "ObjectStorage"
     location                           = "s3.us-east-1.amazonaws.com"
     auth_method                        = "AWS"
-    aws_access_key_id_secret_name      = "aws_key_id"
-    aws_secret_access_key_secret_name  = "aws_secret_key"
+    aws_access_key_id_secret_path      = "aws_key_id"
+    aws_secret_access_key_secret_path  = "aws_secret_key"
     aws_region                         = "us-east-1"
 }
 ```
@@ -104,15 +104,12 @@ resource "ydb_external_data_source" "s3_aws" {
 
 #### AWS auth parameters
 
-- `aws_access_key_id_secret_name` (String) - Secret name for AWS access key ID.
 - `aws_access_key_id_secret_path` (String) - Secret path for AWS access key ID.
-- `aws_secret_access_key_secret_name` (String) - Secret name for AWS secret access key.
 - `aws_secret_access_key_secret_path` (String) - Secret path for AWS secret access key.
 - `aws_region` (String) - AWS region.
 
 #### TOKEN auth parameters
 
-- `token_secret_name` (String) - Secret name for the token.
 - `token_secret_path` (String) - Secret path for the token.
 
 ## Validation
@@ -121,8 +118,6 @@ The provider validates `auth_method` parameters before sending requests to YDB:
 
 - **Unsupported parameters** - fields belonging to a different auth method are rejected (e.g. `aws_region` with `AUTH_METHOD = "BASIC"`).
 - **Required parameters** - mandatory fields for each auth method must be provided (e.g. `login` for `BASIC`).
-- **Secret name/path exclusivity** - for each secret, specify either `*_secret_name` or `*_secret_path`, not both.
-- **No mixed secret types** - within a single auth method, all secrets must use the same reference type (all `*_name` or all `*_path`).
 
 ## Data Source
 
