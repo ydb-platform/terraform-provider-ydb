@@ -36,24 +36,29 @@ func Provider() *schema.Provider {
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"ydb_topic":        ydbTopicDataSource(),
-			"ydb_table":        ydbTableDataSource(),
-			"ydb_coordination": ydbCoordinationDataSource(),
-			"ydb_rate_limiter": ydbRateLimiterDataSource(),
-			"ydb_secret":       ydbSecretDataSource(),
+			"ydb_topic":                ydbTopicDataSource(),
+			"ydb_table":                ydbTableDataSource(),
+			"ydb_coordination":         ydbCoordinationDataSource(),
+			"ydb_rate_limiter":         ydbRateLimiterDataSource(),
+			"ydb_external_data_source": ydbExternalDataSourceDataSource(),
+			"ydb_external_table":       ydbExternalTableDataSource(),
+      "ydb_secret":       ydbSecretDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"ydb_topic":            ydbTopicResource(),
-			"ydb_table":            ydbTableResource(),
-			"ydb_table_changefeed": ydbTableChangeFeedResource(),
-			"ydb_table_index":      ydbTableIndexResource(),
-			"ydb_coordination":     ydbCoordinationResource(),
-			"ydb_ratelimiter":      ydbRateLimiterResource(),
-			"ydb_kv_volume":        ydbKvResource(),
-			"ydb_secret":           ydbSecretResource(),
+			"ydb_topic":                ydbTopicResource(),
+			"ydb_table":                ydbTableResource(),
+			"ydb_table_changefeed":     ydbTableChangeFeedResource(),
+			"ydb_table_index":          ydbTableIndexResource(),
+			"ydb_coordination":         ydbCoordinationResource(),
+			"ydb_ratelimiter":          ydbRateLimiterResource(),
+			"ydb_kv_volume":            ydbKvResource(),
+			"ydb_external_data_source": ydbExternalDataSourceResource(),
+			"ydb_external_table":       ydbExternalTableResource(),
+       "ydb_secret":           ydbSecretResource(),
 		},
 	}
-
+			
+ 
 	provider.ConfigureContextFunc = configureProvider
 	return provider
 }
