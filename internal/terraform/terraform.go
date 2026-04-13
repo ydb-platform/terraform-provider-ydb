@@ -41,6 +41,7 @@ func Provider() *schema.Provider {
 			"ydb_coordination":         ydbCoordinationDataSource(),
 			"ydb_rate_limiter":         ydbRateLimiterDataSource(),
 			"ydb_external_data_source": ydbExternalDataSourceDataSource(),
+			"ydb_external_table":       ydbExternalTableDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"ydb_topic":                ydbTopicResource(),
@@ -51,6 +52,7 @@ func Provider() *schema.Provider {
 			"ydb_ratelimiter":          ydbRateLimiterResource(),
 			"ydb_kv_volume":            ydbKvResource(),
 			"ydb_external_data_source": ydbExternalDataSourceResource(),
+			"ydb_external_table":       ydbExternalTableResource(),
 		},
 	}
 
