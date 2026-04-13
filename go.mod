@@ -6,7 +6,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.120.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.134.0
 	golang.org/x/crypto v0.49.0
 )
 

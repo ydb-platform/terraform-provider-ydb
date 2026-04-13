@@ -42,7 +42,7 @@ func Provider() *schema.Provider {
 			"ydb_rate_limiter":         ydbRateLimiterDataSource(),
 			"ydb_external_data_source": ydbExternalDataSourceDataSource(),
 			"ydb_external_table":       ydbExternalTableDataSource(),
-      "ydb_secret":       ydbSecretDataSource(),
+			"ydb_secret":               ydbSecretDataSource(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"ydb_topic":                ydbTopicResource(),
@@ -54,11 +54,10 @@ func Provider() *schema.Provider {
 			"ydb_kv_volume":            ydbKvResource(),
 			"ydb_external_data_source": ydbExternalDataSourceResource(),
 			"ydb_external_table":       ydbExternalTableResource(),
-       "ydb_secret":           ydbSecretResource(),
+			"ydb_secret":               ydbSecretResource(),
 		},
 	}
-			
- 
+
 	provider.ConfigureContextFunc = configureProvider
 	return provider
 }
