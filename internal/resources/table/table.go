@@ -413,8 +413,6 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, e
 	}
 
 	if desc.TimeToLiveSettings != nil {
-		var ttlSettings []interface{}
-
 		// for explaine some variations "zero" interval to ISO8601
 		v, ok := d.GetOk("ttl")
 		interval := ttlToISO8601(time.Duration(desc.TimeToLiveSettings.ExpireAfterSeconds) * time.Second)
@@ -429,12 +427,11 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, e
 			}
 		}
 
-		ttlSettings = append(ttlSettings, map[string]interface{}{
+		err = d.Set("ttl", map[string]interface{}{
 			"column_name":     desc.TimeToLiveSettings.ColumnName,
 			"expire_interval": interval,
 			"unit":            helpers.YDBUnitToUnit(desc.TimeToLiveSettings.ColumnUnit.ToYDB().String()),
 		})
-		err = d.Set("ttl", ttlSettings)
 		if err != nil {
 			return
 		}

@@ -51,6 +51,14 @@ func ParseYDBDatabaseEndpoint(endpoint string) (baseEP, databasePath string, use
 	return parts[2], dbSplit[1], useTLS, nil
 }
 
+func EscapeYQLString(s string) string {
+	return strings.ReplaceAll(s, "'", "\\'")
+}
+
+func EscapeYQLIdentifier(s string) string {
+	return strings.ReplaceAll(s, "`", "``")
+}
+
 func AppendWithEscape(buf []byte, s string) []byte {
 	for i := 0; i < len(s); i++ {
 		if s[i] == '"' || s[i] == '/' {

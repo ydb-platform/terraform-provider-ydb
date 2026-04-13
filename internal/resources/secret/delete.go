@@ -1,0 +1,40 @@
+package secret
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
+)
+
+func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+	entity, err := helpers.ParseYDBEntityID(d.Id())
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
+		DatabaseEndpoint: entity.PrepareFullYDBEndpoint(),
+		AuthCreds:        h.authCreds,
+	})
+	if err != nil {
+		return diag.Errorf("failed to initialize table client: %s", err)
+	}
+	defer func() {
+		_ = db.Close(ctx)
+	}()
+
+	q := fmt.Sprintf("DROP SECRET `%s`", helpers.EscapeYQLIdentifier(entity.GetEntityPath()))
+	err = db.Query().Exec(ctx, q)
+	if err != nil {
+		return diag.Diagnostics{
+			{Severity: diag.Error, Summary: fmt.Sprintf("failed to execute query %q", q), Detail: err.Error()},
+		}
+	}
+
+	return nil
+}
