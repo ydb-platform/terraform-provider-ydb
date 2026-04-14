@@ -39,7 +39,7 @@ resource "ydb_external_data_source" "postgresql" {
     connection_string = "grpc://localhost:2136/?database=/local"
 
     source_type                  = "PostgreSQL"
-    location                     = "rc1a-xxx.mdb.yandexcloud.net:6432"
+    location                     = "localhost:6432"
     auth_method                  = "MDB_BASIC"
     service_account_id           = "sa-id-123"
     service_account_secret_path  = "sa_secret"
@@ -57,11 +57,11 @@ resource "ydb_external_data_source" "s3_aws" {
     connection_string = "grpc://localhost:2136/?database=/local"
 
     source_type                        = "ObjectStorage"
-    location                           = "s3.us-east-1.amazonaws.com"
+    location                           = "https://storage.yandexcloud.net/my_bucket_name/"
     auth_method                        = "AWS"
     aws_access_key_id_secret_path      = "aws_key_id"
     aws_secret_access_key_secret_path  = "aws_secret_key"
-    aws_region                         = "us-east-1"
+    aws_region                         = "ru-central-1"
 }
 ```
 

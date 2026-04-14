@@ -38,4 +38,4 @@ resource "ydb_secret" "from_script" {
   - `path` (Required) - Path to the executable.
   - `args` (Optional) - List of arguments to pass to the command.
   - `env` (Optional) - Map of environment variables to set for the command.
-- `inherit_permissions` (Optional, Default: `false`) - If `true`, the secret inherits access rights from its parent directory. If `false`, only `DESCRIBE SCHEMA` permission is inherited.
+- `inherit_permissions` (Optional, Default: `false`) - If `true`, the secret is created with access rights inherited from its parent directory. If `false`, only `DESCRIBE SCHEMA` permission is inherited. YDB does not return this setting in Describe, so the provider cannot read it back; Terraform keeps the value from your configuration in state, not from the server.

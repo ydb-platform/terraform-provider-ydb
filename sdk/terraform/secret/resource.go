@@ -88,7 +88,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:    true,
 			Default:     false,
 			ForceNew:    true,
-			Description: "If true, the secret inherits access rights from its parent directory. If false (default), only DESCRIBE SCHEMA permission is inherited.",
+			Description: "If true, the secret is created with access rights inherited from its parent directory. If false (default), only DESCRIBE SCHEMA permission is inherited. YDB does not expose this flag in Describe, so Terraform cannot refresh it from the cluster; the value in state is taken from configuration only.",
 		},
 	}
 }
