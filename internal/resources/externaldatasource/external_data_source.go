@@ -74,12 +74,11 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 		path = entity.GetEntityPath()
 		databaseEndpoint = entity.PrepareFullYDBEndpoint()
 	} else {
-		databaseURL, err := url.Parse(databaseEndpoint)
+		_, err := url.Parse(databaseEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse database endpoint: %w", err)
 		}
 		path = d.Get("path").(string)
-		_ = databaseURL
 	}
 
 	vals := make(map[string]string, len(allStringAttrKeys))
