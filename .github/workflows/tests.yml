@@ -46,6 +46,7 @@ jobs:
     services:
       ydb:
         image: ydbplatform/local-ydb:latest
+        options: --hostname localhost
         env:
           YDB_FEATURE_FLAGS: enable_external_data_sources
         ports:
