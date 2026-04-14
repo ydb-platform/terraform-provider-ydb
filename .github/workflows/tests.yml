@@ -67,13 +67,6 @@ jobs:
         with:
           terraform_version: 1.9.8
           terraform_wrapper: false
-      - name: Wait for YDB gRPC
-        uses: iFaxity/wait-on-action@v1.2.1
-        with:
-          resource: tcp:127.0.0.1:2136
-          timeout: 180000
-          interval: 2000
-          log: true
       - name: Acceptance tests
         run: go test -v -timeout 30m ./internal/terraform/ -run TestAcc
 
