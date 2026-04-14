@@ -11,9 +11,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	ydbprovider "github.com/ydb-platform/terraform-provider-ydb/ydb"
-
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	ydbprovider "github.com/ydb-platform/terraform-provider-ydb/ydb"
 )
 
 // Shared acceptance-test setup for this package. Tests require Terraform CLI on PATH.
