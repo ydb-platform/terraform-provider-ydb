@@ -38,8 +38,7 @@ jobs:
           name: unit
 
   # Acceptance tests: YDB runs as a GitHub Actions service container (same pattern as Postgres/Redis
-  # in the docs). Terraform CLI comes from hashicorp/setup-terraform; readiness uses wait-on (TCP),
-  # not a shell loop.
+  # in the docs). Terraform CLI comes from hashicorp/setup-terraform; readiness uses iFaxity/wait-on-action (TCP).
   acceptance:
     name: acceptance (YDB in Docker)
     runs-on: ubuntu-latest
@@ -68,7 +67,7 @@ jobs:
           terraform_version: 1.9.8
           terraform_wrapper: false
       - name: Wait for YDB gRPC
-        uses: step-security/wait-on-action@v1.2.1
+        uses: iFaxity/wait-on-action@v1.2.1
         with:
           resource: tcp:127.0.0.1:2136
           timeout: 180000
