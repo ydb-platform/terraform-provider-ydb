@@ -14,10 +14,26 @@ func res(m map[string]string) *Resource {
 	return &Resource{Values: m}
 }
 
+// testAuthPlan maps Terraform attribute names to whether the planned value is known
+// (see schema.ResourceDiff.NewValueKnown). Absent keys are treated as known.
+type testAuthPlan map[string]bool
+
+func (m testAuthPlan) NewValueKnown(key string) bool {
+	if m == nil {
+		return true
+	}
+	known, ok := m[key]
+	if !ok {
+		return true
+	}
+	return known
+}
+
 func TestValidateResourceAuth(t *testing.T) {
 	tests := []struct {
 		name    string
 		r       *Resource
+		plan    testAuthPlan
 		wantErr string
 	}{
 		// NONE
@@ -116,6 +132,16 @@ func TestValidateResourceAuth(t *testing.T) {
 			}),
 			wantErr: `AWS_ACCESS_KEY_ID_SECRET_PATH is required`,
 		},
+		{
+			name: "AWS secret paths unknown at plan (computed references)",
+			r: res(map[string]string{
+				"auth_method": "AWS", "aws_region": "us-east-1",
+			}),
+			plan: testAuthPlan{
+				"aws_access_key_id_secret_path":     false,
+				"aws_secret_access_key_secret_path": false,
+			},
+		},
 
 		// TOKEN
 		{
@@ -175,7 +201,11 @@ func TestValidateResourceAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateResourceAuth(tt.r)
+			var plan authPlanDiff
+			if tt.plan != nil {
+				plan = tt.plan
+			}
+			err := validateResourceAuth(tt.r, plan)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)

@@ -43,7 +43,12 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:        schema.TypeString,
 			Required:    true,
 			ForceNew:    true,
-			Description: "Secret name.",
+			Description: "Secret name (path relative to the database root).",
+		},
+		"path": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Full catalog path of the secret: database path plus name (e.g. /local/folder/secret). Use this when another resource needs an absolute path in the YDB catalog.",
 		},
 		"value": {
 			Type:          schema.TypeString,
@@ -88,7 +93,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:    true,
 			Default:     false,
 			ForceNew:    true,
-			Description: "If true, the secret inherits access rights from its parent directory. If false (default), only DESCRIBE SCHEMA permission is inherited.",
+			Description: "If true, the secret is created with access rights inherited from its parent directory. If false (default), only DESCRIBE SCHEMA permission is inherited. YDB does not expose this flag in Describe, so Terraform cannot refresh it from the cluster; the value in state is taken from configuration only.",
 		},
 	}
 }
@@ -103,7 +108,12 @@ func DataSourceSchema() map[string]*schema.Schema {
 		"name": {
 			Type:        schema.TypeString,
 			Required:    true,
-			Description: "Secret name.",
+			Description: "Secret name (path relative to the database root).",
+		},
+		"path": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Full catalog path of the secret under the database root.",
 		},
 	}
 }

@@ -1,6 +1,7 @@
 package externaltable
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -103,6 +104,19 @@ func unwrapType(t types.Type) (typ string, notNull bool) {
 	return yqlStr, notNull
 }
 
+// normalizeYdbContentScalar unwraps Describe values such as ["csv_with_names"] to csv_with_names.
+func normalizeYdbContentScalar(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) < 2 || s[0] != '[' || s[len(s)-1] != ']' {
+		return s
+	}
+	var arr []string
+	if err := json.Unmarshal([]byte(s), &arr); err != nil || len(arr) != 1 {
+		return s
+	}
+	return arr[0]
+}
+
 func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, desc *options.ExternalTableDescription) error {
 	if err := d.Set("path", entity.GetEntityPath()); err != nil {
 		return err
@@ -110,7 +124,8 @@ func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, desc 
 	if err := d.Set("connection_string", entity.PrepareFullYDBEndpoint()); err != nil {
 		return err
 	}
-	if err := d.Set("data_source_path", desc.DataSourcePath); err != nil {
+	dsPath := helpers.RelativizeYDBCatalogPath(entity.GetDatabasePath(), desc.DataSourcePath)
+	if err := d.Set("data_source_path", dsPath); err != nil {
 		return err
 	}
 	if err := d.Set("location", desc.Location); err != nil {
@@ -118,12 +133,12 @@ func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, desc 
 	}
 
 	if v, ok := desc.Content["FORMAT"]; ok {
-		if err := d.Set("format", v); err != nil {
+		if err := d.Set("format", normalizeYdbContentScalar(v)); err != nil {
 			return err
 		}
 	}
 	if v, ok := desc.Content["COMPRESSION"]; ok {
-		if err := d.Set("compression", v); err != nil {
+		if err := d.Set("compression", normalizeYdbContentScalar(v)); err != nil {
 			return err
 		}
 	}

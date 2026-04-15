@@ -74,12 +74,11 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 		path = entity.GetEntityPath()
 		databaseEndpoint = entity.PrepareFullYDBEndpoint()
 	} else {
-		databaseURL, err := url.Parse(databaseEndpoint)
+		_, err := url.Parse(databaseEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse database endpoint: %w", err)
 		}
 		path = d.Get("path").(string)
-		_ = databaseURL
 	}
 
 	vals := make(map[string]string, len(allStringAttrKeys))
@@ -163,11 +162,26 @@ var authYQLKeys = []string{
 	"MDB_CLUSTER_ID",
 }
 
-func (s *authMethodSpec) allowedAuthFields(r *Resource, method string) (map[string]bool, error) {
+// authPlanDiff is implemented by *schema.ResourceDiff. When non-nil during CustomizeDiff, mandatory
+// auth attributes whose new values are not yet known (e.g. ydb_secret.path) are not treated as
+// missing; Create still receives concrete values at apply time.
+type authPlanDiff interface {
+	NewValueKnown(key string) bool
+}
+
+func tfAttrNameForYQLKey(yqlKey string) string {
+	return strings.ToLower(yqlKey)
+}
+
+func (s *authMethodSpec) allowedAuthFields(r *Resource, method string, plan authPlanDiff) (map[string]bool, error) {
 	allowed := make(map[string]bool)
 	for key, getter := range s.mandatoryPlain {
 		allowed[key] = true
 		if getter(r) == "" {
+			tfAttr := tfAttrNameForYQLKey(key)
+			if plan != nil && !plan.NewValueKnown(tfAttr) {
+				continue
+			}
 			return nil, fmt.Errorf("%s is required for AUTH_METHOD = %q", key, method)
 		}
 	}
@@ -178,14 +192,19 @@ func (s *authMethodSpec) allowedAuthFields(r *Resource, method string) (map[stri
 	for _, sec := range s.secrets {
 		allowed[sec.yqlKey] = true
 		if sec.mandatory && sec.getter(r) == "" {
+			tfAttr := tfAttrNameForYQLKey(sec.yqlKey)
+			if plan != nil && !plan.NewValueKnown(tfAttr) {
+				continue
+			}
 			return nil, fmt.Errorf("%s is required for AUTH_METHOD = %q", sec.yqlKey, method)
 		}
 	}
 	return allowed, nil
 }
 
-// validateResourceAuth checks auth fields for the planned/configured resource (CustomizeDiff only).
-func validateResourceAuth(r *Resource) error {
+// validateResourceAuth checks auth fields. Pass plan non-nil only from CustomizeDiff (ResourceDiff);
+// unit tests and strict checks use plan nil.
+func validateResourceAuth(r *Resource, plan authPlanDiff) error {
 	method := r.strAttr("auth_method")
 	if method == "" {
 		for _, yqlKey := range authYQLKeys {
@@ -201,7 +220,7 @@ func validateResourceAuth(r *Resource) error {
 		return fmt.Errorf("unknown AUTH_METHOD %q", method)
 	}
 
-	allowed, err := spec.allowedAuthFields(r, method)
+	allowed, err := spec.allowedAuthFields(r, method, plan)
 	if err != nil {
 		return err
 	}

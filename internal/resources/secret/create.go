@@ -43,7 +43,7 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
 		return diag.Diagnostics{
-			{Severity: diag.Error, Summary: "failed to executing `" + q + "`", Detail: err.Error()},
+			{Severity: diag.Error, Summary: "failed to executing `CREATE SECRET ...`", Detail: err.Error()},
 		}
 	}
 

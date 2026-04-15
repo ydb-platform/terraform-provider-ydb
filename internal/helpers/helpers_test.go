@@ -239,3 +239,34 @@ func TestAreAllElementsUnique(t *testing.T) {
 	assert.Error(t, AreAllElementsUnique(consDescDup))
 	assert.Error(t, AreAllElementsUnique(consDescCodecDup))
 }
+
+func TestRelativizeYDBCatalogPath(t *testing.T) {
+	tests := []struct {
+		name, db, in, want string
+	}{
+		{"empty in", "/local", "", ""},
+		{"already relative", "/local", "tf_acc_ext/ds_x", "tf_acc_ext/ds_x"},
+		{"absolute under db", "/local", "/local/tf_acc_ext/ds_x", "tf_acc_ext/ds_x"},
+		{"db edge", "/local", "/local/tf/x", "tf/x"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, RelativizeYDBCatalogPath(tt.db, tt.in))
+		})
+	}
+}
+
+func TestJoinYDBCatalogPath(t *testing.T) {
+	assert.Equal(t, "/local/a/b", JoinYDBCatalogPath("/local", "a/b"))
+	assert.Equal(t, "/local/a/b", JoinYDBCatalogPath("/local", "/local/a/b"))
+	assert.Equal(t, "/local", JoinYDBCatalogPath("/local", ""))
+	assert.Equal(t, "/prod/x", JoinYDBCatalogPath("/prod", "x"))
+}
+
+func TestJoinRelativizeYDBCatalogPathRoundTrip(t *testing.T) {
+	const root = "/local"
+	rel := "tf_acc_ext/tok_1"
+	abs := JoinYDBCatalogPath(root, rel)
+	assert.Equal(t, "/local/tf_acc_ext/tok_1", abs)
+	assert.Equal(t, rel, RelativizeYDBCatalogPath(root, abs))
+}

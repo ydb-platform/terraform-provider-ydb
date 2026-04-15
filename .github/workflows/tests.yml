@@ -37,3 +37,36 @@ jobs:
           flags: unit,${{ matrix.os }},go-${{ matrix.go-version }}
           name: unit
 
+  # Acceptance tests: YDB runs as a GitHub Actions service container (same pattern as Postgres/Redis
+  # in the docs). Terraform CLI comes from hashicorp/setup-terraform; readiness uses iFaxity/wait-on-action (TCP).
+  acceptance:
+    name: acceptance (YDB in Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      ydb:
+        image: ydbplatform/local-ydb:edge
+        options: --hostname localhost
+        env:
+          YDB_FEATURE_FLAGS: enable_external_data_sources
+        ports:
+          - 2136:2136
+    env:
+      TF_ACC: "1"
+      YDB_ACC_CONNECTION_STRING: grpc://127.0.0.1:2136/?database=/local
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+      - name: Acceptance tests
+        run: go test -v -timeout 30m ./internal/terraform/ -run TestAcc
+

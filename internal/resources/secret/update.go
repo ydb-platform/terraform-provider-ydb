@@ -39,7 +39,7 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
 		return diag.Diagnostics{
-			{Severity: diag.Error, Summary: fmt.Sprintf("failed to execute query %q", q), Detail: err.Error()},
+			{Severity: diag.Error, Summary: "failed to execute query ALTER SECRET ...", Detail: err.Error()},
 		}
 	}
 

@@ -6,7 +6,7 @@ import (
 
 // ValidateResourceDiffAuth validates auth fields from the planned diff (CustomizeDiff / plan).
 func ValidateResourceDiffAuth(d *schema.ResourceDiff) error {
-	return validateResourceAuth(resourceFromDiff(d))
+	return validateResourceAuth(resourceFromDiff(d), d)
 }
 
 // ValidateResourceDiffSourceType validates auth_method and properties against source_type.
