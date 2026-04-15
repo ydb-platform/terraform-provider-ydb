@@ -43,7 +43,12 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:        schema.TypeString,
 			Required:    true,
 			ForceNew:    true,
-			Description: "Secret name.",
+			Description: "Secret name (path relative to the database root).",
+		},
+		"path": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Full catalog path of the secret: database path plus name (e.g. /local/folder/secret). Use this when another resource needs an absolute path in the YDB catalog.",
 		},
 		"value": {
 			Type:          schema.TypeString,
@@ -103,7 +108,12 @@ func DataSourceSchema() map[string]*schema.Schema {
 		"name": {
 			Type:        schema.TypeString,
 			Required:    true,
-			Description: "Secret name.",
+			Description: "Secret name (path relative to the database root).",
+		},
+		"path": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Full catalog path of the secret under the database root.",
 		},
 	}
 }

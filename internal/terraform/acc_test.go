@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	ydbprovider "github.com/ydb-platform/terraform-provider-ydb/ydb"
 )
 
@@ -20,8 +19,28 @@ import (
 //	YDB_ACC_CONNECTION_STRING=grpc://127.0.0.1:2136/?database=/local TF_ACC=1 go test -v ./internal/terraform/ -run TestAcc -timeout 30m
 //
 // Optional provider auth: YDB_ACC_TOKEN, YDB_ACC_USER, YDB_ACC_PASSWORD.
+//
+// HCL under test declares variable "connection_string" (default from that env) and uses
+// var.connection_string on resources so configs mirror real Terraform modules.
 
 const envAccYDBConnection = "YDB_ACC_CONNECTION_STRING"
+
+// accConnectionStringVarBlock declares variable "connection_string" with default conn (from
+// YDB_ACC_CONNECTION_STRING). Acceptance HCL should use var.connection_string for every
+// connection_string attribute.
+func accConnectionStringVarBlock(conn string) string {
+	return fmt.Sprintf(`variable "connection_string" {
+  type    = string
+  default = %q
+}
+
+`, conn)
+}
+
+// accTestConfigPrefix is variable "connection_string" plus the ydb provider block.
+func accTestConfigPrefix(conn string) string {
+	return accConnectionStringVarBlock(conn) + accProviderBlock()
+}
 
 func accProviderBlock() string {
 	var b strings.Builder
@@ -61,19 +80,6 @@ func accRandomHex8(t *testing.T) string {
 		t.Fatalf("rand.Read: %v", err)
 	}
 	return hex.EncodeToString(b[:])
-}
-
-// accYDBCatalogAbsPath returns the full YDB catalog path under the database from conn, using
-// helpers.JoinYDBCatalogPath. If conn is empty or cannot be parsed, database root "/local" is used
-// (local-ydb default for skipped acceptance runs).
-func accYDBCatalogAbsPath(conn, pathUnderDB string) string {
-	db := "/local"
-	if conn != "" {
-		if _, d, _, err := helpers.ParseYDBDatabaseEndpoint(conn); err == nil && d != "" {
-			db = d
-		}
-	}
-	return helpers.JoinYDBCatalogPath(db, pathUnderDB)
 }
 
 // accLocationHostPortFromConn returns "host:port" from a YDB grpc(s) connection string for use as

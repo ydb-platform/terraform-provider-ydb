@@ -61,6 +61,7 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, _ interface{
 
 	_ = d.Set("connection_string", entity.PrepareFullYDBEndpoint())
 	_ = d.Set("name", entity.GetEntityPath())
+	_ = d.Set("path", entity.GetFullEntityPath())
 
 	return nil
 }
