@@ -18,6 +18,8 @@ import (
 //
 //	YDB_ACC_CONNECTION_STRING=grpc://127.0.0.1:2136/?database=/local TF_ACC=1 go test -v ./internal/terraform/ -run TestAcc -timeout 30m
 //
+// Includes ydb_table with ttl (ydb_table_ttl_acc_test.go), ydb_secret, ydb_external_*, etc.
+//
 // Optional provider auth: YDB_ACC_TOKEN, YDB_ACC_USER, YDB_ACC_PASSWORD.
 //
 // HCL under test declares variable "connection_string" (default from that env) and uses
