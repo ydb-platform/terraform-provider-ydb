@@ -427,11 +427,11 @@ func flattenTableDescription(d *schema.ResourceData, desc options.Description, e
 			}
 		}
 
-		err = d.Set("ttl", map[string]interface{}{
+		err = d.Set("ttl", []any{map[string]any{
 			"column_name":     desc.TimeToLiveSettings.ColumnName,
 			"expire_interval": interval,
 			"unit":            helpers.YDBUnitToUnit(desc.TimeToLiveSettings.ColumnUnit.ToYDB().String()),
-		})
+		}})
 		if err != nil {
 			return
 		}
