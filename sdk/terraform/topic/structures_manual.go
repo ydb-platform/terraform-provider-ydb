@@ -20,6 +20,11 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 	_ = d.Set(attributeRetentionPeriodHours, desc.RetentionPeriod.Hours())
 	_ = d.Set(attributeRetentionStorageMB, desc.RetentionStorageMB)
 	_ = d.Set(attributeMeteringMode, MeteringModeToString(desc.MeteringMode))
+	if desc.MetricsLevel != nil {
+		_ = d.Set(attributeMetricsLevel, int(*desc.MetricsLevel))
+	} else {
+		_ = d.Set(attributeMetricsLevel, 0)
+	}
 	_ = d.Set(attributePartitionWriteSpeedKBPS, desc.PartitionWriteSpeedBytesPerSecond/1024)
 	_ = d.Set(attributeAutoPartitioningSettings, []map[string]interface{}{
 		{
@@ -73,6 +78,13 @@ func prepareYDBTopicAlterSettings(
 	}
 	if d.HasChange(attributeMeteringMode) {
 		opts = append(opts, topicoptions.AlterWithMeteringMode(StringToMeteringMode(d.Get("metering_mode").(string))))
+	}
+	if d.HasChange(attributeMetricsLevel) {
+		if v, ok := d.GetOk(attributeMetricsLevel); ok {
+			opts = append(opts, topicoptions.AlterWithSetMetricsLevel(uint32(v.(int))))
+		} else {
+			opts = append(opts, topicoptions.AlterWithResetMetricsLevel())
+		}
 	}
 	if d.HasChange(attributeSupportedCodecs) {
 		codecs := d.Get(attributeSupportedCodecs).(*schema.Set)

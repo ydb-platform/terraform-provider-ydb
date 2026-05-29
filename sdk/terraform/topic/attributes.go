@@ -24,4 +24,5 @@ const (
 	attributeStabilizationWindow                    = "stabilization_window"
 	attributeUpUtilizationPercent                   = "up_utilization_percent"
 	attributeDownUtilizationPercent                 = "down_utilization_percent"
+	attributeMetricsLevel                           = "metrics_level"
 )

@@ -232,6 +232,9 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 	if d.Get(attributeMeteringMode) != "" {
 		options = append(options, topicoptions.CreateWithMeteringMode(StringToMeteringMode(d.Get(attributeMeteringMode).(string))))
 	}
+	if v, ok := d.GetOk(attributeMetricsLevel); ok {
+		options = append(options, topicoptions.CreateWithMetricsLevel(uint32(v.(int))))
+	}
 	if d.Get(attributePartitionWriteSpeedKBPS) != 0 {
 		writeSpeed := 1024 * d.Get(attributePartitionWriteSpeedKBPS).(int)
 		options = append(options, topicoptions.CreateWithPartitionWriteBurstBytes(int64(writeSpeed)))

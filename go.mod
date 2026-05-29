@@ -6,7 +6,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.134.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.138.4
 	golang.org/x/crypto v0.48.0
 )
 
@@ -56,7 +56,7 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v4 v4.3.12 // indirect
 	github.com/vmihailenco/tagparser v0.1.1 // indirect
-	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260311095541-ebbf792c1180
+	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260428144813-1c07baab7f7b
 	github.com/zclconf/go-cty v1.10.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
