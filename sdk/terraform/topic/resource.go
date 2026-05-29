@@ -234,6 +234,11 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:    true,
 			Computed:    true,
 		},
+		attributeMetricsLevel: {
+			Type:        schema.TypeInt,
+			Description: "Topic metrics level. If unset (or 0), the database default is used.",
+			Optional:    true,
+		},
 		attributeAutoPartitioningSettings: {
 			Type:     schema.TypeList,
 			Optional: true,
