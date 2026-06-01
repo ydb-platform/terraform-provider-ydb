@@ -28,15 +28,17 @@ Optional provider auth env vars: `YDB_ACC_TOKEN`, `YDB_ACC_USER`, `YDB_ACC_PASSW
 ```sh
 docker run -d --rm --name ydb-local \
   -p 2135:2135 -p 2136:2136 -p 8765:8765 \
+  -h localhost \
   -e YDB_USE_IN_MEMORY_PDISKS=true \
-  ydbplatform/local-ydb:latest
+  -e YDB_FEATURE_FLAGS=enable_replace_if_exists_for_external_entities,enable_external_data_sources,enable_schema_secrets \
+  ydbplatform/local-ydb:25.4
 ```
 
 ### Run all acceptance tests
 
 ```sh
 YDB_ACC_CONNECTION_STRING=grpc://127.0.0.1:2136/?database=/local TF_ACC=1 \
-  go test -v ./internal/terraform/ -run TestAcc -timeout 30m
+  go test -v ./internal/terraform/... -timeout 30m
 ```
 
 ### Run a single test

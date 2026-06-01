@@ -10,6 +10,9 @@ import (
 
 // TestAccYdbExternalDataSource_ydbTokenWithSecret creates a secret, then a Ydb external data source
 // with AUTH_METHOD = TOKEN. token_secret_path uses ydb_secret.path (full catalog path under the DB).
+// The second step re-plans the same config to assert no drift — flattenDescription must round-trip
+// every populated *_SECRET_PATH attribute. ExpectNonEmptyPlan defaults to false, so any planned
+// change fails the test.
 func TestAccYdbExternalDataSource_ydbTokenWithSecret(t *testing.T) {
 	conn := os.Getenv(envAccYDBConnection)
 	suffix := accRandomHex8(t)
@@ -17,12 +20,7 @@ func TestAccYdbExternalDataSource_ydbTokenWithSecret(t *testing.T) {
 	dsPath := "tf_acc_ext/ds_tok_" + suffix
 	loc := accLocationHostPortFromConn(conn)
 
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { accPreCheckYDB(t) },
-		ProviderFactories: accProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+	config := accTestConfigPrefix(conn) + fmt.Sprintf(`
 resource "ydb_secret" "for_token" {
   connection_string = var.connection_string
   name                = %q
@@ -39,7 +37,14 @@ resource "ydb_external_data_source" "with_secret" {
   auth_method         = "TOKEN"
   token_secret_path   = ydb_secret.for_token.path
 }
-`, secretRel, dsPath, loc),
+`, secretRel, dsPath, loc)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { accPreCheckYDB(t) },
+		ProviderFactories: accProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_secret.for_token", "name", secretRel),
 					resource.TestCheckResourceAttr("ydb_external_data_source.with_secret", "path", dsPath),
@@ -49,6 +54,10 @@ resource "ydb_external_data_source" "with_secret" {
 					resource.TestCheckResourceAttrPair("ydb_external_data_source.with_secret", "token_secret_path", "ydb_secret.for_token", "path"),
 					resource.TestCheckResourceAttrSet("ydb_external_data_source.with_secret", "id"),
 				),
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
 			},
 		},
 	})

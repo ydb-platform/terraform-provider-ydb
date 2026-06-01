@@ -68,5 +68,5 @@ jobs:
           terraform_version: 1.9.8
           terraform_wrapper: false
       - name: Acceptance tests
-        run: go test -v -timeout 30m ./internal/terraform/ -run TestAcc
+        run: go test -v -timeout 30m ./internal/terraform/...
 
