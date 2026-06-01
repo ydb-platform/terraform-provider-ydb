@@ -344,21 +344,19 @@ func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, prope
 		return err
 	}
 
+	// Always mirror every schema-known attribute from properties, even when YDB returned
+	// no value for it. Otherwise a property that silently disappeared from the EDS — e.g. an
+	// out-of-band CREATE OR REPLACE that swapped AWS_ACCESS_KEY_ID_SECRET_PATH for the legacy
+	// AWS_ACCESS_KEY_ID_SECRET_NAME — would leave the stale state value in place, mask the
+	// drift, and produce a zero-diff plan.
 	for _, attr := range allStringAttrKeys {
 		if attr == "source_type" || attr == "location" {
 			continue
 		}
 		yqlKey := strings.ToUpper(attr)
-		val, ok := properties[yqlKey]
-		if !ok || val == "" {
-			continue
-		}
-		if err := d.Set(attr, val); err != nil {
+		if err := d.Set(attr, properties[yqlKey]); err != nil {
 			return err
 		}
 	}
-	if tlsVal, ok := properties["USE_TLS"]; ok {
-		return d.Set("use_tls", ydbUseTLSString(tlsVal))
-	}
-	return nil
+	return d.Set("use_tls", ydbUseTLSString(properties["USE_TLS"]))
 }

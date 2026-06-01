@@ -3,8 +3,11 @@ package externaldatasource
 import (
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 )
 
 func res(m map[string]string) *Resource {
@@ -412,4 +415,109 @@ func TestValidateSourceType(t *testing.T) {
 			}
 		})
 	}
+}
+
+// flattenTestSchema mirrors the subset of the EDS resource schema that flattenDescription
+// touches. Kept local so the test does not depend on the SDK package, which would create
+// an import cycle.
+func flattenTestSchema() map[string]*schema.Schema {
+	str := func() *schema.Schema { return &schema.Schema{Type: schema.TypeString, Optional: true} }
+	s := map[string]*schema.Schema{
+		"connection_string": {Type: schema.TypeString, Required: true},
+		"path":              {Type: schema.TypeString, Required: true},
+		"use_tls":           {Type: schema.TypeBool, Optional: true},
+	}
+	for _, k := range allStringAttrKeys {
+		s[k] = str()
+	}
+	return s
+}
+
+func TestFlattenDescription_DriftWhenSecretPathMissing(t *testing.T) {
+	entity, err := helpers.ParseYDBEntityID(
+		"grpc://localhost:2136/?database=/local?path=datasources/test",
+	)
+	require.NoError(t, err)
+
+	// Prior state has the original *_SECRET_PATH values that the user's HCL applied.
+	prior := map[string]interface{}{
+		"connection_string":                 entity.PrepareFullYDBEndpoint(),
+		"path":                              "datasources/test",
+		"source_type":                       "ObjectStorage",
+		"location":                          "https://example.test/bucket/",
+		"auth_method":                       "AWS",
+		"aws_region":                        "ru-central1",
+		"aws_access_key_id_secret_path":     "/local/secrets/test-aws-access-key-id",
+		"aws_secret_access_key_secret_path": "/local/secrets/test-aws-secret-access-key",
+	}
+	d := schema.TestResourceDataRaw(t, flattenTestSchema(), prior)
+	d.SetId(entity.ID())
+
+	// Simulate what YDB returns after someone manually replaced the EDS via
+	// CREATE OR REPLACE ... AWS_ACCESS_KEY_ID_SECRET_NAME = '...'. The legacy NAME
+	// keys are not part of the provider schema; the canonical *_SECRET_PATH keys are
+	// simply absent.
+	properties := map[string]string{
+		"AUTH_METHOD":                       "AWS",
+		"AWS_REGION":                        "ru-central1",
+		"AWS_ACCESS_KEY_ID_SECRET_NAME":     "test-aws-access-key-id",
+		"AWS_SECRET_ACCESS_KEY_SECRET_NAME": "test-aws-secret-access-key",
+	}
+
+	require.NoError(t, flattenDescription(d, entity, properties, "ObjectStorage", "https://example.test/bucket/"))
+
+	// The whole point: state must reflect that the *_SECRET_PATH attributes are gone,
+	// so terraform plan reports drift instead of zero-diff.
+	assert.Equal(t, "", d.Get("aws_access_key_id_secret_path"))
+	assert.Equal(t, "", d.Get("aws_secret_access_key_secret_path"))
+	assert.Equal(t, "AWS", d.Get("auth_method"))
+	assert.Equal(t, "ru-central1", d.Get("aws_region"))
+	assert.Equal(t, "ObjectStorage", d.Get("source_type"))
+	assert.Equal(t, "https://example.test/bucket/", d.Get("location"))
+}
+
+func TestFlattenDescription_PopulatesAllAttributes(t *testing.T) {
+	entity, err := helpers.ParseYDBEntityID(
+		"grpc://localhost:2136/?database=/local?path=datasources/test",
+	)
+	require.NoError(t, err)
+
+	d := schema.TestResourceDataRaw(t, flattenTestSchema(), map[string]interface{}{
+		"connection_string": entity.PrepareFullYDBEndpoint(),
+		"path":              "datasources/test",
+	})
+	d.SetId(entity.ID())
+
+	properties := map[string]string{
+		"AUTH_METHOD":                       "AWS",
+		"AWS_REGION":                        "ru-central1",
+		"AWS_ACCESS_KEY_ID_SECRET_PATH":     "/local/secrets/test-aws-access-key-id",
+		"AWS_SECRET_ACCESS_KEY_SECRET_PATH": "/local/secrets/test-aws-secret-access-key",
+		"USE_TLS":                           "TRUE",
+	}
+
+	require.NoError(t, flattenDescription(d, entity, properties, "ObjectStorage", "https://example.test/bucket/"))
+
+	assert.Equal(t, "AWS", d.Get("auth_method"))
+	assert.Equal(t, "/local/secrets/test-aws-access-key-id", d.Get("aws_access_key_id_secret_path"))
+	assert.Equal(t, "/local/secrets/test-aws-secret-access-key", d.Get("aws_secret_access_key_secret_path"))
+	assert.Equal(t, true, d.Get("use_tls"))
+}
+
+func TestFlattenDescription_ClearsUseTLSWhenMissing(t *testing.T) {
+	entity, err := helpers.ParseYDBEntityID(
+		"grpc://localhost:2136/?database=/local?path=datasources/test",
+	)
+	require.NoError(t, err)
+
+	d := schema.TestResourceDataRaw(t, flattenTestSchema(), map[string]interface{}{
+		"connection_string": entity.PrepareFullYDBEndpoint(),
+		"path":              "datasources/test",
+		"use_tls":           true,
+	})
+	d.SetId(entity.ID())
+
+	// USE_TLS absent from properties — state must drop back to false to expose drift.
+	require.NoError(t, flattenDescription(d, entity, map[string]string{}, "ClickHouse", "host:9000"))
+	assert.Equal(t, false, d.Get("use_tls"))
 }
