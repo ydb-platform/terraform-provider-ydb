@@ -32,7 +32,7 @@ func (h *Handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 	fullPath := databaseURL.Query().Get("database") + "/" + r.Path
 
-	q := PrepareCreateQuery(fullPath, r)
+	q := PrepareDataSourceQuery(fullPath, r)
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
 		return diag.Errorf("failed to create external data source: %s", err)

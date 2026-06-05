@@ -2,7 +2,7 @@
 
 `ydb_external_data_source` resource is used to manage YDB [external data source](https://ydb.tech/docs/ru/concepts/datamodel/external_data_source) entity.
 
-All attributes are immutable. Any change triggers resource recreation (drop + create).
+Configuration changes are applied in place via `CREATE OR REPLACE EXTERNAL DATA SOURCE`. Only `connection_string` and `path` require resource recreation.
 
 ## Example
 

@@ -8,7 +8,7 @@ import (
 
 func boolPtr(b bool) *bool { return &b }
 
-func TestPrepareCreateQuery(t *testing.T) {
+func TestPrepareDataSourceQuery(t *testing.T) {
 	testData := []struct {
 		testName string
 		fullPath string
@@ -22,7 +22,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"source_type": "ObjectStorage",
 				"location":    "localhost:12345",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/my_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/my_source`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "localhost:12345" )`,
 		},
 		{
@@ -33,7 +33,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"location":    "s3.amazonaws.com",
 				"auth_method": "NONE",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/s3_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/s3_source`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "s3.amazonaws.com", AUTH_METHOD = "NONE" )`,
 		},
 		{
@@ -51,7 +51,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				},
 				UseTLS: boolPtr(true),
 			},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/ch_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/ch_source`" +
 				` WITH ( SOURCE_TYPE = "ClickHouse", LOCATION = "clickhouse-host:9000",` +
 				` AUTH_METHOD = "BASIC", LOGIN = "user", PASSWORD_SECRET_PATH = "/local/my_password_secret",` +
 				` DATABASE_NAME = "default", PROTOCOL = "NATIVE", USE_TLS = "TRUE" )`,
@@ -66,7 +66,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"service_account_id":          "sa-id-123",
 				"service_account_secret_path": "/local/sa_secret",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/sa_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/sa_source`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "storage.yandexcloud.net",` +
 				` AUTH_METHOD = "SERVICE_ACCOUNT", SERVICE_ACCOUNT_ID = "sa-id-123",` +
 				` SERVICE_ACCOUNT_SECRET_PATH = "/local/sa_secret" )`,
@@ -82,7 +82,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"aws_secret_access_key_secret_path": "/local/aws_secret_key",
 				"aws_region":                        "us-east-1",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/aws_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/aws_source`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "s3.us-east-1.amazonaws.com",` +
 				` AUTH_METHOD = "AWS", AWS_ACCESS_KEY_ID_SECRET_PATH = "/local/aws_key_id",` +
 				` AWS_SECRET_ACCESS_KEY_SECRET_PATH = "/local/aws_secret_key", AWS_REGION = "us-east-1" )`,
@@ -102,7 +102,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				},
 				UseTLS: boolPtr(true),
 			},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/mdb_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/mdb_source`" +
 				` WITH ( SOURCE_TYPE = "PostgreSQL", LOCATION = "rc1a-xxx.mdb.yandexcloud.net:6432",` +
 				` AUTH_METHOD = "MDB_BASIC", LOGIN = "pguser", PASSWORD_SECRET_PATH = "/local/pg_pass",` +
 				` DATABASE_NAME = "mydb", MDB_CLUSTER_ID = "c9q1234567890", USE_TLS = "TRUE" )`,
@@ -115,7 +115,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"location":    "localhost:12345",
 				"auth_method": "NONE",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/minimal`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/minimal`" +
 				` WITH ( SOURCE_TYPE = "ObjectStorage", LOCATION = "localhost:12345", AUTH_METHOD = "NONE" )`,
 		},
 		{
@@ -134,7 +134,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				},
 				UseTLS: boolPtr(true),
 			},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/pg_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/pg_source`" +
 				` WITH ( SOURCE_TYPE = "PostgreSQL", LOCATION = "localhost:5432",` +
 				` AUTH_METHOD = "BASIC", LOGIN = "pguser", PASSWORD_SECRET_PATH = "/local/pg_pass",` +
 				` DATABASE_NAME = "mydb", PROTOCOL = "NATIVE", SCHEMA = "public", USE_TLS = "TRUE" )`,
@@ -151,7 +151,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"database_name":        "ORCL",
 				"service_name":         "my_service",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/oracle_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/oracle_source`" +
 				` WITH ( SOURCE_TYPE = "Oracle", LOCATION = "localhost:1521",` +
 				` AUTH_METHOD = "BASIC", LOGIN = "orauser", PASSWORD_SECRET_PATH = "/local/ora_pass",` +
 				` DATABASE_NAME = "ORCL", SERVICE_NAME = "my_service" )`,
@@ -171,7 +171,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				},
 				UseTLS: boolPtr(true),
 			},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/solomon_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/solomon_source`" +
 				` WITH ( SOURCE_TYPE = "Solomon", LOCATION = "localhost:9090",` +
 				` AUTH_METHOD = "TOKEN", TOKEN_SECRET_PATH = "/local/tok",` +
 				` GRPC_LOCATION = "vla", PROJECT = "myproject",` +
@@ -187,7 +187,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"database_name": "mydb",
 				"database_id":   "etn123",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/ydb_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/ydb_source`" +
 				` WITH ( SOURCE_TYPE = "Ydb", LOCATION = "localhost:2136",` +
 				` AUTH_METHOD = "NONE", DATABASE_NAME = "mydb",` +
 				` DATABASE_ID = "etn123" )`,
@@ -203,7 +203,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 				"service_account_secret_path": "/local/sa_secret",
 				"folder_id":                   "b1g456",
 			}},
-			expected: `CREATE EXTERNAL DATA SOURCE ` + "`/local/logging_source`" +
+			expected: `CREATE OR REPLACE EXTERNAL DATA SOURCE ` + "`/local/logging_source`" +
 				` WITH ( SOURCE_TYPE = "Logging", LOCATION = "localhost:8080",` +
 				` AUTH_METHOD = "SERVICE_ACCOUNT", SERVICE_ACCOUNT_ID = "sa123",` +
 				` SERVICE_ACCOUNT_SECRET_PATH = "/local/sa_secret", FOLDER_ID = "b1g456" )`,
@@ -212,7 +212,7 @@ func TestPrepareCreateQuery(t *testing.T) {
 
 	for _, v := range testData {
 		t.Run(v.testName, func(t *testing.T) {
-			got := PrepareCreateQuery(v.fullPath, v.resource)
+			got := PrepareDataSourceQuery(v.fullPath, v.resource)
 			assert.Equal(t, v.expected, got)
 		})
 	}
