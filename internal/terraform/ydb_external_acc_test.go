@@ -63,10 +63,17 @@ resource "ydb_external_data_source" "with_secret" {
 	})
 }
 
-func TestAccYdbExternalDataSource_objectStorageNone(t *testing.T) {
+// TestAccYdbExternalDataSource_updateInPlaceWithDependentTable verifies that EDS
+// configuration is updated via CREATE OR REPLACE while an external table references it.
+// A destroy-and-create update (ForceNew) would fail: YDB rejects dropping an external
+// data source that has dependent external tables.
+func TestAccYdbExternalDataSource_updateInPlaceWithDependentTable(t *testing.T) {
 	conn := os.Getenv(envAccYDBConnection)
 	suffix := accRandomHex8(t)
-	path := "tf_acc_ext/ds_" + suffix
+	dsPath := "tf_acc_ext/ds_" + suffix
+	tblPath := "tf_acc_ext/tbl_" + suffix
+	locInitial := "https://example.com/terraform-acc-bucket/"
+	locUpdated := "https://example.com/terraform-acc-bucket-updated/"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { accPreCheckYDB(t) },
@@ -78,14 +85,68 @@ resource "ydb_external_data_source" "test" {
   connection_string = var.connection_string
   path                = %q
   source_type         = "ObjectStorage"
-  location            = "https://example.com/terraform-acc-bucket/"
+  location            = %q
   auth_method         = "NONE"
 }
-`, path),
+
+resource "ydb_external_table" "dependent" {
+  connection_string  = var.connection_string
+  path                 = %q
+  data_source_path     = ydb_external_data_source.test.path
+  location             = "prefix/"
+  format               = "csv_with_names"
+
+  column {
+    name = "key"
+    type = "Utf8"
+  }
+  column {
+    name = "value"
+    type = "Utf8"
+  }
+}
+`, dsPath, locInitial, tblPath),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("ydb_external_data_source.test", "path", path),
+					resource.TestCheckResourceAttr("ydb_external_data_source.test", "path", dsPath),
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "source_type", "ObjectStorage"),
+					resource.TestCheckResourceAttr("ydb_external_data_source.test", "location", locInitial),
 					resource.TestCheckResourceAttrSet("ydb_external_data_source.test", "id"),
+					resource.TestCheckResourceAttr("ydb_external_table.dependent", "path", tblPath),
+					resource.TestCheckResourceAttrPair("ydb_external_table.dependent", "data_source_path", "ydb_external_data_source.test", "path"),
+					resource.TestCheckResourceAttrSet("ydb_external_table.dependent", "id"),
+				),
+			},
+			{
+				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+resource "ydb_external_data_source" "test" {
+  connection_string = var.connection_string
+  path                = %q
+  source_type         = "ObjectStorage"
+  location            = %q
+  auth_method         = "NONE"
+}
+
+resource "ydb_external_table" "dependent" {
+  connection_string  = var.connection_string
+  path                 = %q
+  data_source_path     = ydb_external_data_source.test.path
+  location             = "prefix/"
+  format               = "csv_with_names"
+
+  column {
+    name = "key"
+    type = "Utf8"
+  }
+  column {
+    name = "value"
+    type = "Utf8"
+  }
+}
+`, dsPath, locUpdated, tblPath),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("ydb_external_data_source.test", "location", locUpdated),
+					resource.TestCheckResourceAttr("ydb_external_table.dependent", "path", tblPath),
+					resource.TestCheckResourceAttrPair("ydb_external_table.dependent", "data_source_path", "ydb_external_data_source.test", "path"),
 				),
 			},
 		},
