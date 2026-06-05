@@ -218,3 +218,20 @@ func AreAllElementsUnique(consumers []topictypes.Consumer) error {
 	}
 	return nil
 }
+
+// NormalizeYQLColumnType canonicalizes a YQL column type for Terraform state and config comparison.
+// YDB may return PascalCase (e.g. Int32, String) while users often write lowercase in HCL.
+func NormalizeYQLColumnType(typ string) string {
+	return strings.ToLower(strings.TrimSpace(typ))
+}
+
+// NormalizeYQLColumnTypeState is a schema.StateFunc for column type attributes.
+func NormalizeYQLColumnTypeState(v interface{}) string {
+	s, _ := v.(string)
+	return NormalizeYQLColumnType(s)
+}
+
+// SuppressYQLColumnTypeCaseDiff suppresses plan diffs that differ only by YQL type letter case.
+func SuppressYQLColumnTypeCaseDiff(_, old, newVal string, _ *schema.ResourceData) bool {
+	return strings.EqualFold(strings.TrimSpace(old), strings.TrimSpace(newVal))
+}

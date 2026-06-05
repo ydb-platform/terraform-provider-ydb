@@ -270,3 +270,11 @@ func TestJoinRelativizeYDBCatalogPathRoundTrip(t *testing.T) {
 	assert.Equal(t, "/local/tf_acc_ext/tok_1", abs)
 	assert.Equal(t, rel, RelativizeYDBCatalogPath(root, abs))
 }
+
+func TestNormalizeYQLColumnType(t *testing.T) {
+	assert.Equal(t, "int32", NormalizeYQLColumnType("Int32"))
+	assert.Equal(t, "string", NormalizeYQLColumnType(" String "))
+	assert.Equal(t, "utf8", NormalizeYQLColumnType("Utf8"))
+	assert.True(t, SuppressYQLColumnTypeCaseDiff("", "Int32", "int32", nil))
+	assert.False(t, SuppressYQLColumnTypeCaseDiff("", "Int32", "utf8", nil))
+}
