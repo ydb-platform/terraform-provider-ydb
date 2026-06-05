@@ -42,9 +42,9 @@ func appendWithClause(buf []byte, params []withParam) []byte {
 	return buf
 }
 
-func PrepareCreateQuery(fullPath string, r *Resource) string {
+func PrepareDataSourceQuery(fullPath string, r *Resource) string {
 	buf := make([]byte, 0, 512)
-	buf = append(buf, "CREATE EXTERNAL DATA SOURCE `"...)
+	buf = append(buf, "CREATE OR REPLACE EXTERNAL DATA SOURCE `"...)
 	buf = append(buf, fullPath...)
 	buf = append(buf, '`')
 	buf = appendWithClause(buf, collectWithParams(r))

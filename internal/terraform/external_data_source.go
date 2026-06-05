@@ -17,6 +17,7 @@ func ydbExternalDataSourceResource() *schema.Resource {
 		SchemaVersion: 0,
 		CreateContext: resourceYDBExternalDataSourceCreate,
 		ReadContext:   resourceYDBExternalDataSourceRead,
+		UpdateContext: resourceYDBExternalDataSourceUpdate,
 		DeleteContext: resourceYDBExternalDataSourceDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
@@ -53,6 +54,14 @@ func resourceYDBExternalDataSourceRead(ctx context.Context, d *schema.ResourceDa
 		return cfg.AuthCreds, nil
 	}
 	return eds.ResourceReadFunc(cb)(ctx, d, meta)
+}
+
+func resourceYDBExternalDataSourceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*Config)
+	cb := func(ctx context.Context) (auth.YdbCredentials, error) {
+		return cfg.AuthCreds, nil
+	}
+	return eds.ResourceUpdateFunc(cb)(ctx, d, meta)
 }
 
 func resourceYDBExternalDataSourceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

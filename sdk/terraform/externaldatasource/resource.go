@@ -51,6 +51,19 @@ func DataSourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	}
 }
 
+func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
+	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+		authCreds, err := cb(ctx)
+		if err != nil {
+			return diag.Diagnostics{
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+			}
+		}
+		h := externaldatasource.NewHandler(authCreds)
+		return h.Update(ctx, d, meta)
+	}
+}
+
 func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		authCreds, err := cb(ctx)
@@ -105,154 +118,129 @@ func ResourceSchema() map[string]*schema.Schema {
 			Type:         schema.TypeString,
 			Description:  "Type of the external data source (e.g. ObjectStorage, Ydb, ClickHouse, PostgreSQL).",
 			Required:     true,
-			ForceNew:     true,
 			ValidateFunc: validation.StringInSlice(externalDataSourceSourceTypes, false),
 		},
 		"location": {
 			Type:        schema.TypeString,
 			Description: "Network address of the external data source.",
 			Required:    true,
-			ForceNew:    true,
 		},
 		"auth_method": {
 			Type:             schema.TypeString,
 			Description:      "Authentication method (NONE, BASIC, MDB_BASIC, AWS, TOKEN, SERVICE_ACCOUNT).",
 			Optional:         true,
-			ForceNew:         true,
 			ValidateDiagFunc: optionalEnum(externalDataSourceAuthMethods),
 		},
 		"login": {
 			Type:        schema.TypeString,
 			Description: "Login for BASIC/MDB_BASIC authentication.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"password_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for the password.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"service_account_id": {
 			Type:        schema.TypeString,
 			Description: "Service account ID.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"service_account_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for service account authentication.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"aws_access_key_id_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for AWS access key ID.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"aws_secret_access_key_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for AWS secret access key.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"aws_region": {
 			Type:        schema.TypeString,
 			Description: "AWS region.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"token_secret_path": {
 			Type:        schema.TypeString,
 			Description: "Secret path for TOKEN authentication.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"database_name": {
 			Type:        schema.TypeString,
 			Description: "Database name in the external data source.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"protocol": {
 			Type:             schema.TypeString,
 			Description:      "Communication protocol (NATIVE, HTTP).",
 			Optional:         true,
-			ForceNew:         true,
 			ValidateDiagFunc: optionalEnum(externalDataSourceProtocols),
 		},
 		"use_tls": {
 			Type:        schema.TypeBool,
 			Description: "Whether to use TLS in the external data source connection.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"mdb_cluster_id": {
 			Type:        schema.TypeString,
 			Description: "Managed Database cluster ID.",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"schema": {
 			Type:        schema.TypeString,
 			Description: "Schema name (for PostgreSQL, Greenplum).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"service_name": {
 			Type:        schema.TypeString,
 			Description: "Service name (for Oracle).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"folder_id": {
 			Type:        schema.TypeString,
 			Description: "Folder ID (for Logging).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"grpc_location": {
 			Type:        schema.TypeString,
 			Description: "gRPC location (for Solomon).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"project": {
 			Type:        schema.TypeString,
 			Description: "Project name (for Solomon).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"cluster": {
 			Type:        schema.TypeString,
 			Description: "Cluster name (for Solomon).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"database_id": {
 			Type:        schema.TypeString,
 			Description: "Database ID (for Ydb).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"reading_mode": {
 			Type:        schema.TypeString,
 			Description: "Reading mode (for MongoDB).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"unexpected_type_display_mode": {
 			Type:        schema.TypeString,
 			Description: "Unexpected type display mode (for MongoDB).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 		"unsupported_type_display_mode": {
 			Type:        schema.TypeString,
 			Description: "Unsupported type display mode (for MongoDB).",
 			Optional:    true,
-			ForceNew:    true,
 		},
 	}
 }
