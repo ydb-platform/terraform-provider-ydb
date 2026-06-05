@@ -153,6 +153,51 @@ resource "ydb_external_table" "dependent" {
 	})
 }
 
+// TestAccYdbExternalDataSource_sourceTypeRequiresReplacement verifies that changing
+// source_type is applied via ForceNew (destroy + create), not an in-place update.
+func TestAccYdbExternalDataSource_sourceTypeRequiresReplacement(t *testing.T) {
+	conn := os.Getenv(envAccYDBConnection)
+	suffix := accRandomHex8(t)
+	dsPath := "tf_acc_ext/ds_st_" + suffix
+	ydbLoc := accLocationHostPortFromConn(conn)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { accPreCheckYDB(t) },
+		ProviderFactories: accProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+resource "ydb_external_data_source" "test" {
+  connection_string = var.connection_string
+  path                = %q
+  source_type         = "ObjectStorage"
+  location            = "https://example.com/terraform-acc-bucket/"
+  auth_method         = "NONE"
+}
+`, dsPath),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("ydb_external_data_source.test", "source_type", "ObjectStorage"),
+				),
+			},
+			{
+				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+resource "ydb_external_data_source" "test" {
+  connection_string = var.connection_string
+  path                = %q
+  source_type         = "Ydb"
+  location            = %q
+  auth_method         = "NONE"
+}
+`, dsPath, ydbLoc),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("ydb_external_data_source.test", "source_type", "Ydb"),
+					resource.TestCheckResourceAttr("ydb_external_data_source.test", "location", ydbLoc),
+				),
+			},
+		},
+	})
+}
+
 func TestAccYdbExternalTable_withDataSource(t *testing.T) {
 	conn := os.Getenv(envAccYDBConnection)
 	suffix := accRandomHex8(t)
