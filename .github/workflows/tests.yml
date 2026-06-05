@@ -48,7 +48,7 @@ jobs:
         image: ydbplatform/local-ydb:edge
         options: --hostname localhost
         env:
-          YDB_FEATURE_FLAGS: enable_external_data_sources
+          YDB_FEATURE_FLAGS: enable_external_data_sources,enable_replace_if_exists_for_external_entities
         ports:
           - 2136:2136
     env:
