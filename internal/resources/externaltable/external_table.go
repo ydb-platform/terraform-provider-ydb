@@ -84,7 +84,7 @@ func parseColumns(d *schema.ResourceData) []ColumnDef {
 		m := raw.(map[string]interface{})
 		columns = append(columns, ColumnDef{
 			Name:    m["name"].(string),
-			Type:    m["type"].(string),
+			Type:    helpers.NormalizeYQLColumnType(m["type"].(string)),
 			NotNull: m["not_null"].(bool),
 		})
 	}
@@ -101,7 +101,7 @@ func unwrapType(t types.Type) (typ string, notNull bool) {
 		yqlStr = strings.TrimSuffix(yqlStr, ">")
 	}
 
-	return yqlStr, notNull
+	return helpers.NormalizeYQLColumnType(yqlStr), notNull
 }
 
 // normalizeYdbContentScalar unwraps Describe values such as ["csv_with_names"] to csv_with_names.

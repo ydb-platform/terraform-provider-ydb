@@ -198,18 +198,16 @@ resource "ydb_external_data_source" "test" {
 	})
 }
 
+// TestAccYdbExternalTable_withDataSource creates an external table backed by an EDS, then
+// re-plans the same config. Column types are lowercase in HCL; YDB Describe returns
+// PascalCase — Read must normalize so the second plan is empty.
 func TestAccYdbExternalTable_withDataSource(t *testing.T) {
 	conn := os.Getenv(envAccYDBConnection)
 	suffix := accRandomHex8(t)
 	dsPath := "tf_acc_ext/ds_" + suffix
 	tblPath := "tf_acc_ext/tbl_" + suffix
 
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { accPreCheckYDB(t) },
-		ProviderFactories: accProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+	config := accTestConfigPrefix(conn) + fmt.Sprintf(`
 resource "ydb_external_data_source" "s3" {
   connection_string = var.connection_string
   path                = %q
@@ -226,21 +224,42 @@ resource "ydb_external_table" "test" {
   format               = "csv_with_names"
 
   column {
-    name = "key"
-    type = "Utf8"
+    name     = "id"
+    type     = "int32"
+    not_null = true
+  }
+  column {
+    name = "name"
+    type = "string"
+  }
+  column {
+    name     = "key"
+    type     = "utf8"
+    not_null = true
   }
   column {
     name = "value"
     type = "Utf8"
   }
 }
-`, dsPath, tblPath),
+`, dsPath, tblPath)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { accPreCheckYDB(t) },
+		ProviderFactories: accProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_external_table.test", "path", tblPath),
 					resource.TestCheckResourceAttrPair("ydb_external_table.test", "data_source_path", "ydb_external_data_source.s3", "path"),
 					resource.TestCheckResourceAttr("ydb_external_table.test", "format", "csv_with_names"),
 					resource.TestCheckResourceAttrSet("ydb_external_table.test", "id"),
 				),
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
 			},
 		},
 	})

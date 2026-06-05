@@ -102,10 +102,12 @@ func ResourceSchema() map[string]*schema.Schema {
 						ValidateFunc: validation.NoZeroValues,
 					},
 					"type": {
-						Type:         schema.TypeString,
-						Description:  "Column data type (YQL type).",
-						Required:     true,
-						ValidateFunc: validation.NoZeroValues,
+						Type:             schema.TypeString,
+						Description:      "Column data type (YQL type).",
+						Required:         true,
+						ValidateFunc:     validation.NoZeroValues,
+						StateFunc:        helpers.NormalizeYQLColumnTypeState,
+						DiffSuppressFunc: helpers.SuppressYQLColumnTypeCaseDiff,
 					},
 					"not_null": {
 						Type:        schema.TypeBool,
