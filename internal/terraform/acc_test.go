@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 
 	ydbprovider "github.com/ydb-platform/terraform-provider-ydb/ydb"
 )
@@ -103,4 +104,25 @@ func accLocationHostPortFromConn(conn string) string {
 		return "localhost:2136"
 	}
 	return u.Host
+}
+
+func accOpenYDB(t *testing.T) *ydb.Driver {
+	t.Helper()
+	conn := os.Getenv(envAccYDBConnection)
+	var opts []ydb.Option
+	if v := os.Getenv("YDB_ACC_TOKEN"); v != "" {
+		opts = append(opts, ydb.WithAccessTokenCredentials(v))
+	}
+	if u := os.Getenv("YDB_ACC_USER"); u != "" {
+		opts = append(opts, ydb.WithStaticCredentials(u, os.Getenv("YDB_ACC_PASSWORD")))
+	}
+	ctx := t.Context()
+	db, err := ydb.Open(ctx, conn, opts...)
+	if err != nil {
+		t.Fatalf("ydb.Open: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close(ctx)
+	})
+	return db
 }

@@ -125,10 +125,10 @@ func DataSourceSchema() map[string]*schema.Schema {
 				ValidateFunc: validation.StringInSlice(topic.YDBTopicAllowedCodecs, false),
 			},
 		},
-		"retention_period_ms": {
-			Type:     schema.TypeInt,
-			Optional: true,
-			Default:  1000 * 60 * 60 * 24, // 1 day
+		attributeRetentionPeriodMS: {
+			Type:        schema.TypeInt,
+			Description: "Data retention time in milliseconds.",
+			Computed:    true,
 		},
 		"consumer": {
 			Type:     schema.TypeSet,
@@ -211,11 +211,26 @@ func ResourceSchema() map[string]*schema.Schema {
 			},
 			Computed: true,
 		},
+		attributeRetentionPeriod: {
+			Type:             schema.TypeString,
+			Description:      "Data retention time in Go duration format (e.g. \"24h\", \"30m\").",
+			Optional:         true,
+			Computed:         true,
+			ValidateDiagFunc: validateOptionalRetentionPeriod,
+			DiffSuppressFunc: retentionPeriodDiffSuppress,
+			ConflictsWith: []string{
+				attributeRetentionPeriodHours,
+			},
+		},
 		attributeRetentionPeriodHours: {
 			Type:        schema.TypeInt,
-			Description: "Data retention time. Default value `86400000`.",
+			Description: "Data retention time in hours.",
 			Optional:    true,
 			Computed:    true,
+			Deprecated:  "Use retention_period instead.",
+			ConflictsWith: []string{
+				attributeRetentionPeriod,
+			},
 		},
 		attributeRetentionStorageMB: {
 			Type:     schema.TypeInt,

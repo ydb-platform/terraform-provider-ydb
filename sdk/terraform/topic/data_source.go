@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -64,6 +65,9 @@ func (c *caller) dataSourceYDBTopicRead(ctx context.Context, d *schema.ResourceD
 	err = flattenYDBTopicDescription(d, description)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to flatten stream description: %w", err))
+	}
+	if err := d.Set(attributeRetentionPeriodMS, int(description.RetentionPeriod/time.Millisecond)); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set %q: %w", attributeRetentionPeriodMS, err))
 	}
 
 	return nil
