@@ -17,7 +17,6 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 	_ = d.Set(attributeName, d.Get(attributeName).(string)) // NOTE(shmel1k@): TopicService SDK does not return path for stream.
 	_ = d.Set(attributePartitionsCount, desc.PartitionSettings.MinActivePartitions)
 	_ = d.Set(attributeMaxPartitionsCount, desc.PartitionSettings.MaxActivePartitions)
-	_ = d.Set(attributeRetentionPeriodHours, desc.RetentionPeriod.Hours())
 	_ = d.Set(attributeRetentionStorageMB, desc.RetentionStorageMB)
 	_ = d.Set(attributeMeteringMode, MeteringModeToString(desc.MeteringMode))
 	if desc.MetricsLevel != nil {
@@ -68,7 +67,7 @@ func flattenYDBTopicDescription(d *schema.ResourceData, desc topictypes.TopicDes
 func prepareYDBTopicAlterSettings(
 	d *schema.ResourceData,
 	settings topictypes.TopicDescription,
-) (opts []topicoptions.AlterOption) {
+) (opts []topicoptions.AlterOption, err error) {
 	if d.HasChange(attributePartitionsCount) {
 		opts = append(opts, topicoptions.AlterWithPartitionCountLimit(int64(d.Get("partitions_count").(int))))
 		opts = append(opts, topicoptions.AlterWithMinActivePartitions(int64(d.Get("partitions_count").(int))))
@@ -99,8 +98,14 @@ func prepareYDBTopicAlterSettings(
 		}
 		opts = append(opts, topicoptions.AlterWithSupportedCodecs(updatedCodecs...))
 	}
-	if d.HasChange(attributeRetentionPeriodHours) {
-		opts = append(opts, topicoptions.AlterWithRetentionPeriod(time.Duration(d.Get(attributeRetentionPeriodHours).(int))*time.Hour))
+	if hasRetentionPeriodChange(d) {
+		period, alter, parseErr := retentionPeriodNeedsAlter(d)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		if alter {
+			opts = append(opts, topicoptions.AlterWithRetentionPeriod(period))
+		}
 	}
 	if d.HasChange(attributeRetentionStorageMB) {
 		opts = append(opts, topicoptions.AlterWithRetentionStorageMB(int64(d.Get(attributeRetentionStorageMB).(int))))
@@ -128,5 +133,5 @@ func prepareYDBTopicAlterSettings(
 		}
 	}
 
-	return opts
+	return opts, nil
 }

@@ -82,7 +82,10 @@ func (c *caller) performYDBTopicUpdate(ctx context.Context, d *schema.ResourceDa
 		return diag.FromErr(fmt.Errorf("failed to get description for topic %q", topicName))
 	}
 
-	opts := prepareYDBTopicAlterSettings(d, desc)
+	opts, err := prepareYDBTopicAlterSettings(d, desc)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	err = topicClient.Alter(ctx, topicName, opts...)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("got error when tried to alter topic: %w", err))
@@ -166,6 +169,12 @@ func (c *caller) resourceYDBTopicRead(ctx context.Context, d *schema.ResourceDat
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to flatten topic description: %w", err))
 	}
+	if err := d.Set(attributeRetentionPeriod, description.RetentionPeriod.String()); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set %q: %w", attributeRetentionPeriod, err))
+	}
+	if err := d.Set(attributeRetentionPeriodHours, int(description.RetentionPeriod/time.Hour)); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set %q: %w", attributeRetentionPeriodHours, err))
+	}
 
 	return nil
 }
@@ -223,8 +232,10 @@ func (c *caller) resourceYDBTopicCreate(ctx context.Context, d *schema.ResourceD
 		topicoptions.CreateWithAutoPartitioningSettings(autoPartitioningTopicOptions),
 		topicoptions.CreateWithConsumer(consumers...),
 	}
-	if d.Get(attributeRetentionPeriodHours) != 0 {
-		options = append(options, topicoptions.CreateWithRetentionPeriod(time.Duration(d.Get(attributeRetentionPeriodHours).(int))*time.Hour))
+	if period, ok, err := retentionPeriodFromResourceData(d); err != nil {
+		return diag.FromErr(err)
+	} else if ok {
+		options = append(options, topicoptions.CreateWithRetentionPeriod(period))
 	}
 	if d.Get(attributeRetentionStorageMB) != 0 {
 		options = append(options, topicoptions.CreateWithRetentionStorageMB(int64(d.Get(attributeRetentionStorageMB).(int))))
