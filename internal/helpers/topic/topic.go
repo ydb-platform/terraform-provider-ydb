@@ -130,10 +130,15 @@ func MergeConsumerSettings(
 	}
 	opts = append(opts, topicoptions.AlterWithAddConsumers(newConsumers...))
 
+	var withDropConsumerNames []string
 	for _, r := range rules {
 		if _, ok := consumersMap[r.Name]; !ok {
-			opts = append(opts, topicoptions.AlterWithDropConsumers(r.Name))
+			withDropConsumerNames = append(withDropConsumerNames, r.Name)
 		}
+	}
+
+	if len(withDropConsumerNames) > 0 {
+		opts = append(opts, topicoptions.AlterWithDropConsumers(withDropConsumerNames...))
 	}
 
 	return opts
