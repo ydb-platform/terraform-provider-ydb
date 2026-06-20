@@ -164,6 +164,14 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:    true,
 			ForceNew:    true,
 		},
+		"initial_scan": {
+			Type:     schema.TypeBool,
+			Optional: true,
+			Default:  false,
+			ForceNew: true,
+			Description: "When true, runs an [initial snapshot scan](https://ydb.tech/docs/en/yql/reference/syntax/alter_table/changefeed) of the table when the changefeed is created. " +
+				"Only applies at creation; YDB does not expose this flag on describe, so Terraform keeps the configured value in state.",
+		},
 		"retention_period": {
 			Type:         schema.TypeString,
 			Description:  "Time of data retention in the topic, [ISO 8601](https://ru.wikipedia.org/wiki/ISO_8601) format.",

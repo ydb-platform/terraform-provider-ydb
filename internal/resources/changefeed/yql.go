@@ -36,6 +36,10 @@ func PrepareCreateRequest(cdc *changeDataCaptureSettings) string {
 		buf = helpers.AppendWithEscape(buf, *cdc.RetentionPeriod)
 		buf = append(buf, '"', ')')
 	}
+	if cdc.InitialScan {
+		buf = append(buf, ',', '\n')
+		buf = append(buf, "INITIAL_SCAN = TRUE"...)
+	}
 	buf = append(buf, '\n', ')')
 	return string(buf)
 }
