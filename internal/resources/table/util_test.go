@@ -4,8 +4,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestExpandColumns(t *testing.T) {
+	set := schema.NewSet(func(v interface{}) int {
+		m := v.(map[string]interface{})
+		return schema.HashString(m["name"].(string))
+	}, []interface{}{
+		map[string]interface{}{"name": "a", "type": "Uint32", "not_null": false},
+	})
+	cols := expandColumns(set)
+	require.Len(t, cols, 1)
+	assert.Equal(t, "a", cols[0].Name)
+	assert.Equal(t, "Uint32", cols[0].Type)
+}
 
 func TestTTLToISO8601(t *testing.T) {
 	const (
