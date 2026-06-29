@@ -1,6 +1,7 @@
 package table
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -19,10 +20,20 @@ type tableDiff struct {
 	OnlyResetTTL              bool
 }
 
+func validateExistingColumnChange(name string, oldCol, newCol *Column) error {
+	if oldCol.Type != newCol.Type {
+		return fmt.Errorf(
+			"changing column %q type from %q to %q is not supported: YDB does not allow in-place column type changes",
+			name, oldCol.Type, newCol.Type,
+		)
+	}
+	return nil
+}
+
 func checkColumnDiff(rcolumns []*Column, dcolumns []*Column) ([]*Column, error) {
-	existingColumns := make(map[string]struct{})
+	existingColumns := make(map[string]*Column)
 	for _, v := range dcolumns {
-		existingColumns[v.Name] = struct{}{}
+		existingColumns[v.Name] = v
 	}
 	resourceColumns := make(map[string]*Column)
 	for _, v := range rcolumns {
@@ -38,6 +49,14 @@ func checkColumnDiff(rcolumns []*Column, dcolumns []*Column) ([]*Column, error) 
 		}
 	}
 
+	for name, newCol := range resourceColumns {
+		if oldCol, ok := existingColumns[name]; ok {
+			if err := validateExistingColumnChange(name, oldCol, newCol); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	for k, v := range resourceColumns {
 		if _, ok := existingColumns[k]; !ok {
 			columnsToAdd = append(columnsToAdd, v)
@@ -48,6 +67,19 @@ func checkColumnDiff(rcolumns []*Column, dcolumns []*Column) ([]*Column, error) 
 		return nil, fmt.Errorf("it is prohibited to delete columns with terraform. Columns for deletion: [%s]", strings.Join(deletedColumns, ","))
 	}
 	return columnsToAdd, nil
+}
+
+// CustomizeDiff rejects unsupported column schema changes at plan time.
+func CustomizeDiff(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	if !d.HasChange("column") && len(d.GetChangedKeysPrefix("column")) == 0 {
+		return nil
+	}
+	o, n := d.GetChange("column")
+	if o == nil || n == nil {
+		return nil
+	}
+	_, err := checkColumnDiff(expandColumns(n), expandColumns(o))
+	return err
 }
 
 func compareIndexes(ridx *Index, didx options.IndexDescription) bool {

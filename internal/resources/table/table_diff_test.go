@@ -33,6 +33,16 @@ func TestCheckColumnDiff(t *testing.T) {
 			},
 		},
 		{
+			testName: "changing column type",
+			rcolumns: []*Column{
+				{Name: "a", Type: "uint64"},
+			},
+			dcolumns: []*Column{
+				{Name: "a", Type: "uint32"},
+			},
+			expectedError: true,
+		},
+		{
 			testName: "resource with deleting columns",
 			rcolumns: []*Column{
 				{
@@ -63,6 +73,9 @@ func TestCheckColumnDiff(t *testing.T) {
 			got, err := checkColumnDiff(v.rcolumns, v.dcolumns)
 			if v.expectedError {
 				assert.Error(t, err)
+				if v.testName == "changing column type" {
+					assert.Contains(t, err.Error(), `from "uint32" to "uint64"`)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
