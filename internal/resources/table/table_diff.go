@@ -1,7 +1,6 @@
 package table
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -67,19 +66,6 @@ func checkColumnDiff(rcolumns []*Column, dcolumns []*Column) ([]*Column, error) 
 		return nil, fmt.Errorf("it is prohibited to delete columns with terraform. Columns for deletion: [%s]", strings.Join(deletedColumns, ","))
 	}
 	return columnsToAdd, nil
-}
-
-// CustomizeDiff rejects unsupported column schema changes at plan time.
-func CustomizeDiff(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
-	if !d.HasChange("column") && len(d.GetChangedKeysPrefix("column")) == 0 {
-		return nil
-	}
-	o, n := d.GetChange("column")
-	if o == nil || n == nil {
-		return nil
-	}
-	_, err := checkColumnDiff(expandColumns(n), expandColumns(o))
-	return err
 }
 
 func compareIndexes(ridx *Index, didx options.IndexDescription) bool {

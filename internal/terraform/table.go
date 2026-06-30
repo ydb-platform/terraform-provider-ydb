@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	resourcetable "github.com/ydb-platform/terraform-provider-ydb/internal/resources/table"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/table"
 )
@@ -19,7 +18,7 @@ func ydbTableResource() *schema.Resource {
 		ReadContext:   resourceYDBTableRead,
 		UpdateContext: resourceYDBTableUpdate,
 		DeleteContext: resourceYDBTableDelete,
-		CustomizeDiff: resourcetable.CustomizeDiff,
+		CustomizeDiff: table.CustomizeDiff,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
