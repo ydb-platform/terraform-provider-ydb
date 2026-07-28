@@ -48,7 +48,10 @@ jobs:
         image: ydbplatform/local-ydb:edge
         options: --hostname localhost
         env:
-          YDB_FEATURE_FLAGS: enable_external_data_sources,enable_replace_if_exists_for_external_entities
+          YDB_FEATURE_FLAGS: "\
+            enable_external_data_sources,\
+            enable_replace_if_exists_for_external_entities,\
+            enable_resource_pools"
         ports:
           - 2136:2136
     env:
@@ -69,4 +72,3 @@ jobs:
           terraform_wrapper: false
       - name: Acceptance tests
         run: go test -v -timeout 30m ./internal/terraform/...
-

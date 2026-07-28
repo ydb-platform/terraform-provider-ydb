@@ -11,6 +11,8 @@ This provider can be used for managing YDB schema resources in managed or on-pre
 - [ydb_external_data_source](./internal/resources/externaldatasource/README.md)
 - [ydb_external_table](./internal/resources/externaltable/README.md)
 - [ydb_secret](./internal/resources/secret/README.md)
+- [ydb_resource_pool](./internal/resources/resourcepool/README.md)
+- [ydb_resource_pool_classifier](./internal/resources/resourcepoolclassifier/README.md)
 
 ## Acceptance tests
 
@@ -26,13 +28,14 @@ Optional provider auth env vars: `YDB_ACC_TOKEN`, `YDB_ACC_USER`, `YDB_ACC_PASSW
 ### Spin up a local YDB
 
 ```sh
-docker run -d --rm --name ydb-local \
-  -p 2135:2135 -p 2136:2136 -p 8765:8765 \
-  -h localhost \
-  -e YDB_USE_IN_MEMORY_PDISKS=true \
-  -e YDB_FEATURE_FLAGS=enable_replace_if_exists_for_external_entities,enable_external_data_sources,enable_schema_secrets \
-  ydbplatform/local-ydb:25.4
+docker compose up -d
 ```
+
+The compose configuration enables the feature flags required by acceptance tests:
+
+- `enable_replace_if_exists_for_external_entities` and `enable_external_data_sources` for external data source and external table tests;
+- `enable_schema_secrets` for secret tests;
+- `enable_resource_pools` for resource pool and resource pool classifier tests.
 
 ### Run all acceptance tests
 

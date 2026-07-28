@@ -1,0 +1,15 @@
+services:
+  ydb:
+    image: ydbplatform/local-ydb:edge
+    hostname: localhost
+    ports:
+      - "${YDB_GRPCS_PORT:-2135}:2135"
+      - "${YDB_GRPC_PORT:-2136}:2136"
+      - "${YDB_MON_PORT:-8765}:8765"
+    environment:
+      YDB_USE_IN_MEMORY_PDISKS: "true"
+      YDB_FEATURE_FLAGS: "\
+        enable_replace_if_exists_for_external_entities,\
+        enable_external_data_sources,\
+        enable_schema_secrets,\
+        enable_resource_pools"
