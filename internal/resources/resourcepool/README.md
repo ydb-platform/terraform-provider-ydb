@@ -71,6 +71,11 @@ so invalid plans fail during Terraform validation.
 YDB main does not currently support `QUERY_MEMORY_LIMIT_PERCENT_PER_NODE`.
 Use `total_memory_limit_percent_per_node` to limit pool memory instead.
 
+The current `ydbplatform/local-ydb:edge` image predates
+`TOTAL_MEMORY_LIMIT_PERCENT_PER_NODE`. When the argument is omitted, the
+provider remains compatible with that image and reports the value as `-1`.
+Configuring the argument requires a newer YDB build that supports the property.
+
 ## Permissions
 
 YDB requires:

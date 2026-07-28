@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -24,10 +26,11 @@ type resourcePool struct {
 	TotalCPULimitPercentPerNode    float64
 	QueryCPULimitPercentPerNode    float64
 	TotalMemoryLimitPercentPerNode float64
+	SetTotalMemoryLimit            bool
 }
 
 func resourcePoolFromData(d *schema.ResourceData) resourcePool {
-	return resourcePool{
+	pool := resourcePool{
 		Name:                           d.Get("name").(string),
 		ConcurrentQueryLimit:           d.Get("concurrent_query_limit").(int),
 		QueueSize:                      d.Get("queue_size").(int),
@@ -37,47 +40,41 @@ func resourcePoolFromData(d *schema.ResourceData) resourcePool {
 		QueryCPULimitPercentPerNode:    d.Get("query_cpu_limit_percent_per_node").(float64),
 		TotalMemoryLimitPercentPerNode: d.Get("total_memory_limit_percent_per_node").(float64),
 	}
+	pool.SetTotalMemoryLimit = pool.TotalMemoryLimitPercentPerNode != -1
+	return pool
+}
+
+func resourcePoolSettings(pool resourcePool) []string {
+	settings := []string{
+		fmt.Sprintf("CONCURRENT_QUERY_LIMIT = %d", pool.ConcurrentQueryLimit),
+		fmt.Sprintf("QUEUE_SIZE = %d", pool.QueueSize),
+		fmt.Sprintf("DATABASE_LOAD_CPU_THRESHOLD = %d", pool.DatabaseLoadCPUThreshold),
+		fmt.Sprintf("RESOURCE_WEIGHT = %d", pool.ResourceWeight),
+		"TOTAL_CPU_LIMIT_PERCENT_PER_NODE = " + quoteString(formatFloat(pool.TotalCPULimitPercentPerNode)),
+		"QUERY_CPU_LIMIT_PERCENT_PER_NODE = " + quoteString(formatFloat(pool.QueryCPULimitPercentPerNode)),
+	}
+	if pool.SetTotalMemoryLimit {
+		settings = append(
+			settings,
+			"TOTAL_MEMORY_LIMIT_PERCENT_PER_NODE = "+quoteString(formatFloat(pool.TotalMemoryLimitPercentPerNode)),
+		)
+	}
+	return settings
 }
 
 func buildCreateQuery(pool resourcePool) string {
-	return fmt.Sprintf(`CREATE RESOURCE POOL %s WITH (
-    CONCURRENT_QUERY_LIMIT = %d,
-    QUEUE_SIZE = %d,
-    DATABASE_LOAD_CPU_THRESHOLD = %d,
-    RESOURCE_WEIGHT = %d,
-    TOTAL_CPU_LIMIT_PERCENT_PER_NODE = %s,
-    QUERY_CPU_LIMIT_PERCENT_PER_NODE = %s,
-    TOTAL_MEMORY_LIMIT_PERCENT_PER_NODE = %s
-)`,
+	return fmt.Sprintf(
+		"CREATE RESOURCE POOL %s WITH (\n    %s\n)",
 		quoteIdentifier(pool.Name),
-		pool.ConcurrentQueryLimit,
-		pool.QueueSize,
-		pool.DatabaseLoadCPUThreshold,
-		pool.ResourceWeight,
-		quoteString(formatFloat(pool.TotalCPULimitPercentPerNode)),
-		quoteString(formatFloat(pool.QueryCPULimitPercentPerNode)),
-		quoteString(formatFloat(pool.TotalMemoryLimitPercentPerNode)),
+		strings.Join(resourcePoolSettings(pool), ",\n    "),
 	)
 }
 
 func buildAlterQuery(pool resourcePool) string {
-	return fmt.Sprintf(`ALTER RESOURCE POOL %s SET (
-    CONCURRENT_QUERY_LIMIT = %d,
-    QUEUE_SIZE = %d,
-    DATABASE_LOAD_CPU_THRESHOLD = %d,
-    RESOURCE_WEIGHT = %d,
-    TOTAL_CPU_LIMIT_PERCENT_PER_NODE = %s,
-    QUERY_CPU_LIMIT_PERCENT_PER_NODE = %s,
-    TOTAL_MEMORY_LIMIT_PERCENT_PER_NODE = %s
-)`,
+	return fmt.Sprintf(
+		"ALTER RESOURCE POOL %s SET (\n    %s\n)",
 		quoteIdentifier(pool.Name),
-		pool.ConcurrentQueryLimit,
-		pool.QueueSize,
-		pool.DatabaseLoadCPUThreshold,
-		pool.ResourceWeight,
-		quoteString(formatFloat(pool.TotalCPULimitPercentPerNode)),
-		quoteString(formatFloat(pool.QueryCPULimitPercentPerNode)),
-		quoteString(formatFloat(pool.TotalMemoryLimitPercentPerNode)),
+		strings.Join(resourcePoolSettings(pool), ",\n    "),
 	)
 }
 
@@ -134,16 +131,8 @@ func (h *handler) Read(ctx context.Context, d *schema.ResourceData, _ interface{
 		totalMemoryLimitPercentPerNode float64
 	)
 
-	row, err := db.Query().QueryRow(ctx, `
-SELECT
-    Name,
-    ConcurrentQueryLimit,
-    QueueSize,
-    DatabaseLoadCpuThreshold,
-    ResourceWeight,
-    TotalCpuLimitPercentPerNode,
-    QueryCpuLimitPercentPerNode,
-    TotalMemoryLimitPercentPerNode
+	resultSet, err := db.Query().QueryResultSet(ctx, `
+SELECT *
 FROM `+"`"+`.sys/resource_pools`+"`"+`
 WHERE Name = $name;
 `,
@@ -154,12 +143,18 @@ WHERE Name = $name;
 		),
 		query.WithIdempotent(),
 	)
-	if errors.Is(err, query.ErrNoRows) {
+	if err != nil {
+		return diag.Errorf("failed to read resource pool %q from .sys/resource_pools: %s", entity.GetEntityPath(), err)
+	}
+	defer func() { _ = resultSet.Close(ctx) }()
+
+	row, err := resultSet.NextRow(ctx)
+	if errors.Is(err, io.EOF) {
 		d.SetId("")
 		return nil
 	}
 	if err != nil {
-		return diag.Errorf("failed to read resource pool %q from .sys/resource_pools: %s", entity.GetEntityPath(), err)
+		return diag.Errorf("failed to read resource pool %q row from .sys/resource_pools: %s", entity.GetEntityPath(), err)
 	}
 
 	err = row.ScanNamed(
@@ -170,10 +165,21 @@ WHERE Name = $name;
 		query.Named("ResourceWeight", &resourceWeight),
 		query.Named("TotalCpuLimitPercentPerNode", &totalCPULimitPercentPerNode),
 		query.Named("QueryCpuLimitPercentPerNode", &queryCPULimitPercentPerNode),
-		query.Named("TotalMemoryLimitPercentPerNode", &totalMemoryLimitPercentPerNode),
 	)
 	if err != nil {
 		return diag.Errorf("failed to scan resource pool %q from .sys/resource_pools: %s", entity.GetEntityPath(), err)
+	}
+	totalMemoryLimitPercentPerNode = -1
+	if hasColumn(resultSet.Columns(), "TotalMemoryLimitPercentPerNode") {
+		if err = row.ScanNamed(
+			query.Named("TotalMemoryLimitPercentPerNode", &totalMemoryLimitPercentPerNode),
+		); err != nil {
+			return diag.Errorf(
+				"failed to scan resource pool %q memory limit from .sys/resource_pools: %s",
+				entity.GetEntityPath(),
+				err,
+			)
+		}
 	}
 
 	if err = setResourcePoolState(d, entity.PrepareFullYDBEndpoint(), resourcePool{
@@ -200,6 +206,10 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 
 	pool := resourcePoolFromData(d)
 	pool.Name = entity.GetEntityPath()
+	if d.HasChange("total_memory_limit_percent_per_node") {
+		oldValue, _ := d.GetChange("total_memory_limit_percent_per_node")
+		pool.SetTotalMemoryLimit = pool.SetTotalMemoryLimit || oldValue.(float64) != -1
+	}
 
 	db, err := h.openDB(ctx, entity.PrepareFullYDBEndpoint())
 	if err != nil {
@@ -212,6 +222,15 @@ func (h *handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	return h.Read(ctx, d, meta)
+}
+
+func hasColumn(columns []string, name string) bool {
+	for _, column := range columns {
+		if column == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {

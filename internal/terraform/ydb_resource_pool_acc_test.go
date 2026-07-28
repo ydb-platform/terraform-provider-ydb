@@ -42,7 +42,6 @@ resource "ydb_resource_pool" "test" {
   resource_weight                     = 100
   total_cpu_limit_percent_per_node    = 70.5
   query_cpu_limit_percent_per_node    = 35.5
-  total_memory_limit_percent_per_node = 65.5
 }
 
 resource "ydb_resource_pool_classifier" "test" {
@@ -70,7 +69,6 @@ resource "ydb_resource_pool" "test" {
   resource_weight                     = 50
   total_cpu_limit_percent_per_node    = 60.5
   query_cpu_limit_percent_per_node    = 30.5
-  total_memory_limit_percent_per_node = 55.5
 }
 
 resource "ydb_resource_pool_classifier" "test" {
@@ -98,7 +96,6 @@ resource "ydb_resource_pool" "test" {
   resource_weight                     = 50
   total_cpu_limit_percent_per_node    = 60.5
   query_cpu_limit_percent_per_node    = 30.5
-  total_memory_limit_percent_per_node = 55.5
 }
 
 resource "ydb_resource_pool_classifier" "test" {
@@ -123,7 +120,7 @@ resource "ydb_resource_pool_classifier" "test" {
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "resource_weight", "100"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_cpu_limit_percent_per_node", "70.5"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "query_cpu_limit_percent_per_node", "35.5"),
-					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_memory_limit_percent_per_node", "65.5"),
+					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_memory_limit_percent_per_node", "-1"),
 					resource.TestCheckResourceAttrSet("ydb_resource_pool.test", "id"),
 					resource.TestCheckResourceAttr("ydb_resource_pool_classifier.test", "name", classifierName),
 					resource.TestCheckResourceAttrSet("ydb_resource_pool_classifier.test", "rank"),
@@ -141,7 +138,7 @@ resource "ydb_resource_pool_classifier" "test" {
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "resource_weight", "50"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_cpu_limit_percent_per_node", "60.5"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "query_cpu_limit_percent_per_node", "30.5"),
-					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_memory_limit_percent_per_node", "55.5"),
+					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_memory_limit_percent_per_node", "-1"),
 					resource.TestCheckResourceAttr("ydb_resource_pool_classifier.test", "rank", strconv.FormatInt(rank+1, 10)),
 				),
 			},
