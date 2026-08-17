@@ -2,7 +2,6 @@ package resourcepoolclassifier
 
 import (
 	"context"
-	"math"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -36,7 +35,7 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:     true,
 			Computed:     true,
 			Description:  "Unique classifier evaluation order from 0 through 2^63 - 1. If omitted, YDB assigns the maximum existing rank plus 1000.",
-			ValidateFunc: validation.IntBetween(0, math.MaxInt64),
+			ValidateFunc: validation.IntAtLeast(0),
 		},
 		"resource_pool": {
 			Type:        schema.TypeString,

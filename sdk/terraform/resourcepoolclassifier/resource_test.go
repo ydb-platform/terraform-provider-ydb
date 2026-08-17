@@ -12,7 +12,7 @@ func TestResourcePoolClassifierSchemaValidation(t *testing.T) {
 	resourceSchema := ResourceSchema()
 
 	validateRank := resourceSchema["rank"].ValidateFunc
-	for _, value := range []int{0, 1000, math.MaxInt64} {
+	for _, value := range []int{0, 1000, math.MaxInt} {
 		warnings, errors := validateRank(value, "rank")
 		assert.Empty(t, warnings)
 		assert.Empty(t, errors)
