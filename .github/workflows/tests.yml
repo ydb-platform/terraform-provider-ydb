@@ -8,44 +8,104 @@ on:
   workflow_dispatch:
 jobs:
   unit:
+    name: unit (${{ matrix.platform.name }}, Go ${{ matrix.go-version }})
     concurrency:
-      group: unit-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
+      group: unit-${{ github.ref }}-${{ matrix.platform.name }}-${{ matrix.go-version }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
         go-version: [1.25.x, 1.26.x]
-        os: [ubuntu, windows, macOS]
+        platform:
+          - name: linux_arm64_v8.0
+            runner: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+            cgo_enabled: "1"
+            race: true
+          - name: linux_amd64_v1
+            runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cgo_enabled: "1"
+            race: true
+          - name: linux_arm_6
+            runner: ubuntu-latest
+            emulated: true
+            goos: linux
+            goarch: arm
+            cgo_enabled: "0"
+          - name: linux_386_sse2
+            runner: ubuntu-latest
+            goos: linux
+            goarch: "386"
+            cgo_enabled: "0"
+          - name: darwin_amd64_v1
+            runner: macos-15-intel
+            goos: darwin
+            goarch: amd64
+            cgo_enabled: "1"
+            race: true
+          - name: darwin_arm64_v8.0
+            runner: macos-15
+            goos: darwin
+            goarch: arm64
+            cgo_enabled: "1"
+            race: true
     env:
-      OS: ${{ matrix.os }}-latest
+      CGO_ENABLED: ${{ matrix.platform.cgo_enabled }}
+      GO386: sse2
+      GOAMD64: v1
+      GOARCH: ${{ matrix.platform.goarch }}
+      GOARM: "6"
+      GOARM64: v8.0
+      GOOS: ${{ matrix.platform.goos }}
+      PLATFORM: ${{ matrix.platform.name }}
       GO: ${{ matrix.go-version }}
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.platform.runner }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        if: matrix.platform.emulated == true
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
-      - name: Test
+      - name: Test with race detector
+        if: matrix.platform.race == true
         run: go test -race -coverprofile unit.txt -covermode atomic ./...
+      - name: Test
+        if: matrix.platform.race != true
+        run: go test -coverprofile unit.txt -covermode atomic ./...
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
-          file: ./unit.txt
-          flags: unit,${{ matrix.os }},go-${{ matrix.go-version }}
+          files: ./unit.txt
+          flags: unit,${{ matrix.platform.name }},go-${{ matrix.go-version }}
           name: unit
 
-  # Acceptance tests: YDB runs as a GitHub Actions service container (same pattern as Postgres/Redis
-  # in the docs). Terraform CLI comes from hashicorp/setup-terraform; readiness uses iFaxity/wait-on-action (TCP).
+  # Acceptance tests: YDB runs as a GitHub Actions service container. Both the stable and edge
+  # images are covered so provider changes remain compatible with current and upcoming YDB versions.
   acceptance:
-    name: acceptance (YDB in Docker)
+    name: acceptance (YDB ${{ matrix.ydb.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        ydb:
+          - name: edge
+            image: ydbplatform/local-ydb:edge
+          - name: latest
+            image: ydbplatform/local-ydb:latest
     services:
       ydb:
-        image: ydbplatform/local-ydb:edge
+        image: ${{ matrix.ydb.image }}
         options: --hostname localhost
         env:
           YDB_FEATURE_FLAGS: "\

@@ -11,7 +11,7 @@ func ValidateResourceDiffAuth(d *schema.ResourceDiff) error {
 
 // ValidateResourceDiffSourceType validates auth_method and properties against source_type.
 func ValidateResourceDiffSourceType(d *schema.ResourceDiff) error {
-	return validateSourceType(resourceFromDiff(d))
+	return validateSourceType(resourceFromDiff(d), d)
 }
 
 func resourceFromDiff(d *schema.ResourceDiff) *Resource {

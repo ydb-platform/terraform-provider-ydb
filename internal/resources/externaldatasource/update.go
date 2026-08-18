@@ -14,6 +14,9 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	if err := validateSourceType(r, nil); err != nil {
+		return diag.FromErr(err)
+	}
 
 	if r.Entity == nil {
 		return diag.Errorf("external data source id is required for update")

@@ -15,6 +15,9 @@ func (h *Handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	if err := validateSourceType(r, nil); err != nil {
+		return diag.FromErr(err)
+	}
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: r.getConnectionString(),
