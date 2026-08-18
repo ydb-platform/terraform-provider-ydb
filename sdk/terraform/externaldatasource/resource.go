@@ -174,7 +174,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"database_name": {
 			Type:        schema.TypeString,
-			Description: "Database name in the external data source.",
+			Description: "Database name in the external data source. For Ydb, required when database_id is omitted.",
 			Optional:    true,
 		},
 		"protocol": {
@@ -225,7 +225,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"database_id": {
 			Type:        schema.TypeString,
-			Description: "Database ID (for Ydb).",
+			Description: "Database ID (for Ydb). Required when database_name is omitted.",
 			Optional:    true,
 		},
 		"reading_mode": {

@@ -83,9 +83,9 @@ jobs:
         if: matrix.platform.race != true
         run: go test -coverprofile unit.txt -covermode atomic ./...
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
-          file: ./unit.txt
+          files: ./unit.txt
           flags: unit,${{ matrix.platform.name }},go-${{ matrix.go-version }}
           name: unit
 

@@ -162,10 +162,10 @@ var authYQLKeys = []string{
 	"MDB_CLUSTER_ID",
 }
 
-// authPlanDiff is implemented by *schema.ResourceDiff. When non-nil during CustomizeDiff, mandatory
-// auth attributes whose new values are not yet known (e.g. ydb_secret.path) are not treated as
-// missing; Create still receives concrete values at apply time.
-type authPlanDiff interface {
+// resourcePlanDiff is implemented by *schema.ResourceDiff. When non-nil during CustomizeDiff,
+// mandatory attributes whose new values are not yet known (e.g. ydb_secret.path) are not treated
+// as missing; Create still receives concrete values at apply time.
+type resourcePlanDiff interface {
 	NewValueKnown(key string) bool
 }
 
@@ -173,7 +173,7 @@ func tfAttrNameForYQLKey(yqlKey string) string {
 	return strings.ToLower(yqlKey)
 }
 
-func (s *authMethodSpec) allowedAuthFields(r *Resource, method string, plan authPlanDiff) (map[string]bool, error) {
+func (s *authMethodSpec) allowedAuthFields(r *Resource, method string, plan resourcePlanDiff) (map[string]bool, error) {
 	allowed := make(map[string]bool)
 	for key, getter := range s.mandatoryPlain {
 		allowed[key] = true
@@ -204,7 +204,7 @@ func (s *authMethodSpec) allowedAuthFields(r *Resource, method string, plan auth
 
 // validateResourceAuth checks auth fields. Pass plan non-nil only from CustomizeDiff (ResourceDiff);
 // unit tests and strict checks use plan nil.
-func validateResourceAuth(r *Resource, plan authPlanDiff) error {
+func validateResourceAuth(r *Resource, plan resourcePlanDiff) error {
 	method := r.strAttr("auth_method")
 	if method == "" {
 		for _, yqlKey := range authYQLKeys {
@@ -284,7 +284,7 @@ var allPropertyKeys = []string{
 }
 
 // validateSourceType checks that auth_method and properties are valid for the given source_type.
-func validateSourceType(r *Resource) error {
+func validateSourceType(r *Resource, plan resourcePlanDiff) error {
 	srcType := r.strAttr("source_type")
 	if srcType == "" {
 		return nil
@@ -321,6 +321,13 @@ func validateSourceType(r *Resource) error {
 		if r.strAttr(key) != "" && !allowedSet[key] {
 			return fmt.Errorf("%s is not supported for SOURCE_TYPE %q", strings.ToUpper(key), srcType)
 		}
+	}
+
+	if srcType == "Ydb" &&
+		strings.TrimSpace(r.strAttr("database_name")) == "" &&
+		strings.TrimSpace(r.strAttr("database_id")) == "" &&
+		(plan == nil || (plan.NewValueKnown("database_name") && plan.NewValueKnown("database_id"))) {
+		return fmt.Errorf("SOURCE_TYPE %q requires a non-empty DATABASE_NAME or DATABASE_ID", srcType)
 	}
 	return nil
 }

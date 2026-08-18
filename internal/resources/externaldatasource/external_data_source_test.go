@@ -204,7 +204,7 @@ func TestValidateResourceAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var plan authPlanDiff
+			var plan resourcePlanDiff
 			if tt.plan != nil {
 				plan = tt.plan
 			}
@@ -223,6 +223,7 @@ func TestValidateSourceType(t *testing.T) {
 	tests := []struct {
 		name    string
 		r       *Resource
+		plan    testAuthPlan
 		wantErr string
 	}{
 		// Valid auth methods per source type.
@@ -236,15 +237,15 @@ func TestValidateSourceType(t *testing.T) {
 		},
 		{
 			name: "Ydb with NONE",
-			r:    res(map[string]string{"source_type": "Ydb", "auth_method": "NONE"}),
+			r:    res(map[string]string{"source_type": "Ydb", "auth_method": "NONE", "database_name": "/local"}),
 		},
 		{
 			name: "Ydb with TOKEN",
-			r:    res(map[string]string{"source_type": "Ydb", "auth_method": "TOKEN"}),
+			r:    res(map[string]string{"source_type": "Ydb", "auth_method": "TOKEN", "database_id": "db1"}),
 		},
 		{
 			name: "Ydb with SERVICE_ACCOUNT",
-			r:    res(map[string]string{"source_type": "Ydb", "auth_method": "SERVICE_ACCOUNT"}),
+			r:    res(map[string]string{"source_type": "Ydb", "auth_method": "SERVICE_ACCOUNT", "database_name": "/local"}),
 		},
 		{
 			name: "YT with NONE",
@@ -342,6 +343,29 @@ func TestValidateSourceType(t *testing.T) {
 			r:    res(map[string]string{"source_type": "Ydb", "database_id": "db1"}),
 		},
 		{
+			name: "Ydb with database_name",
+			r:    res(map[string]string{"source_type": "Ydb", "database_name": "/local"}),
+		},
+		{
+			name:    "Ydb without database name or ID",
+			r:       res(map[string]string{"source_type": "Ydb"}),
+			wantErr: `SOURCE_TYPE "Ydb" requires a non-empty DATABASE_NAME or DATABASE_ID`,
+		},
+		{
+			name: "Ydb with whitespace-only database name and ID",
+			r: res(map[string]string{
+				"source_type":   "Ydb",
+				"database_name": "  ",
+				"database_id":   "\t",
+			}),
+			wantErr: `SOURCE_TYPE "Ydb" requires a non-empty DATABASE_NAME or DATABASE_ID`,
+		},
+		{
+			name: "Ydb with database name unknown at plan",
+			r:    res(map[string]string{"source_type": "Ydb"}),
+			plan: testAuthPlan{"database_name": false},
+		},
+		{
 			name: "MongoDB with reading_mode",
 			r:    res(map[string]string{"source_type": "MongoDB", "reading_mode": "primary"}),
 		},
@@ -406,7 +430,11 @@ func TestValidateSourceType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateSourceType(tt.r)
+			var plan resourcePlanDiff
+			if tt.plan != nil {
+				plan = tt.plan
+			}
+			err := validateSourceType(tt.r, plan)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)

@@ -36,6 +36,7 @@ resource "ydb_external_data_source" "with_secret" {
   location            = %q
   auth_method         = "TOKEN"
   token_secret_path   = ydb_secret.for_token.path
+  database_name       = "/local"
 }
 `, secretRel, dsPath, loc)
 
@@ -51,6 +52,7 @@ resource "ydb_external_data_source" "with_secret" {
 					resource.TestCheckResourceAttr("ydb_external_data_source.with_secret", "source_type", "Ydb"),
 					resource.TestCheckResourceAttr("ydb_external_data_source.with_secret", "auth_method", "TOKEN"),
 					resource.TestCheckResourceAttr("ydb_external_data_source.with_secret", "location", loc),
+					resource.TestCheckResourceAttr("ydb_external_data_source.with_secret", "database_name", "/local"),
 					resource.TestCheckResourceAttrPair("ydb_external_data_source.with_secret", "token_secret_path", "ydb_secret.for_token", "path"),
 					resource.TestCheckResourceAttrSet("ydb_external_data_source.with_secret", "id"),
 				),
@@ -187,11 +189,13 @@ resource "ydb_external_data_source" "test" {
   source_type         = "Ydb"
   location            = %q
   auth_method         = "NONE"
+  database_name       = "/local"
 }
 `, dsPath, ydbLoc),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "source_type", "Ydb"),
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "location", ydbLoc),
+					resource.TestCheckResourceAttr("ydb_external_data_source.test", "database_name", "/local"),
 				),
 			},
 		},
