@@ -89,15 +89,23 @@ jobs:
           flags: unit,${{ matrix.platform.name }},go-${{ matrix.go-version }}
           name: unit
 
-  # Acceptance tests: YDB runs as a GitHub Actions service container (same pattern as Postgres/Redis
-  # in the docs). Terraform CLI comes from hashicorp/setup-terraform; readiness uses iFaxity/wait-on-action (TCP).
+  # Acceptance tests: YDB runs as a GitHub Actions service container. Both the stable and edge
+  # images are covered so provider changes remain compatible with current and upcoming YDB versions.
   acceptance:
-    name: acceptance (YDB in Docker)
+    name: acceptance (YDB ${{ matrix.ydb.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        ydb:
+          - name: edge
+            image: ydbplatform/local-ydb:edge
+          - name: latest
+            image: ydbplatform/local-ydb:latest
     services:
       ydb:
-        image: ydbplatform/local-ydb:edge
+        image: ${{ matrix.ydb.image }}
         options: --hostname localhost
         env:
           YDB_FEATURE_FLAGS: "\
