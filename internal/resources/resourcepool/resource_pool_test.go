@@ -59,7 +59,7 @@ func TestBuildResourcePoolQueriesWithoutTotalMemoryLimit(t *testing.T) {
 func TestBuildResourcePoolQueriesWithNegativeSettings(t *testing.T) {
 	pool := resourcePool{
 		Name:                           "pool",
-		ConcurrentQueryLimit:           20,
+		ConcurrentQueryLimit:           -1,
 		QueueSize:                      -1,
 		DatabaseLoadCPUThreshold:       -1,
 		ResourceWeight:                 -1,
@@ -69,7 +69,7 @@ func TestBuildResourcePoolQueriesWithNegativeSettings(t *testing.T) {
 	}
 
 	assert.Equal(t, `CREATE RESOURCE POOL `+"`pool`"+` WITH (
-    CONCURRENT_QUERY_LIMIT = 20,
+    CONCURRENT_QUERY_LIMIT = '-1',
     QUEUE_SIZE = '-1',
     DATABASE_LOAD_CPU_THRESHOLD = '-1',
     RESOURCE_WEIGHT = '-1',
@@ -78,7 +78,7 @@ func TestBuildResourcePoolQueriesWithNegativeSettings(t *testing.T) {
 )`, buildCreateQuery(pool))
 
 	assert.Equal(t, `ALTER RESOURCE POOL `+"`pool`"+` SET (
-    CONCURRENT_QUERY_LIMIT = 20,
+    CONCURRENT_QUERY_LIMIT = '-1',
     QUEUE_SIZE = '-1',
     DATABASE_LOAD_CPU_THRESHOLD = '-1',
     RESOURCE_WEIGHT = '-1',
