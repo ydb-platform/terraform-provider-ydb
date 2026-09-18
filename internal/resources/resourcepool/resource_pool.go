@@ -46,10 +46,10 @@ func resourcePoolFromData(d *schema.ResourceData) resourcePool {
 
 func resourcePoolSettings(pool resourcePool) []string {
 	settings := []string{
-		fmt.Sprintf("CONCURRENT_QUERY_LIMIT = %d", pool.ConcurrentQueryLimit),
-		fmt.Sprintf("QUEUE_SIZE = %d", pool.QueueSize),
-		fmt.Sprintf("DATABASE_LOAD_CPU_THRESHOLD = %d", pool.DatabaseLoadCPUThreshold),
-		fmt.Sprintf("RESOURCE_WEIGHT = %d", pool.ResourceWeight),
+		"CONCURRENT_QUERY_LIMIT = " + formatIntSetting(pool.ConcurrentQueryLimit),
+		"QUEUE_SIZE = " + formatIntSetting(pool.QueueSize),
+		"DATABASE_LOAD_CPU_THRESHOLD = " + formatIntSetting(pool.DatabaseLoadCPUThreshold),
+		"RESOURCE_WEIGHT = " + formatIntSetting(pool.ResourceWeight),
 		"TOTAL_CPU_LIMIT_PERCENT_PER_NODE = " + quoteString(formatFloat(pool.TotalCPULimitPercentPerNode)),
 		"QUERY_CPU_LIMIT_PERCENT_PER_NODE = " + quoteString(formatFloat(pool.QueryCPULimitPercentPerNode)),
 	}
@@ -88,6 +88,14 @@ func quoteString(value string) string {
 
 func formatFloat(value float64) string {
 	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func formatIntSetting(value int) string {
+	formatted := strconv.Itoa(value)
+	if value == -1 {
+		return quoteString(formatted)
+	}
+	return formatted
 }
 
 func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

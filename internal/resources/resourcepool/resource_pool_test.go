@@ -55,3 +55,34 @@ func TestBuildResourcePoolQueriesWithoutTotalMemoryLimit(t *testing.T) {
 	assert.NotContains(t, buildCreateQuery(pool), "TOTAL_MEMORY_LIMIT_PERCENT_PER_NODE")
 	assert.NotContains(t, buildAlterQuery(pool), "TOTAL_MEMORY_LIMIT_PERCENT_PER_NODE")
 }
+
+func TestBuildResourcePoolQueriesWithNegativeSettings(t *testing.T) {
+	pool := resourcePool{
+		Name:                           "pool",
+		ConcurrentQueryLimit:           20,
+		QueueSize:                      -1,
+		DatabaseLoadCPUThreshold:       -1,
+		ResourceWeight:                 -1,
+		TotalCPULimitPercentPerNode:    -1,
+		QueryCPULimitPercentPerNode:    -1,
+		TotalMemoryLimitPercentPerNode: -1,
+	}
+
+	assert.Equal(t, `CREATE RESOURCE POOL `+"`pool`"+` WITH (
+    CONCURRENT_QUERY_LIMIT = 20,
+    QUEUE_SIZE = '-1',
+    DATABASE_LOAD_CPU_THRESHOLD = '-1',
+    RESOURCE_WEIGHT = '-1',
+    TOTAL_CPU_LIMIT_PERCENT_PER_NODE = '-1',
+    QUERY_CPU_LIMIT_PERCENT_PER_NODE = '-1'
+)`, buildCreateQuery(pool))
+
+	assert.Equal(t, `ALTER RESOURCE POOL `+"`pool`"+` SET (
+    CONCURRENT_QUERY_LIMIT = 20,
+    QUEUE_SIZE = '-1',
+    DATABASE_LOAD_CPU_THRESHOLD = '-1',
+    RESOURCE_WEIGHT = '-1',
+    TOTAL_CPU_LIMIT_PERCENT_PER_NODE = '-1',
+    QUERY_CPU_LIMIT_PERCENT_PER_NODE = '-1'
+)`, buildAlterQuery(pool))
+}
