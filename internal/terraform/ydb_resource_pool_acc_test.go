@@ -37,7 +37,7 @@ resource "ydb_resource_pool" "test" {
   connection_string                   = var.connection_string
   name                                = local.resource_pool_name
   concurrent_query_limit              = 4
-  queue_size                          = 16
+  queue_size                          = -1
   database_load_cpu_threshold         = 80
   resource_weight                     = 100
   total_cpu_limit_percent_per_node    = 70.5
@@ -66,7 +66,7 @@ resource "ydb_resource_pool" "test" {
   concurrent_query_limit              = 8
   queue_size                          = 32
   database_load_cpu_threshold         = 75
-  resource_weight                     = 50
+  resource_weight                     = -1
   total_cpu_limit_percent_per_node    = 60.5
   query_cpu_limit_percent_per_node    = 30.5
 }
@@ -93,7 +93,7 @@ resource "ydb_resource_pool" "test" {
   concurrent_query_limit              = 8
   queue_size                          = 32
   database_load_cpu_threshold         = 75
-  resource_weight                     = 50
+  resource_weight                     = -1
   total_cpu_limit_percent_per_node    = 60.5
   query_cpu_limit_percent_per_node    = 30.5
 }
@@ -115,7 +115,7 @@ resource "ydb_resource_pool_classifier" "test" {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "name", poolName),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "concurrent_query_limit", "4"),
-					resource.TestCheckResourceAttr("ydb_resource_pool.test", "queue_size", "16"),
+					resource.TestCheckResourceAttr("ydb_resource_pool.test", "queue_size", "-1"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "database_load_cpu_threshold", "80"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "resource_weight", "100"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_cpu_limit_percent_per_node", "70.5"),
@@ -135,7 +135,7 @@ resource "ydb_resource_pool_classifier" "test" {
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "concurrent_query_limit", "8"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "queue_size", "32"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "database_load_cpu_threshold", "75"),
-					resource.TestCheckResourceAttr("ydb_resource_pool.test", "resource_weight", "50"),
+					resource.TestCheckResourceAttr("ydb_resource_pool.test", "resource_weight", "-1"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_cpu_limit_percent_per_node", "60.5"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "query_cpu_limit_percent_per_node", "30.5"),
 					resource.TestCheckResourceAttr("ydb_resource_pool.test", "total_memory_limit_percent_per_node", "-1"),
@@ -144,10 +144,13 @@ resource "ydb_resource_pool_classifier" "test" {
 			},
 			{
 				Config: resetMemberConfig,
-				Check: resource.TestCheckResourceAttr(
-					"ydb_resource_pool_classifier.test",
-					"member_name",
-					"",
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("ydb_resource_pool.test", "resource_weight", "-1"),
+					resource.TestCheckResourceAttr(
+						"ydb_resource_pool_classifier.test",
+						"member_name",
+						"",
+					),
 				),
 			},
 			{
