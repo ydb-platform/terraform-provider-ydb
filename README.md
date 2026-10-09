@@ -35,7 +35,8 @@ The compose configuration enables the feature flags required by acceptance tests
 
 - `enable_replace_if_exists_for_external_entities` and `enable_external_data_sources` for external data source and external table tests;
 - `enable_schema_secrets` for secret tests;
-- `enable_resource_pools` for resource pool and resource pool classifier tests.
+- `enable_resource_pools` for resource pool and resource pool classifier tests;
+- `enable_add_unique_index` for UNIQUE indexes added to existing tables.
 
 ### Run all acceptance tests
 

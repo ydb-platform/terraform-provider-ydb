@@ -9,11 +9,16 @@ func prepareCreateIndexRequest(r *resource) string {
 	req = append(req, "ADD INDEX `"...)
 	req = helpers.AppendWithEscape(req, r.Name)
 	req = append(req, '`', ' ')
-	// TODO(shmel1k@): add ToYQL for index
-	if r.Type == "global_async" { // TODO(shmel1k@): move to consts
+	switch r.Type {
+	case TypeGlobalAsync:
 		req = append(req, "GLOBAL ASYNC ON ("...)
-	} else {
+	case TypeGlobalUnique:
+		req = append(req, "GLOBAL UNIQUE SYNC ON ("...)
+	case TypeGlobalSync:
 		req = append(req, "GLOBAL SYNC ON ("...)
+	default:
+		// YQL requires GLOBAL for secondary indexes; omitted SYNC defaults to synchronous.
+		req = append(req, "GLOBAL ON ("...)
 	}
 	for i := 0; i < len(r.Columns); i++ {
 		req = append(req, '`')

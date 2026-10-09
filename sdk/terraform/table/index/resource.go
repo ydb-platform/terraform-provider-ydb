@@ -124,9 +124,13 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"type": {
 			Type:         schema.TypeString,
-			Required:     true,
-			ValidateFunc: validation.NoZeroValues,
-			ForceNew:     true,
+			Optional:     true,
+			ValidateFunc: validation.StringInSlice([]string{"", index.TypeGlobalSync, index.TypeGlobalAsync, index.TypeGlobalUnique}, false),
+			DiffSuppressFunc: func(_, oldValue, newValue string, _ *schema.ResourceData) bool {
+				// Empty configuration requests YDB's default synchronous index.
+				return oldValue == index.TypeGlobalSync && newValue == ""
+			},
+			ForceNew: true,
 		},
 		"columns": {
 			Type:     schema.TypeList,

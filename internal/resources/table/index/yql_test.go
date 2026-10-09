@@ -43,6 +43,15 @@ func TestPrepareAddIndexQuery(t *testing.T) {
 		expected string
 	}{
 		{
+			testName: "default index type",
+			index: &resource{
+				Name:      "index_name",
+				TablePath: "table",
+				Columns:   []string{"email"},
+			},
+			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL ON (`email`)",
+		},
+		{
 			testName: "async index without covers",
 			index: &resource{
 				Name:      "index_name",
@@ -65,6 +74,16 @@ func TestPrepareAddIndexQuery(t *testing.T) {
 				},
 			},
 			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL SYNC ON (`a`, `b`, `c`)",
+		},
+		{
+			testName: "unique index without covers",
+			index: &resource{
+				Name:      "index_name",
+				TablePath: "table",
+				Type:      "global_unique_index",
+				Columns:   []string{"email"},
+			},
+			expected: "ALTER TABLE `table` ADD INDEX `index_name` GLOBAL UNIQUE SYNC ON (`email`)",
 		},
 		{
 			testName: "async index with covers",
