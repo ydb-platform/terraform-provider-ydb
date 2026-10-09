@@ -15,4 +15,5 @@ services:
         enable_replace_if_exists_for_external_entities,\
         enable_external_data_sources,\
         enable_schema_secrets,\
-        enable_resource_pools"
+        enable_resource_pools,\
+        enable_add_unique_index"

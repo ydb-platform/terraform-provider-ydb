@@ -12,6 +12,12 @@ import (
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
+const (
+	TypeGlobalSync   = "global_sync"
+	TypeGlobalAsync  = "global_async"
+	TypeGlobalUnique = "global_unique_index"
+)
+
 type handler struct {
 	authCreds auth.YdbCredentials
 }
@@ -159,10 +165,12 @@ func parseIndexNameFromIndexEntity(entityPath string) string {
 
 func getIndexType(index options.IndexType) string {
 	switch index {
-	case 0:
-		return "global_sync"
-	case 1:
-		return "global_async"
+	case options.IndexTypeGlobal:
+		return TypeGlobalSync
+	case options.IndexTypeGlobalAsync:
+		return TypeGlobalAsync
+	case options.IndexTypeGlobalUnique:
+		return TypeGlobalUnique
 	}
 	return ""
 }

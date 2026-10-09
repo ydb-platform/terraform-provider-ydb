@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [1.25.x, 1.26.x]
+        go-version: [minimum, stable]
         platform:
           - name: linux_arm64_v8.0
             runner: ubuntu-24.04-arm
@@ -71,7 +71,14 @@ jobs:
         uses: docker/setup-qemu-action@v4
         with:
           platforms: arm
-      - name: Install Go
+      - name: Install minimum Go from go.mod
+        if: matrix.go-version == 'minimum'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install latest stable Go
+        if: matrix.go-version == 'stable'
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
@@ -111,7 +118,8 @@ jobs:
           YDB_FEATURE_FLAGS: "\
             enable_external_data_sources,\
             enable_replace_if_exists_for_external_entities,\
-            enable_resource_pools"
+            enable_resource_pools,\
+            enable_add_unique_index"
         ports:
           - 2136:2136
     env:
@@ -123,12 +131,12 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: stable
           cache: true
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.8
+          terraform_version: '1.5.7'
           terraform_wrapper: false
       - name: Acceptance tests
         run: go test -v -timeout 30m ./internal/terraform/...
