@@ -1,13 +1,16 @@
 package externaldatasource
 
 import (
+	"context"
+
 	"github.com/ydb-platform/terraform-provider-ydb/internal/resources"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 )
 
 // Handler implements resources.Handler and DataSourceRead for ydb_external_data_source.
 type Handler struct {
-	authCreds auth.YdbCredentials
+	authCreds   auth.YdbCredentials
+	openBackend func(context.Context, string, auth.YdbCredentials) (backend, error)
 }
 
 var _ resources.Handler = (*Handler)(nil)

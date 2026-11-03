@@ -5,37 +5,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-
-	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
 func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	r, err := resourceSchemaToResource(d)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-	if err := validateSourceType(r, nil); err != nil {
-		return diag.FromErr(err)
-	}
-
-	if r.Entity == nil {
-		return diag.Errorf("external data source id is required for update")
-	}
-
-	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: r.getConnectionString(),
-		AuthCreds:        h.authCreds,
-	})
-	if err != nil {
-		return diag.Errorf("failed to initialize client: %s", err)
-	}
-	defer func() { _ = db.Close(ctx) }()
-
-	q := PrepareDataSourceQuery(r.Entity.GetFullEntityPath(), r)
-	err = db.Query().Exec(ctx, q)
-	if err != nil {
-		return diag.Errorf("failed to update external data source: %s", err)
-	}
-
-	return h.Read(ctx, d, meta)
+	return h.mutate(ctx, d, meta, replaceMutation)
 }

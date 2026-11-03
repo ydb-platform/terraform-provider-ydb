@@ -9,7 +9,6 @@ import (
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
-	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
 func (h *Handler) Read(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
@@ -42,16 +41,13 @@ func (h *Handler) DataSourceRead(ctx context.Context, d *schema.ResourceData, _ 
 }
 
 func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.ResourceData, entity *helpers.YDBEntity) diag.Diagnostics {
-	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: entity.PrepareFullYDBEndpoint(),
-		AuthCreds:        h.authCreds,
-	})
+	db, err := h.open(ctx, entity.PrepareFullYDBEndpoint())
 	if err != nil {
 		return diag.Errorf("failed to initialize client: %s", err)
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	desc, err := db.Table().DescribeExternalDataSource(ctx, entity.GetFullEntityPath())
+	desc, err := db.Describe(ctx, entity.GetFullEntityPath())
 	if err != nil {
 		if ydb.IsOperationErrorSchemeError(err) {
 			d.SetId("")
