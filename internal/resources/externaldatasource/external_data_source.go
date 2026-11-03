@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
@@ -27,7 +28,7 @@ type Resource struct {
 var allStringAttrKeys = []string{
 	"source_type", "location",
 	"auth_method", "login", "password_secret_path",
-	"service_account_id", "service_account_secret_path",
+	"service_account_id", "service_account_secret_path", "initial_token_secret_path", "resource_id",
 	"aws_access_key_id_secret_path",
 	"aws_secret_access_key_secret_path",
 	"aws_region",
@@ -85,6 +86,7 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 	for _, k := range allStringAttrKeys {
 		vals[k] = d.Get(k).(string)
 	}
+	vals["iam_bootstrap_mode"], _ = d.Get("iam_bootstrap_mode").(string)
 	res := &Resource{
 		Entity:           entity,
 		FullPath:         path,
@@ -92,7 +94,9 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 		DatabaseEndpoint: databaseEndpoint,
 		Values:           vals,
 	}
-	if v, ok := d.GetOk("use_tls"); ok {
+	// Direct SDK callers may have no raw config; preserve their explicit false value.
+	//nolint:staticcheck // GetOk cannot distinguish explicit false from absence.
+	if v, ok := d.GetOkExists("use_tls"); ok && (d.GetRawConfig().IsNull() || Configured(d.GetRawConfig(), "use_tls")) {
 		b := v.(bool)
 		res.UseTLS = &b
 	}
@@ -114,6 +118,11 @@ type authMethodSpec struct {
 
 var authSpecs = map[string]authMethodSpec{
 	"NONE": {},
+	"IAM": {
+		mandatoryPlain: map[string]func(*Resource) string{"SERVICE_ACCOUNT_ID": yqlStr("SERVICE_ACCOUNT_ID")},
+		optionalKeys:   []string{"RESOURCE_ID"},
+		secrets:        []secretSpec{{yqlKey: "INITIAL_TOKEN_SECRET_PATH", getter: yqlStr("INITIAL_TOKEN_SECRET_PATH")}},
+	},
 	"BASIC": {
 		mandatoryPlain: map[string]func(*Resource) string{
 			"LOGIN": yqlStr("LOGIN"),
@@ -153,7 +162,7 @@ var authSpecs = map[string]authMethodSpec{
 
 // authYQLKeys lists every auth-related YQL property name (uppercase) checked by validateResourceAuth.
 var authYQLKeys = []string{
-	"LOGIN", "PASSWORD_SECRET_PATH",
+	"LOGIN", "PASSWORD_SECRET_PATH", "INITIAL_TOKEN_SECRET_PATH", "RESOURCE_ID",
 	"SERVICE_ACCOUNT_ID", "SERVICE_ACCOUNT_SECRET_PATH",
 	"AWS_ACCESS_KEY_ID_SECRET_PATH",
 	"AWS_SECRET_ACCESS_KEY_SECRET_PATH",
@@ -206,6 +215,20 @@ func (s *authMethodSpec) allowedAuthFields(r *Resource, method string, plan reso
 // unit tests and strict checks use plan nil.
 func validateResourceAuth(r *Resource, plan resourcePlanDiff) error {
 	method := r.strAttr("auth_method")
+	if plan != nil && !plan.NewValueKnown("auth_method") {
+		return nil
+	}
+	if method == "IAM" {
+		mode := r.strAttr("iam_bootstrap_mode")
+		if mode != "" && mode != "EXISTING_SECRET" {
+			return fmt.Errorf("invalid iam_bootstrap_mode %q", mode)
+		}
+		if r.strAttr("initial_token_secret_path") == "" && (plan == nil || plan.NewValueKnown("initial_token_secret_path")) {
+			return fmt.Errorf("initial_token_secret_path is required for EXISTING_SECRET")
+		}
+	} else if r.strAttr("iam_bootstrap_mode") != "" {
+		return fmt.Errorf("iam_bootstrap_mode requires IAM authentication")
+	}
 	if method == "" {
 		for _, yqlKey := range authYQLKeys {
 			if r.strAttr(strings.ToLower(yqlKey)) != "" {
@@ -239,7 +262,7 @@ var sourceTypeAuthMethods = map[string][]string{
 	"ClickHouse":    {"MDB_BASIC", "BASIC"},
 	"PostgreSQL":    {"MDB_BASIC", "BASIC"},
 	"MySQL":         {"MDB_BASIC", "BASIC"},
-	"Ydb":           {"NONE", "BASIC", "SERVICE_ACCOUNT", "TOKEN"},
+	"Ydb":           {"NONE", "BASIC", "SERVICE_ACCOUNT", "TOKEN", "IAM"},
 	"YT":            {"NONE", "TOKEN"},
 	"Greenplum":     {"MDB_BASIC", "BASIC"},
 	"MsSQLServer":   {"BASIC"},
@@ -292,7 +315,7 @@ func validateSourceType(r *Resource, plan resourcePlanDiff) error {
 
 	// Validate auth_method × source_type.
 	method := r.strAttr("auth_method")
-	if method != "" {
+	if method != "" && (plan == nil || plan.NewValueKnown("auth_method")) {
 		allowed, ok := sourceTypeAuthMethods[srcType]
 		if ok {
 			found := slices.Contains(allowed, method)
@@ -365,5 +388,45 @@ func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, prope
 			return err
 		}
 	}
+	if d.Get("iam_bootstrap_mode") != nil {
+		mode, _ := d.Get("iam_bootstrap_mode").(string)
+		if properties["AUTH_METHOD"] != "IAM" {
+			mode = ""
+		} else if mode == "" {
+			mode = "EXISTING_SECRET"
+		}
+		if err := d.Set("iam_bootstrap_mode", mode); err != nil {
+			return err
+		}
+	}
 	return d.Set("use_tls", ydbUseTLSString(properties["USE_TLS"]))
+}
+
+// Configured distinguishes raw configuration from Optional+Computed values in state.
+// Unknown references are configured too and are validated concretely during apply.
+func Configured(raw cty.Value, key string) bool {
+	if raw.IsNull() || !raw.IsKnown() || !raw.Type().IsObjectType() || !raw.Type().HasAttribute(key) {
+		return false
+	}
+	return !raw.GetAttr(key).IsNull()
+}
+
+func validateIAMConfig(r *Resource, raw cty.Value) error {
+	if r.strAttr("auth_method") != "IAM" {
+		return nil
+	}
+	mode := r.strAttr("iam_bootstrap_mode")
+	if mode == "" {
+		mode = "EXISTING_SECRET"
+		r.Values["iam_bootstrap_mode"] = mode
+	}
+	// A null raw config is possible in direct SDK callers. Those callers still get
+	// strict concrete validation; wrappers using Terraform always supply raw config.
+	if !raw.IsNull() {
+		configuredPath := Configured(raw, "initial_token_secret_path")
+		if mode == "EXISTING_SECRET" && !configuredPath {
+			return fmt.Errorf("initial_token_secret_path must be configured in EXISTING_SECRET mode")
+		}
+	}
+	return nil
 }

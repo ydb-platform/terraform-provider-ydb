@@ -1,6 +1,10 @@
 package externaldatasource
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+)
 
 type withParam struct {
 	Key   string
@@ -32,7 +36,7 @@ func appendWithClause(buf []byte, params []withParam) []byte {
 		buf = append(buf, ' ')
 		buf = append(buf, p.Key...)
 		buf = append(buf, " = \""...)
-		buf = append(buf, p.Value...)
+		buf = append(buf, escapeYQLDoubleString(p.Value)...)
 		buf = append(buf, '"')
 		if i < len(params)-1 {
 			buf = append(buf, ',')
@@ -43,9 +47,14 @@ func appendWithClause(buf []byte, params []withParam) []byte {
 }
 
 func PrepareDataSourceQuery(fullPath string, r *Resource) string {
+	return prepareDataSourceQuery(fullPath, r, "CREATE OR REPLACE")
+}
+
+func prepareDataSourceQuery(fullPath string, r *Resource, operation string) string {
 	buf := make([]byte, 0, 512)
-	buf = append(buf, "CREATE OR REPLACE EXTERNAL DATA SOURCE `"...)
-	buf = append(buf, fullPath...)
+	buf = append(buf, operation...)
+	buf = append(buf, " EXTERNAL DATA SOURCE `"...)
+	buf = append(buf, helpers.EscapeYQLIdentifier(fullPath)...)
 	buf = append(buf, '`')
 	buf = appendWithClause(buf, collectWithParams(r))
 	return string(buf)
@@ -54,7 +63,19 @@ func PrepareDataSourceQuery(fullPath string, r *Resource) string {
 func PrepareDropQuery(fullPath string) string {
 	buf := make([]byte, 0, 128)
 	buf = append(buf, "DROP EXTERNAL DATA SOURCE `"...)
-	buf = append(buf, fullPath...)
+	buf = append(buf, helpers.EscapeYQLIdentifier(fullPath)...)
 	buf = append(buf, '`')
 	return string(buf)
+}
+
+func escapeYQLDoubleString(s string) string {
+	return strings.NewReplacer("\\", "\\\\", "\"", "\\\"", "\n", "\\n", "\r", "\\r", "\t", "\\t").Replace(s)
+}
+
+// IAM Create must not replace an existing EDS, even if its description matches.
+func PrepareCreateDataSourceQuery(fullPath string, r *Resource) string {
+	if r.strAttr("auth_method") == "IAM" {
+		return prepareDataSourceQuery(fullPath, r, "CREATE")
+	}
+	return PrepareDataSourceQuery(fullPath, r)
 }

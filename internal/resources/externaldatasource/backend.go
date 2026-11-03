@@ -2,6 +2,7 @@ package externaldatasource
 
 import (
 	"context"
+	"path"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/query"
@@ -15,6 +16,7 @@ import (
 type backend interface {
 	Exec(context.Context, string, ...query.ExecuteOption) error
 	Describe(context.Context, string) (options.ExternalDataSourceDescription, error)
+	PathAbsent(context.Context, string) (bool, error)
 	Close(context.Context) error
 }
 type driverBackend struct{ *ydb.Driver }
@@ -29,6 +31,21 @@ func (b driverBackend) Describe(ctx context.Context, p string) (options.External
 		return options.ExternalDataSourceDescription{}, err
 	}
 	return *d, nil
+}
+
+func (b driverBackend) PathAbsent(ctx context.Context, p string) (bool, error) {
+	// A successful listing distinguishes exact absence from permission/transport errors
+	// and from generic SCHEME_ERROR, which does not necessarily mean NotFound.
+	dir, err := b.Scheme().ListDirectory(ctx, path.Dir(p))
+	if err != nil {
+		return false, err
+	}
+	for _, child := range dir.Children {
+		if child.Name == path.Base(p) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func openDriverBackend(ctx context.Context, endpoint string, creds auth.YdbCredentials) (backend, error) {

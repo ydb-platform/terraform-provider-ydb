@@ -30,6 +30,8 @@ func (b *legacyBackend) Describe(_ context.Context, path string) (options.Extern
 	b.paths = append(b.paths, path)
 	return options.ExternalDataSourceDescription{SourceType: "Ydb", Location: "observed:2135", Properties: map[string]string{"AUTH_METHOD": "NONE", "DATABASE_ID": "target"}}, b.describeErr
 }
+func (b *legacyBackend) PathAbsent(context.Context, string) (bool, error) { return false, nil }
+
 func (b *legacyBackend) Close(context.Context) error { b.closed++; return nil }
 
 func legacyData(t *testing.T) *schema.ResourceData {

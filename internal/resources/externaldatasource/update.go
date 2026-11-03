@@ -7,6 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return h.mutate(ctx, d, meta, replaceMutation)
+func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+	return h.mutate(ctx, d, replaceMutation)
 }

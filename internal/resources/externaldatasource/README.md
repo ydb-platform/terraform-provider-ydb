@@ -129,3 +129,54 @@ data "ydb_external_data_source" "example" {
     connection_string = "grpc://localhost:2136/?database=/local"
 }
 ```
+
+## Cloud IAM using an existing secret
+
+Use `auth_method = "IAM"` with `source_type = "Ydb"`, a runtime
+`service_account_id`, and a configured `initial_token_secret_path` naming an
+existing secret. The caller must have the required delegation and target access.
+Configure target delegation and runtime roles separately.
+
+```tf
+resource "ydb_external_data_source" "cloud_target" {
+    connection_string         = "grpcs://owner.example:2135/?database=/owner"
+    path                      = "cloud_target"
+    source_type               = "Ydb"
+    location                  = "target.example:2135"
+    database_id               = "target-database-id"
+    auth_method               = "IAM"
+    service_account_id        = "runtime-service-account-id"
+    initial_token_secret_path = "secrets/initial-token"
+    use_tls                   = true
+}
+```
+
+IAM defaults to `iam_bootstrap_mode = "EXISTING_SECRET"` and persists this mode
+in state. The secret remains externally owned: create, update, import, read and
+destroy never create, alter or delete secrets. Equivalent relative and absolute
+owner paths compare equally. `resource_id` is the target cloud ID; normally omit
+it so YDB resolves it. Changing the target invalidates an implicitly resolved ID.
+
+IAM Create uses strict `CREATE EXTERNAL DATA SOURCE`, preserving foreign objects
+on collision. Update uses `CREATE OR REPLACE` in place, preserving the EDS identity
+and dependent tables. An acknowledged IAM mutation retains its identity with a
+warning if read-back fails. Credential error details are omitted from diagnostics.
+
+Import and Read accept observed historical secret paths even if their secrets no
+longer exist, and default imported IAM state to `EXISTING_SECRET`. Configuration
+must supply a usable secret path before planning or applying an update.
+
+A lost Update response can leave the EDS request running. The provider retains its
+ID and `pending_iam_mutation = "UNKNOWN"`, blocking refresh and further mutations.
+Neither an equal description nor absence establishes termination. Back up state,
+verify with the YDB operator that the request has terminated, reconcile ownership,
+and re-import the verified EDS to clear uncertain metadata. An unknown Create does
+not invent ownership; import only after independently verifying it.
+
+New IAM state requires a provider containing this schema. Preserve backups before
+rollback and intentionally transfer management of IAM resources before using an
+older provider. The local Terraform lifecycle test exercises create, no-op plans,
+in-place updates, import, and destroy against fake gRPC; it verifies that the
+external secret survives. It does not establish live cloud authorization or server
+upgrade/downgrade behavior. This feature changes no server protocol or persisted
+server format.

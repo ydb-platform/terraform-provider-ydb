@@ -6,7 +6,11 @@ import (
 
 // ValidateResourceDiffAuth validates auth fields from the planned diff (CustomizeDiff / plan).
 func ValidateResourceDiffAuth(d *schema.ResourceDiff) error {
-	return validateResourceAuth(resourceFromDiff(d), d)
+	r := resourceFromDiff(d)
+	if err := validateIAMConfig(r, d.GetRawConfig()); err != nil {
+		return err
+	}
+	return validateResourceAuth(r, d)
 }
 
 // ValidateResourceDiffSourceType validates auth_method and properties against source_type.
@@ -19,8 +23,9 @@ func resourceFromDiff(d *schema.ResourceDiff) *Resource {
 	for _, k := range allStringAttrKeys {
 		vals[k] = diffString(d, k)
 	}
+	vals["iam_bootstrap_mode"] = diffString(d, "iam_bootstrap_mode")
 	r := &Resource{Values: vals}
-	if v, ok := d.GetOk("use_tls"); ok {
+	if v, ok := d.GetOkExists("use_tls"); ok && (d.GetRawConfig().IsNull() || Configured(d.GetRawConfig(), "use_tls")) {
 		if b, ok := v.(bool); ok {
 			r.UseTLS = &b
 		}
@@ -38,4 +43,35 @@ func diffString(d *schema.ResourceDiff, key string) string {
 		return ""
 	}
 	return s
+}
+
+// CustomizeDiff validates IAM configuration and invalidates an implicitly resolved
+// target cloud ID when the target changes. Explicit resource IDs remain authoritative.
+func CustomizeDiff(d *schema.ResourceDiff) error {
+	if d.NewValueKnown("auth_method") && diffString(d, "auth_method") != "IAM" {
+		for _, key := range []string{"iam_bootstrap_mode", "initial_token_secret_path", "resource_id"} {
+			if !Configured(d.GetRawConfig(), key) {
+				if err := d.SetNew(key, ""); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if err := ValidateResourceDiffAuth(d); err != nil {
+		return err
+	}
+	if err := ValidateResourceDiffSourceType(d); err != nil {
+		return err
+	}
+	if diffString(d, "auth_method") == "IAM" {
+		if diffString(d, "iam_bootstrap_mode") == "" && d.NewValueKnown("iam_bootstrap_mode") {
+			if err := d.SetNew("iam_bootstrap_mode", "EXISTING_SECRET"); err != nil {
+				return err
+			}
+		}
+		if !Configured(d.GetRawConfig(), "resource_id") && (d.HasChange("database_id") || d.HasChange("database_name") || d.HasChange("location")) {
+			return d.SetNewComputed("resource_id")
+		}
+	}
+	return nil
 }
