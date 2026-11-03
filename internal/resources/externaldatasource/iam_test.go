@@ -16,10 +16,9 @@ func TestIAMAuthValidation(t *testing.T) {
 		plan   testAuthPlan
 		bad    bool
 	}{
-		{"missing path", map[string]string{"initial_token_secret_path": ""}, nil, true},
-		{"caller unsupported", map[string]string{"iam_bootstrap_mode": "CALLER_TOKEN", "initial_token_secret_path": "secret"}, nil, true},
+		{"caller", map[string]string{}, nil, false},
 		{"existing", map[string]string{"iam_bootstrap_mode": "EXISTING_SECRET", "initial_token_secret_path": "secrets/caller"}, nil, false},
-		{"existing missing", map[string]string{"iam_bootstrap_mode": "EXISTING_SECRET", "initial_token_secret_path": ""}, nil, true},
+		{"existing missing", map[string]string{"iam_bootstrap_mode": "EXISTING_SECRET"}, nil, true},
 		{"SA missing", map[string]string{"service_account_id": ""}, nil, true},
 		{"SA unknown", map[string]string{"service_account_id": ""}, testAuthPlan{"service_account_id": false}, false},
 		{"path unknown", map[string]string{"iam_bootstrap_mode": "EXISTING_SECRET"}, testAuthPlan{"initial_token_secret_path": false}, false},
@@ -28,7 +27,7 @@ func TestIAMAuthValidation(t *testing.T) {
 		{"forbidden token", map[string]string{"token_secret_path": "secret"}, nil, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			vals := map[string]string{"auth_method": "IAM", "source_type": "Ydb", "service_account_id": "runtime-sa", "database_id": "target", "initial_token_secret_path": "secrets/caller"}
+			vals := map[string]string{"auth_method": "IAM", "source_type": "Ydb", "service_account_id": "runtime-sa", "database_id": "target"}
 			for k, v := range tc.fields {
 				vals[k] = v
 			}
@@ -64,13 +63,13 @@ func TestIAMFlattenRoundTrip(t *testing.T) {
 	for _, k := range []string{"initial_token_secret_path", "resource_id", "iam_bootstrap_mode"} {
 		s[k] = &schema.Schema{Type: schema.TypeString, Optional: true}
 	}
-	d := schema.TestResourceDataRaw(t, s, map[string]interface{}{"use_tls": false, "iam_bootstrap_mode": "EXISTING_SECRET"})
+	d := schema.TestResourceDataRaw(t, s, map[string]interface{}{"use_tls": false, "iam_bootstrap_mode": "CALLER_TOKEN"})
 	entity, err := helpers.ParseYDBEntityID("grpc://localhost:2136/?database=/owner?path=eds")
 	require.NoError(t, err)
 	require.NoError(t, flattenDescription(d, entity, map[string]string{"AUTH_METHOD": "IAM", "SERVICE_ACCOUNT_ID": "sa", "INITIAL_TOKEN_SECRET_PATH": "/owner/tmp", "RESOURCE_ID": "cloud", "USE_TLS": "FALSE"}, "Ydb", "host"))
 	require.Equal(t, "/owner/tmp", d.Get("initial_token_secret_path"))
 	require.Equal(t, "cloud", d.Get("resource_id"))
-	require.Equal(t, "EXISTING_SECRET", d.Get("iam_bootstrap_mode"))
+	require.Equal(t, "CALLER_TOKEN", d.Get("iam_bootstrap_mode"))
 	require.NoError(t, flattenDescription(d, entity, map[string]string{}, "Ydb", "host"))
 	require.Equal(t, "", d.Get("initial_token_secret_path"))
 	require.Equal(t, "", d.Get("resource_id"))

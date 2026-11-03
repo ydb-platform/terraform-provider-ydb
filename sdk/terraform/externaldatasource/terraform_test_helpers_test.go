@@ -4,11 +4,15 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+const testProviderAddress = "registry.terraform.io/example/test"
 
 // terraformCLI shares process setup while keeping each test's provider process
 // model, extra environment, and output/state assertions at the call site.
@@ -45,6 +49,13 @@ func (cli *terraformCLI) run(args ...string) (string, error) {
 	defer cancel()
 	out, err := cli.command(ctx, args...).CombinedOutput()
 	return string(out), err
+}
+
+func testProviderBinary(t *testing.T, plugins string) string {
+	t.Helper()
+	binary := filepath.Join(plugins, testProviderAddress, "0.0.1", runtime.GOOS+"_"+runtime.GOARCH, "terraform-provider-test_v0.0.1")
+	require.NoError(t, os.MkdirAll(filepath.Dir(binary), 0o700))
+	return binary
 }
 
 func buildTestProvider(t *testing.T, binary, pkg string) {

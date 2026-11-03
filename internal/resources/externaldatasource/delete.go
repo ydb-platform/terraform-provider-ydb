@@ -15,7 +15,7 @@ func (h *Handler) Delete(ctx context.Context, d *schema.ResourceData, _ interfac
 		return diag.FromErr(err)
 	}
 
-	if diags := guardIAMMutation(d); diags.HasError() {
+	if diags := h.recoverCleanup(ctx, d, entity.PrepareFullYDBEndpoint()); diags.HasError() {
 		return diags
 	}
 	db, err := h.open(ctx, entity.PrepareFullYDBEndpoint())

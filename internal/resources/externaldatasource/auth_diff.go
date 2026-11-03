@@ -7,7 +7,7 @@ import (
 // ValidateResourceDiffAuth validates auth fields from the planned diff (CustomizeDiff / plan).
 func ValidateResourceDiffAuth(d *schema.ResourceDiff) error {
 	r := resourceFromDiff(d)
-	if err := validateIAMConfig(r, d.GetRawConfig()); err != nil {
+	if err := validateIAMConfig(r, d.GetRawConfig(), d); err != nil {
 		return err
 	}
 	return validateResourceAuth(r, d)
@@ -65,7 +65,7 @@ func CustomizeDiff(d *schema.ResourceDiff) error {
 	}
 	if diffString(d, "auth_method") == "IAM" {
 		if diffString(d, "iam_bootstrap_mode") == "" && d.NewValueKnown("iam_bootstrap_mode") {
-			if err := d.SetNew("iam_bootstrap_mode", "EXISTING_SECRET"); err != nil {
+			if err := d.SetNew("iam_bootstrap_mode", "CALLER_TOKEN"); err != nil {
 				return err
 			}
 		}

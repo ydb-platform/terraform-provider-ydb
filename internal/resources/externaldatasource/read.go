@@ -41,7 +41,7 @@ func (h *Handler) DataSourceRead(ctx context.Context, d *schema.ResourceData, _ 
 }
 
 func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.ResourceData, entity *helpers.YDBEntity) diag.Diagnostics {
-	if diags := guardIAMMutation(d); diags.HasError() {
+	if diags := h.recoverCleanup(ctx, d, entity.PrepareFullYDBEndpoint()); diags.HasError() {
 		return diags
 	}
 	db, err := h.open(ctx, entity.PrepareFullYDBEndpoint())

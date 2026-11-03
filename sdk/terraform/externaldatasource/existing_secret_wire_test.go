@@ -51,6 +51,7 @@ func TestExistingSecretWireUnknownUpdate(t *testing.T) {
 	require.True(t, diags.HasError())
 	require.Equal(t, id, d.Id())
 	require.Equal(t, "UNKNOWN", d.Get("pending_iam_mutation"))
+	require.Empty(t, d.Get("pending_cleanup_path"), "an external secret must never become cleanup-owned")
 	require.True(t, ResourceReadFunc(wireCallback)(ctx, d, nil).HasError())
 	require.True(t, ResourceUpdateFunc(wireCallback)(ctx, d, nil).HasError())
 	require.True(t, ResourceDeleteFunc(wireCallback)(ctx, d, nil).HasError())

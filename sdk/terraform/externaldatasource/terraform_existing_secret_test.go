@@ -94,6 +94,13 @@ resource "ydb_external_data_source" "manual" {
 	config("after-import:2135")
 	run("apply", "-auto-approve", "-no-color")
 	require.Equal(t, id, state()["id"])
+	// The supported manual-secret mode also survives rollback to Stage A.
+	switchProvider(baseline)
+	run("plan", "-detailed-exitcode", "-no-color")
+	run("apply", "-auto-approve", "-no-color")
+	require.Equal(t, id, state()["id"])
+	switchProvider(next)
+	run("plan", "-detailed-exitcode", "-no-color")
 	run("destroy", "-auto-approve", "-no-color")
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -113,5 +120,5 @@ resource "ydb_external_data_source" "manual" {
 	}
 	require.Equal(t, 1, creates)
 	require.Equal(t, 2, replaces)
-	t.Logf("real Terraform create (%s) -> candidate no-op/update/import/update/destroy; mode, EDS identity and external secret ownership retained", baseline)
+	t.Logf("real Terraform create (%s) -> candidate no-op/update/import/update -> baseline rollback -> candidate destroy; mode, EDS identity and external secret ownership retained", baseline)
 }

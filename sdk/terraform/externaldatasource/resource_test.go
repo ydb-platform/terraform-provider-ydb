@@ -15,12 +15,12 @@ func testResource() *schema.Resource {
 }
 
 func iamConfig() map[string]interface{} {
-	return map[string]interface{}{"connection_string": "grpc://localhost:2136/?database=/owner", "path": "eds", "source_type": "Ydb", "location": "target:2135", "auth_method": "IAM", "service_account_id": "sa", "database_id": "target", "initial_token_secret_path": "secrets/bootstrap", "iam_bootstrap_mode": "EXISTING_SECRET"}
+	return map[string]interface{}{"connection_string": "grpc://localhost:2136/?database=/owner", "path": "eds", "source_type": "Ydb", "location": "target:2135", "auth_method": "IAM", "service_account_id": "sa", "database_id": "target", "iam_bootstrap_mode": "CALLER_TOKEN"}
 }
 
 func TestIAMResourceSchemaAndDiff(t *testing.T) {
 	s := ResourceSchema()
-	for _, k := range []string{"iam_bootstrap_mode", "initial_token_secret_path", "resource_id", "pending_iam_mutation"} {
+	for _, k := range []string{"iam_bootstrap_mode", "initial_token_secret_path", "resource_id", "pending_cleanup_path"} {
 		require.Contains(t, s, k)
 	}
 	p := &schema.Provider{ResourcesMap: map[string]*schema.Resource{"test_eds": testResource()}}
@@ -41,8 +41,8 @@ func TestIAMResourceSchemaAndDiff(t *testing.T) {
 		{"unknown mode", map[string]interface{}{"iam_bootstrap_mode": "74D93920-ED26-11E3-AC10-0800200C9A66"}, false},
 		{"unknown", map[string]interface{}{"service_account_id": "74D93920-ED26-11E3-AC10-0800200C9A66", "database_id": "74D93920-ED26-11E3-AC10-0800200C9A66"}, false},
 		{"missing SA", map[string]interface{}{"service_account_id": ""}, true},
-		{"unsupported caller", map[string]interface{}{"iam_bootstrap_mode": "CALLER_TOKEN"}, true},
-		{"existing missing path", map[string]interface{}{"initial_token_secret_path": ""}, true},
+		{"explicit caller path", map[string]interface{}{"initial_token_secret_path": "tmp"}, true},
+		{"existing missing path", map[string]interface{}{"iam_bootstrap_mode": "EXISTING_SECRET"}, true},
 		{"existing unknown path", map[string]interface{}{"iam_bootstrap_mode": "EXISTING_SECRET", "initial_token_secret_path": "74D93920-ED26-11E3-AC10-0800200C9A66"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,38 +63,13 @@ func TestIAMResourceSchemaAndDiff(t *testing.T) {
 	}
 }
 
-func TestExistingSecretImplicitModeValidation(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		path interface{}
-		bad  bool
-	}{
-		{"omitted path", nil, true}, {"configured path", "manual", false}, {"unknown configured path", "74D93920-ED26-11E3-AC10-0800200C9A66", false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := iamConfig()
-			delete(cfg, "iam_bootstrap_mode")
-			delete(cfg, "initial_token_secret_path")
-			if tc.path != nil {
-				cfg["initial_token_secret_path"] = tc.path
-			}
-			_, err := iamDiff(testResource(), nil, cfg)
-			if tc.bad {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
 func TestIAMResourceComputedCloudID(t *testing.T) {
 	r := testResource()
 	cfg := iamConfig()
 	d := schema.TestResourceDataRaw(t, r.Schema, cfg)
 	d.SetId("grpc://localhost:2136/?database=/owner?path=eds")
 	require.NoError(t, d.Set("resource_id", "old-cloud"))
-	require.NoError(t, d.Set("initial_token_secret_path", "/owner/secrets/bootstrap"))
+	require.NoError(t, d.Set("initial_token_secret_path", "/owner/already-dropped"))
 	for _, key := range []string{"database_id", "database_name", "location"} {
 		t.Run(key, func(t *testing.T) {
 			next := iamConfig()
@@ -113,7 +88,7 @@ func TestIAMResourceComputedCloudID(t *testing.T) {
 	require.Equal(t, "explicit-cloud", diff.Attributes["resource_id"].New)
 	diff, err = iamDiff(r, d.State(), cfg)
 	require.NoError(t, err)
-	require.True(t, diff.Empty(), "canonical external secret must not create drift")
+	require.True(t, diff.Empty(), "observed temporary secret must not create drift")
 }
 
 func TestIAMCanonicalSecretDiff(t *testing.T) {
@@ -164,7 +139,6 @@ func TestIAMTransitionClearsComputedMetadata(t *testing.T) {
 	cfg["auth_method"] = "NONE"
 	delete(cfg, "service_account_id")
 	delete(cfg, "iam_bootstrap_mode")
-	delete(cfg, "initial_token_secret_path")
 	_, err := iamDiff(r, d.State(), cfg)
 	require.NoError(t, err)
 }

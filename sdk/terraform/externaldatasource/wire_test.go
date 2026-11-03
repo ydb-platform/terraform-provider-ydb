@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-
 	"github.com/stretchr/testify/require"
 	discovery "github.com/ydb-platform/ydb-go-genproto/Ydb_Discovery_V1"
 	queryv1 "github.com/ydb-platform/ydb-go-genproto/Ydb_Query_V1"
@@ -36,24 +35,30 @@ import (
 const wireToken = "synthetic-caller-'\\-token"
 
 type wireDB struct {
-	mu             sync.Mutex
-	addr           string
-	secrets        map[string]bool
-	exists         bool
-	properties     map[string]string
-	queries        []string
-	loseReply      string
-	describeStatus Ydb.StatusIds_StatusCode
-	listStatus     Ydb.StatusIds_StatusCode
-	listPaths      []string
-	pathEntryType  Ydb_Scheme.Entry_Type
+	allowLegacySecret bool
+	mu                sync.Mutex
+	addr              string
+	secrets           map[string]bool
+	exists            bool
+	properties        map[string]string
+	queries           []string
+	parameterOK       bool
+	expectedToken     string
+	loseReply         string
+	failDrop          bool
+	blockMutation     bool
+	mutationEntered   chan struct{}
+	describeStatus    Ydb.StatusIds_StatusCode
+	listStatus        Ydb.StatusIds_StatusCode
+	listPaths         []string
+	pathEntryType     Ydb_Scheme.Entry_Type
 }
 
 func newWireDB(t *testing.T) *wireDB {
 	t.Helper()
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	f := &wireDB{addr: lis.Addr().String(), secrets: map[string]bool{}}
+	f := &wireDB{addr: lis.Addr().String(), secrets: map[string]bool{}, parameterOK: true, expectedToken: wireToken}
 	server := grpc.NewServer()
 	discovery.RegisterDiscoveryServiceServer(server, &wireDiscovery{f: f})
 	queryv1.RegisterQueryServiceServer(server, &wireQuery{f: f})
@@ -101,7 +106,10 @@ func (s *wireQuery) AttachSession(_ *Ydb_Query.AttachSessionRequest, stream quer
 	return nil
 }
 
-var wireProperty = regexp.MustCompile(`([A-Z_]+) = "([^"]*)"`)
+var (
+	wireIdentifier = regexp.MustCompile("`([^`]+)`")
+	wireProperty   = regexp.MustCompile(`([A-Z_]+) = "([^"]*)"`)
+)
 
 func (s *wireQuery) ExecuteQuery(req *Ydb_Query.ExecuteQueryRequest, stream queryv1.QueryService_ExecuteQueryServer) error {
 	f := s.f
@@ -110,10 +118,45 @@ func (s *wireQuery) ExecuteQuery(req *Ydb_Query.ExecuteQueryRequest, stream quer
 	q := req.GetQueryContent().GetText()
 	f.queries = append(f.queries, q)
 	code := Ydb.StatusIds_SUCCESS
+	id := wireIdentifier.FindStringSubmatch(q)
+	p := ""
+	if len(id) > 1 {
+		p = id[1]
+	}
 	switch {
+	case strings.Contains(q, "CREATE SECRET"):
+		value := req.Parameters["$value"]
+		legacy := f.allowLegacySecret && value == nil && strings.Contains(q, "value = 'legacy-public-fixture'")
+		if !legacy && (value == nil || value.GetType().GetTypeId() != Ydb.Type_UTF8 || value.GetValue().GetTextValue() != f.expectedToken) {
+			f.parameterOK = false
+			code = Ydb.StatusIds_BAD_REQUEST
+			break
+		}
+		if f.secrets[p] {
+			code = Ydb.StatusIds_ALREADY_EXISTS
+		} else {
+			f.secrets[p] = true
+		}
+	case strings.HasPrefix(q, "DROP SECRET"):
+		switch {
+		case f.failDrop:
+			code = Ydb.StatusIds_UNAUTHORIZED
+		case !f.secrets[p]:
+			code = Ydb.StatusIds_NOT_FOUND
+		default:
+			delete(f.secrets, p)
+		}
 	case strings.HasPrefix(q, "DROP EXTERNAL DATA SOURCE"):
 		f.exists = false
 	case strings.Contains(q, "EXTERNAL DATA SOURCE"):
+		if f.blockMutation {
+			f.blockMutation = false
+			close(f.mutationEntered)
+			f.mu.Unlock()
+			<-stream.Context().Done()
+			f.mu.Lock()
+			return stream.Context().Err()
+		}
 		if f.exists && !strings.HasPrefix(q, "CREATE OR REPLACE") {
 			code = Ydb.StatusIds_ALREADY_EXISTS
 			break
@@ -187,6 +230,104 @@ func (s *wireScheme) ListDirectory(_ context.Context, req *Ydb_Scheme.ListDirect
 
 func wireCallback(context.Context) (auth.YdbCredentials, error) {
 	return auth.YdbCredentials{Token: wireToken}, nil
+}
+
+func TestYDBIAMBootstrapNetworkAdapter(t *testing.T) {
+	f := newWireDB(t)
+	cfg := iamConfig()
+	cfg["connection_string"] = fmt.Sprintf("grpc://%s/?database=/owner", f.addr)
+	d := schema.TestResourceDataRaw(t, ResourceSchema(), cfg)
+	ctx, cancel := context.WithTimeout(context.Background(), 20_000_000_000)
+	defer cancel()
+	diags := ResourceCreateFunc(wireCallback)(ctx, d, nil)
+	require.False(t, diags.HasError(), "%v", diags)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	require.True(t, f.parameterOK, "caller token must be Utf8 query parameter")
+	require.Empty(t, f.secrets)
+	require.Len(t, f.queries, 3)
+	require.True(t, strings.HasPrefix(f.queries[1], "CREATE EXTERNAL DATA SOURCE"))
+	require.Equal(t, "sa", f.properties["SERVICE_ACCOUNT_ID"])
+	require.Equal(t, "resolved-target-cloud", d.Get("resource_id"))
+	require.False(t, strings.Contains(fmt.Sprintf("%v %v %v", f.queries, diags, d.State()), wireToken), "token leaked")
+}
+
+func TestYDBIAMBootstrapNetworkLostReply(t *testing.T) {
+	for _, phase := range []string{"CREATE SECRET", "EXTERNAL DATA SOURCE"} {
+		t.Run(phase, func(t *testing.T) {
+			f := newWireDB(t)
+			f.loseReply = phase
+			cfg := iamConfig()
+			cfg["connection_string"] = fmt.Sprintf("grpc://%s/?database=/owner", f.addr)
+			d := schema.TestResourceDataRaw(t, ResourceSchema(), cfg)
+			ctx, cancel := context.WithTimeout(context.Background(), 3_000_000_000)
+			defer cancel()
+			diags := ResourceCreateFunc(wireCallback)(ctx, d, nil)
+			require.True(t, diags.HasError())
+			require.Empty(t, d.Id())
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			require.Len(t, f.secrets, 1)
+			attempts := 0
+			for _, q := range f.queries {
+				require.NotContains(t, q, "DROP SECRET")
+				if strings.Contains(q, phase) {
+					attempts++
+				}
+			}
+			require.Equal(t, 1, attempts, "SDK must not retry uncertain non-idempotent mutation")
+			require.Contains(t, fmt.Sprint(diags), "unknown")
+		})
+	}
+}
+
+func TestYDBIAMBootstrapNetworkFreshCallerToken(t *testing.T) {
+	f := newWireDB(t)
+	cfg := iamConfig()
+	cfg["connection_string"] = fmt.Sprintf("grpc://%s/?database=/owner", f.addr)
+	d := schema.TestResourceDataRaw(t, ResourceSchema(), cfg)
+	calls := 0
+	cb := func(context.Context) (auth.YdbCredentials, error) {
+		calls++
+		return auth.YdbCredentials{Token: fmt.Sprintf("fresh-caller-%d", calls)}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3_000_000_000)
+	defer cancel()
+	f.expectedToken = "fresh-caller-2"
+	require.False(t, ResourceCreateFunc(cb)(ctx, d, nil).HasError())
+	require.Equal(t, 3, calls)
+	f.mu.Lock()
+	f.expectedToken = "fresh-caller-5"
+	f.mu.Unlock()
+	require.False(t, ResourceUpdateFunc(cb)(ctx, d, nil).HasError())
+	require.Equal(t, 6, calls)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	require.True(t, f.parameterOK)
+	require.Empty(t, f.secrets)
+}
+
+func TestYDBIAMCreateCollisionPreservesForeignEDS(t *testing.T) {
+	f := newWireDB(t)
+	f.exists = true
+	f.properties = map[string]string{"SOURCE_TYPE": "Ydb", "LOCATION": "foreign-target", "AUTH_METHOD": "NONE", "DATABASE_ID": "foreign"}
+	cfg := iamConfig()
+	cfg["connection_string"] = fmt.Sprintf("grpc://%s/?database=/owner", f.addr)
+	d := schema.TestResourceDataRaw(t, ResourceSchema(), cfg)
+	ctx, cancel := context.WithTimeout(context.Background(), 3_000_000_000)
+	defer cancel()
+	diags := ResourceCreateFunc(wireCallback)(ctx, d, nil)
+	require.True(t, diags.HasError())
+	require.Empty(t, d.Id())
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	require.Equal(t, "foreign-target", f.properties["LOCATION"])
+	require.Equal(t, "NONE", f.properties["AUTH_METHOD"])
+	require.Empty(t, f.secrets)
+	for _, q := range f.queries {
+		require.NotContains(t, q, "CREATE OR REPLACE EXTERNAL DATA SOURCE")
+		require.NotContains(t, q, "DROP EXTERNAL DATA SOURCE")
+	}
 }
 
 // YDB's real Describe RPC maps both missing paths and generic scheme errors to

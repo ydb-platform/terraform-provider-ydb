@@ -220,10 +220,10 @@ func validateResourceAuth(r *Resource, plan resourcePlanDiff) error {
 	}
 	if method == "IAM" {
 		mode := r.strAttr("iam_bootstrap_mode")
-		if mode != "" && mode != "EXISTING_SECRET" {
+		if mode != "" && mode != "CALLER_TOKEN" && mode != "EXISTING_SECRET" {
 			return fmt.Errorf("invalid iam_bootstrap_mode %q", mode)
 		}
-		if r.strAttr("initial_token_secret_path") == "" && (plan == nil || plan.NewValueKnown("initial_token_secret_path")) {
+		if mode == "EXISTING_SECRET" && r.strAttr("initial_token_secret_path") == "" && (plan == nil || plan.NewValueKnown("initial_token_secret_path")) {
 			return fmt.Errorf("initial_token_secret_path is required for EXISTING_SECRET")
 		}
 	} else if r.strAttr("iam_bootstrap_mode") != "" {
@@ -411,19 +411,25 @@ func Configured(raw cty.Value, key string) bool {
 	return !raw.GetAttr(key).IsNull()
 }
 
-func validateIAMConfig(r *Resource, raw cty.Value) error {
+func validateIAMConfig(r *Resource, raw cty.Value, plan resourcePlanDiff) error {
 	if r.strAttr("auth_method") != "IAM" {
 		return nil
 	}
 	mode := r.strAttr("iam_bootstrap_mode")
 	if mode == "" {
-		mode = "EXISTING_SECRET"
+		if plan != nil && !plan.NewValueKnown("iam_bootstrap_mode") {
+			return nil
+		}
+		mode = "CALLER_TOKEN"
 		r.Values["iam_bootstrap_mode"] = mode
 	}
 	// A null raw config is possible in direct SDK callers. Those callers still get
 	// strict concrete validation; wrappers using Terraform always supply raw config.
 	if !raw.IsNull() {
 		configuredPath := Configured(raw, "initial_token_secret_path")
+		if mode == "CALLER_TOKEN" && configuredPath {
+			return fmt.Errorf("initial_token_secret_path cannot be configured in CALLER_TOKEN mode")
+		}
 		if mode == "EXISTING_SECRET" && !configuredPath {
 			return fmt.Errorf("initial_token_secret_path must be configured in EXISTING_SECRET mode")
 		}

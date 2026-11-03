@@ -23,7 +23,7 @@ func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Caller credentials are unavailable; credential error details are omitted to protect secrets."},
 			}
 		}
-		h := externaldatasource.NewHandler(authCreds)
+		h := externaldatasource.NewHandlerWithCallerAuth(authCreds, cb)
 		return h.Create(ctx, d, meta)
 	}
 }
@@ -36,7 +36,7 @@ func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Caller credentials are unavailable; credential error details are omitted to protect secrets."},
 			}
 		}
-		h := externaldatasource.NewHandler(authCreds)
+		h := externaldatasource.NewHandlerWithCallerAuth(authCreds, cb)
 		return h.Read(ctx, d, meta)
 	}
 }
@@ -49,7 +49,7 @@ func DataSourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Caller credentials are unavailable; credential error details are omitted to protect secrets."},
 			}
 		}
-		h := externaldatasource.NewHandler(authCreds)
+		h := externaldatasource.NewHandlerWithCallerAuth(authCreds, cb)
 		return h.DataSourceRead(ctx, d, meta)
 	}
 }
@@ -62,7 +62,7 @@ func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Caller credentials are unavailable; credential error details are omitted to protect secrets."},
 			}
 		}
-		h := externaldatasource.NewHandler(authCreds)
+		h := externaldatasource.NewHandlerWithCallerAuth(authCreds, cb)
 		return h.Update(ctx, d, meta)
 	}
 }
@@ -75,7 +75,7 @@ func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Caller credentials are unavailable; credential error details are omitted to protect secrets."},
 			}
 		}
-		h := externaldatasource.NewHandler(authCreds)
+		h := externaldatasource.NewHandlerWithCallerAuth(authCreds, cb)
 		return h.Delete(ctx, d, meta)
 	}
 }
@@ -136,10 +136,11 @@ func ResourceSchema() map[string]*schema.Schema {
 			ValidateDiagFunc: optionalEnum(externalDataSourceAuthMethods),
 		},
 
-		"iam_bootstrap_mode":        {Type: schema.TypeString, Optional: true, Computed: true, Description: "IAM bootstrap mode: EXISTING_SECRET. The secret remains externally owned.", ValidateDiagFunc: optionalEnum([]string{"EXISTING_SECRET"})},
-		"initial_token_secret_path": {Type: schema.TypeString, Optional: true, Computed: true, Description: "Initial IAM secret path. Configure an existing secret; this resource never creates or removes it.", DiffSuppressFunc: secretPathDiffSuppress},
+		"iam_bootstrap_mode":        {Type: schema.TypeString, Optional: true, Computed: true, Description: "IAM bootstrap mode: CALLER_TOKEN (new resources) or EXISTING_SECRET (imports).", ValidateDiagFunc: optionalEnum([]string{"CALLER_TOKEN", "EXISTING_SECRET"})},
+		"initial_token_secret_path": {Type: schema.TypeString, Optional: true, Computed: true, Description: "Initial IAM secret path. In CALLER_TOKEN mode this is observed metadata; the temporary secret is removed after mutation.", DiffSuppressFunc: secretPathDiffSuppress},
 		"resource_id":               {Type: schema.TypeString, Optional: true, Computed: true, Description: "Target cloud ID, resolved by YDB unless explicitly supplied."},
-		"pending_iam_mutation":      {Type: schema.TypeString, Computed: true, Description: "UNKNOWN when a previously owned EDS mutation may still be running; manual reconciliation is required."},
+		"pending_iam_mutation":      {Type: schema.TypeString, Computed: true, Description: "UNKNOWN when a previously owned EDS mutation may still require its temporary secret; manual reconciliation is required."},
+		"pending_cleanup_path":      {Type: schema.TypeString, Computed: true, Description: "Confirmed-owned temporary secret awaiting cleanup; never contains a token."},
 		"login": {
 			Type:        schema.TypeString,
 			Description: "Login for BASIC/MDB_BASIC authentication.",

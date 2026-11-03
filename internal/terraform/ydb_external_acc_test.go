@@ -1,9 +1,18 @@
 package terraform_test
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+
+	providerimpl "github.com/ydb-platform/terraform-provider-ydb/internal/terraform"
+	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
@@ -350,4 +359,69 @@ data "ydb_external_data_source" "out" {
 			},
 		},
 	})
+}
+
+// This live gate requires pre-existing delegation/grants and two distinct cloud
+// identities. It does not establish runtime-query/restart/version compatibility.
+func TestAccYDBExternalDataSourceIAM(t *testing.T) {
+	if os.Getenv("TF_ACC") != "1" || os.Getenv("YDB_ACC_IAM_LIVE") != "1" {
+		t.Skip("set TF_ACC=1 and YDB_ACC_IAM_LIVE=1 for dedicated cloud IAM DDL acceptance")
+	}
+	for _, key := range []string{envAccYDBConnection, "YDB_ACC_TOKEN", "YDB_ACC_IAM_TARGET_DATABASE_ID", "YDB_ACC_IAM_SERVICE_ACCOUNT_ID", "YDB_ACC_IAM_TARGET_LOCATION", "YDB_ACC_IAM_TARGET_CLOUD_ID"} {
+		if os.Getenv(key) == "" {
+			t.Skipf("live IAM gate requires %s", key)
+		}
+	}
+	conn := os.Getenv(envAccYDBConnection)
+	dsPath := "tf_acc_iam_" + accRandomHex8(t)
+	// Supply transport credentials in the provider factory, never in test HCL/plan.
+	factories := accProviderFactories()
+	original := factories["ydb"]
+	factories["ydb"] = func() (*schema.Provider, error) {
+		p, err := original()
+		if err != nil {
+			return nil, err
+		}
+		p.ConfigureContextFunc = func(context.Context, *schema.ResourceData) (interface{}, diag.Diagnostics) {
+			return &providerimpl.Config{AuthCreds: auth.YdbCredentials{Token: os.Getenv("YDB_ACC_TOKEN")}}, nil
+		}
+		return p, nil
+	}
+	config := accConnectionStringVarBlock(conn) + fmt.Sprintf(`
+provider "ydb" {}
+resource "ydb_external_data_source" "iam" {
+ connection_string = var.connection_string
+ path = %q
+ source_type = "Ydb"
+ location = %q
+ database_id = %q
+ auth_method = "IAM"
+ service_account_id = %q
+ iam_bootstrap_mode = "CALLER_TOKEN"
+ use_tls = true
+}
+`, dsPath, os.Getenv("YDB_ACC_IAM_TARGET_LOCATION"), os.Getenv("YDB_ACC_IAM_TARGET_DATABASE_ID"), os.Getenv("YDB_ACC_IAM_SERVICE_ACCOUNT_ID"))
+	check := func(state *terraform.State) error {
+		attrs := state.RootModule().Resources["ydb_external_data_source.iam"].Primary.Attributes
+		db := accOpenYDB(t)
+		p := attrs["initial_token_secret_path"]
+		if p == "" {
+			return fmt.Errorf("missing observed bootstrap path")
+		}
+		dir, err := db.Scheme().ListDirectory(t.Context(), path.Dir(p))
+		if err != nil {
+			return fmt.Errorf("cannot verify temporary secret absence")
+		}
+		for _, entry := range dir.Children {
+			if entry.Name == path.Base(p) {
+				return fmt.Errorf("temporary secret was not removed")
+			}
+		}
+		return nil
+	}
+	resource.Test(t, resource.TestCase{ProviderFactories: factories, Steps: []resource.TestStep{
+		{Config: config, Check: resource.ComposeAggregateTestCheckFunc(resource.TestCheckResourceAttr("ydb_external_data_source.iam", "resource_id", os.Getenv("YDB_ACC_IAM_TARGET_CLOUD_ID")), resource.TestCheckResourceAttr("ydb_external_data_source.iam", "pending_cleanup_path", ""), check)},
+		{Config: config, PlanOnly: true},
+		{ResourceName: "ydb_external_data_source.iam", ImportState: true, ImportStateVerify: true, ImportStateVerifyIgnore: []string{"iam_bootstrap_mode"}},
+	}})
 }

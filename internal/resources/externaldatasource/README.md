@@ -130,53 +130,122 @@ data "ydb_external_data_source" "example" {
 }
 ```
 
-## Cloud IAM using an existing secret
+## Cloud IAM for a YDB target
 
-Use `auth_method = "IAM"` with `source_type = "Ydb"`, a runtime
-`service_account_id`, and a configured `initial_token_secret_path` naming an
-existing secret. The caller must have the required delegation and target access.
-Configure target delegation and runtime roles separately.
+Use `auth_method = "IAM"` with `source_type = "Ydb"` and the runtime
+`service_account_id`. The provider caller must already have permission to use
+that account, resolve the target, and create secrets and EDS objects in the owner
+database. Configure the target database's delegation and runtime roles separately.
+The caller token bootstraps the operation; it is not the runtime SA credential.
 
 ```tf
 resource "ydb_external_data_source" "cloud_target" {
-    connection_string         = "grpcs://owner.example:2135/?database=/owner"
-    path                      = "cloud_target"
-    source_type               = "Ydb"
-    location                  = "target.example:2135"
-    database_id               = "target-database-id"
-    auth_method               = "IAM"
-    service_account_id        = "runtime-service-account-id"
-    initial_token_secret_path = "secrets/initial-token"
-    use_tls                   = true
+    connection_string  = "grpcs://streaming.example:2135/?database=/streaming"
+    path               = "cloud_target"
+    source_type        = "Ydb"
+    location           = "target.example:2135"
+    database_id        = "target-database-id"
+    auth_method        = "IAM"
+    service_account_id = "runtime-service-account-id"
+    iam_bootstrap_mode = "CALLER_TOKEN"
+    use_tls            = true
 }
 ```
 
-IAM defaults to `iam_bootstrap_mode = "EXISTING_SECRET"` and persists this mode
-in state. The secret remains externally owned: create, update, import, read and
-destroy never create, alter or delete secrets. Equivalent relative and absolute
-owner paths compare equally. `resource_id` is the target cloud ID; normally omit
-it so YDB resolves it. Changing the target invalidates an implicitly resolved ID.
+`connection_string` names the owner/streaming database; `database_id`,
+`database_name`, and `location` identify the target. Supply a target endpoint
+reachable by the YDB runtime (including the appropriate `u-lb` endpoint in
+installations that require it). The generic provider does not rewrite endpoints.
+`resource_id` is Optional+Computed and means the **target cloud ID**, not either
+database ID. Usually omit it so YDB resolves it. Changing the target invalidates
+an implicitly resolved cloud ID; an explicitly configured ID remains authoritative.
 
-IAM Create uses strict `CREATE EXTERNAL DATA SOURCE`, preserving foreign objects
-on collision. Update uses `CREATE OR REPLACE` in place, preserving the EDS identity
-and dependent tables. An acknowledged IAM mutation retains its identity with a
-warning if read-back fails. Credential error details are omitted from diagnostics.
+New IAM resources default to `CALLER_TOKEN`. On every Create/Update, the provider
+gets fresh caller credentials from its existing callback, strictly creates a
+random root secret, passes its path to ordinary EDS DDL, then awaits secret
+removal. The value is a Utf8 `$value` query parameter and is never placed in EDS
+resource state, SQL literals, or diagnostics. A fixed provider token still expires:
+credential renewal is the caller callback's responsibility. Go strings do not
+provide a secure memory-zeroization guarantee.
 
-Import and Read accept observed historical secret paths even if their secrets no
-longer exist, and default imported IAM state to `EXISTING_SECRET`. Configuration
-must supply a usable secret path before planning or applying an update.
+`initial_token_secret_path` is Optional+Computed. In `CALLER_TOKEN` mode, omit it
+from configuration: its state value is Describe metadata for a temporary object
+that is normally already absent. Refresh and a no-op plan neither recreate that
+secret nor request a new bootstrap token. Reads may authenticate their ordinary
+YDB requests with the provider callback.
 
-A lost Update response can leave the EDS request running. The provider retains its
-ID and `pending_iam_mutation = "UNKNOWN"`, blocking refresh and further mutations.
-Neither an equal description nor absence establishes termination. Back up state,
-verify with the YDB operator that the request has terminated, reconcile ownership,
-and re-import the verified EDS to clear uncertain metadata. An unknown Create does
-not invent ownership; import only after independently verifying it.
+Use `iam_bootstrap_mode = "EXISTING_SECRET"` and a configured
+`initial_token_secret_path` to use an externally managed legacy secret. The
+provider never alters or deletes it. Relative paths and their equivalent absolute
+owner paths compare equally. Import defaults safely to `EXISTING_SECRET` and
+reads successfully even if the observed initial secret was removed. Before an
+update, either explicitly select `CALLER_TOKEN` (and omit the path), or configure
+a usable external secret path; copying an observed temporary path is insufficient.
 
-New IAM state requires a provider containing this schema. Preserve backups before
-rollback and intentionally transfer management of IAM resources before using an
-older provider. The local Terraform lifecycle test exercises create, no-op plans,
-in-place updates, import, and destroy against fake gRPC; it verifies that the
-external secret survives. It does not establish live cloud authorization or server
-upgrade/downgrade behavior. This feature changes no server protocol or persisted
-server format.
+IAM Create uses strict `CREATE EXTERNAL DATA SOURCE`; it never replaces an
+existing object. IAM Update uses `CREATE OR REPLACE` without a preliminary DROP,
+preserving dependent external tables. Existing non-IAM Create behavior remains
+`CREATE OR REPLACE`.
+
+### Cleanup and interrupted operations
+
+Cleanup obtains fresh transport credentials and uses a separate ten-second context
+after terminal EDS success or failure, including caller cancellation. It removes
+only acknowledged, owned secrets. A collision gets a new random name without
+altering the colliding object. After failed DROP, only a successful directory
+listing confirming exact-path absence counts as successful cleanup.
+
+After successful EDS mutation, failed cleanup returns a **warning** and persists
+`pending_cleanup_path`, retaining the confirmed EDS without taint: Terraform 1.5.7
+would taint a Create that returned an error and replace it on the next apply.
+Refresh retries that exact secret; persistent failure retains identity/metadata
+and blocks planning/apply. Restore secret DDL permissions or connectivity, then run
+`terraform apply` or `terraform apply -refresh-only`. Keep pending metadata intact.
+Failed read-back after acknowledged IAM mutation also retains identity with a warning.
+
+A deadline or transport loss can leave execution unknown. Neither an equal Describe
+nor absence proves Create ownership or termination. Unacknowledged secret CREATE
+paths are reported as **unconfirmed** and never automatically dropped; acknowledged
+temporary secrets remain while EDS mutation may run. Unknown Update keeps its ID
+and `pending_iam_mutation = "UNKNOWN"`; CALLER_TOKEN also keeps `pending_cleanup_path`.
+Refresh and further mutations stay blocked pending operator recovery. Unknown/failed
+Create never invents an EDS identity to retain cleanup state.
+
+Before manual recovery, back up state and verify with the YDB operator that the EDS
+request has terminated. Drop only exact **confirmed-owned orphan** paths (using
+proper identifier quoting), verify EDS ownership, and import if appropriate. For an
+unknown Update, finish this recovery and re-import the verified EDS to clear uncertain
+metadata, then restore the intended bootstrap mode. Unconfirmed paths require
+independent ownership evidence; never sweep by `__tf_iam_bootstrap_` prefix.
+
+A hard process kill before Terraform receives state can leave an uncheckpointed
+orphan. Reruns use new names and cannot discover that orphan's ownership. Recover
+using server audit records and independent ownership evidence. Token expiry limits
+credential life but does not remove the secret object. Back up state before rollback.
+
+### Provider compatibility and live verification
+
+This feature adds provider fields and no YDB protocol/server changes. New IAM
+configuration requires a provider release containing this schema. Before downgrading
+providers, preserve backups and intentionally remove or transfer management of new
+IAM resources; restore compatible configuration and state. An old provider is not
+expected to accept arbitrary new IAM state. Legacy-only old→new→old state is
+covered by the local `TestLocalTerraformYDBLegacyProviderUpgradeDowngrade` when
+an explicit baseline binary is supplied. This changes only Go providers using
+existing SQL/CP APIs: no YDB or YDB CP upgrade, rolling deployment, mixed-version
+server exercise or server restart is required to deploy this feature.
+
+The local tests exercise real Terraform 1.5.7 state/plan semantics, real SDK query
+parameter wiring against fake gRPC, cancellation, unknown replies, and process kill.
+They do not establish live cloud authorization or runtime behavior after secret DROP.
+`TestAccYDBExternalDataSourceIAM` is a separately gated live DDL/no-op/import test:
+set `TF_ACC=1`, `YDB_ACC_IAM_LIVE=1`, `YDB_ACC_CONNECTION_STRING`, `YDB_ACC_TOKEN`,
+`YDB_ACC_IAM_TARGET_DATABASE_ID`, `YDB_ACC_IAM_SERVICE_ACCOUNT_ID`,
+`YDB_ACC_IAM_TARGET_LOCATION`, and `YDB_ACC_IAM_TARGET_CLOUD_ID` in a dedicated
+preconfigured environment. It checks the resolved cloud ID and secret absence.
+It does not print or place the token in HCL. Verify the wrapper on the existing
+deployment: delegation and EDS Create, temporary-secret DROP followed by a fresh
+query, fresh-token Update and cleanup, and exact-pair Revoke/destroy. Include
+least-privilege caller/runtime checks and provider state rollback. Runtime restart
+or server rolling-deployment exercises are optional extra validation, not required
+deployment steps or release gates; they require separate authorization.

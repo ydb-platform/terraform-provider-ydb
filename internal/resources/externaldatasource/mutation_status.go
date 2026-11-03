@@ -35,6 +35,9 @@ func safeStatus(err error) string {
 	if err == nil {
 		return "OK"
 	}
+	if errors.Is(err, errCallerTokenRequired) {
+		return errCallerTokenRequired.Error()
+	}
 	if e := ydb.OperationError(err); e != nil {
 		return fmt.Sprintf("YDB status %d", e.Code())
 	}
@@ -77,7 +80,7 @@ func execMutation(ctx context.Context, b backend, q string, opts ...query.Execut
 }
 
 func (h *Handler) boundedContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	timeout := h.closeTimeout
+	timeout := h.cleanupTimeout
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
@@ -95,7 +98,7 @@ func (h *Handler) close(ctx context.Context, b backend) {
 func guardIAMMutation(d *schema.ResourceData) diag.Diagnostics {
 	uncertain, _ := d.Get("pending_iam_mutation").(string)
 	if uncertain != "" {
-		return diag.Errorf("IAM mutation outcome remains unknown. Verify the server operation has stopped before manual recovery. See IAM recovery documentation")
+		return diag.Errorf("IAM mutation outcome remains unknown. Verify the server operation has stopped before manual recovery. See IAM bootstrap recovery documentation")
 	}
 	return nil
 }
