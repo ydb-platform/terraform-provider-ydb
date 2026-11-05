@@ -1,8 +1,8 @@
 package terraform_test
 
 import (
-	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -19,14 +19,14 @@ func TestAccYdbSecret_basic(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_secret" "test" {
   connection_string   = var.connection_string
-  name                  = %q
-  value                 = "acc-basic-value"
+  name                  = "test-secret"
+  value                 = "apostrophe' and double\" ending\\"
   inherit_permissions   = false
 }
-`, name),
+`, "test-secret", name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_secret.test", "name", name),
 					resource.TestCheckResourceAttrSet("ydb_secret.test", "id"),
@@ -48,14 +48,14 @@ func TestAccYdbSecret_inheritPermissions(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_secret" "test" {
   connection_string   = var.connection_string
-  name                  = %q
+  name                  = "test-secret"
   value                 = "acc-inherit-value"
   inherit_permissions   = true
 }
-`, name),
+`, "test-secret", name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_secret.test", "name", name),
 					resource.TestCheckResourceAttrSet("ydb_secret.test", "id"),
@@ -74,23 +74,23 @@ func TestAccYdbSecret_updateValue(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_secret" "test" {
   connection_string = var.connection_string
-  name                = %q
+  name                = "test-secret"
   value               = "first-value"
 }
-`, name),
+`, "test-secret", name),
 				Check: resource.TestCheckResourceAttr("ydb_secret.test", "name", name),
 			},
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_secret" "test" {
   connection_string = var.connection_string
-  name                = %q
+  name                = "test-secret"
   value               = "second-value"
 }
-`, name),
+`, "test-secret", name),
 				Check: resource.TestCheckResourceAttr("ydb_secret.test", "name", name),
 			},
 		},
@@ -100,13 +100,13 @@ resource "ydb_secret" "test" {
 func TestAccYdbSecret_import(t *testing.T) {
 	conn := os.Getenv(envAccYDBConnection)
 	name := "tf_acc_" + accRandomHex8(t)
-	cfg := accTestConfigPrefix(conn) + fmt.Sprintf(`
+	cfg := accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_secret" "test" {
   connection_string = var.connection_string
-  name                = %q
+  name                = "test-secret"
   value               = "import-test-value"
 }
-`, name)
+`, "test-secret", name)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { accPreCheckYDB(t) },
@@ -135,10 +135,10 @@ func TestAccYdbSecret_dataSource(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_secret" "src" {
   connection_string = var.connection_string
-  name                = %q
+  name                = "test-secret"
   value               = "ds-value"
 }
 
@@ -146,7 +146,7 @@ data "ydb_secret" "out" {
   connection_string = ydb_secret.src.connection_string
   name              = ydb_secret.src.name
 }
-`, name),
+`, "test-secret", name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrPair("data.ydb_secret.out", "name", "ydb_secret.src", "name"),
 					resource.TestCheckResourceAttrPair("data.ydb_secret.out", "connection_string", "ydb_secret.src", "connection_string"),
@@ -166,17 +166,17 @@ func TestAccYdbSecret_command(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_secret" "test" {
   connection_string = var.connection_string
-  name                = %q
+  name                = "test-secret"
 
   command {
     path = "/bin/sh"
     args = ["-c", "printf 'from-cmd'"]
   }
 }
-`, name),
+`, "test-secret", name),
 				Check: resource.TestCheckResourceAttr("ydb_secret.test", "name", name),
 			},
 		},

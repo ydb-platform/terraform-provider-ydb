@@ -2,42 +2,49 @@ package terraform_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-const iamTestProviderAddress = "terraform.storage.ydb.tech/provider/ydb"
-
 func TestAccYdbExternalDataSource_iamLifecycle(t *testing.T) {
 	cli := newIAMTerraform(t)
 	f := newIAMWireDB(t)
+	cli.env = append(cli.env,
+		"TF_LOG=TRACE", "TF_LOG_SDK=TRACE", "TF_LOG_PROVIDER=TRACE",
+		"TF_LOG_PATH="+filepath.Join(cli.dir, "terraform.log"),
+		"YDB_LOG_SEVERITY_LEVEL=trace", "YDB_LOG_DETAILS=.*",
+	)
 	const (
 		address = "ydb_external_data_source.test"
 		token   = "synthetic-terraform-caller-token"
 	)
 	config := func(serviceAccount string, extra ...string) {
-		cli.write("main.tf", fmt.Sprintf(`terraform {
-  required_providers { ydb = { source = %q } }
+		cli.write("main.tf", strings.NewReplacer(
+			"127.0.0.1:2136", f.addr,
+			`"runtime-sa"`, strconv.Quote(serviceAccount),
+			"# extra arguments", strings.Join(extra, "\n"),
+		).Replace(`terraform {
+  required_providers { ydb = { source = "terraform.storage.ydb.tech/provider/ydb" } }
 }
-provider "ydb" { token = %q }
+provider "ydb" { token = "synthetic-terraform-caller-token" }
 resource "ydb_external_data_source" "test" {
-  connection_string = "grpc://%s/?database=/owner"
+  connection_string = "grpc://127.0.0.1:2136/?database=/owner"
   path = "eds"
   source_type = "Ydb"
   location = "target:2135"
   database_name = "/target"
   auth_method = "IAM"
-  service_account_id = %q
+  service_account_id = "runtime-sa"
   use_tls = false
-  %s
+  # extra arguments
 }
-`, iamTestProviderAddress, token, f.addr, serviceAccount, strings.Join(extra, "\n")))
+`))
 	}
 	run := func(args ...string) {
 		t.Helper()
@@ -112,11 +119,11 @@ func newIAMTerraform(t *testing.T) *iamTerraform {
 	cmd := exec.CommandContext(t.Context(), "go", "build", "-buildvcs=false", "-o", binary, "../..")
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "%s", out)
-	cli.write("terraform.tfrc", fmt.Sprintf(`provider_installation {
-  dev_overrides { %q = %q }
+	cli.write("terraform.tfrc", strings.ReplaceAll(`provider_installation {
+  dev_overrides { "terraform.storage.ydb.tech/provider/ydb" = "test-provider-directory" }
   direct {}
 }
-`, iamTestProviderAddress, plugins))
+`, `"test-provider-directory"`, strconv.Quote(plugins)))
 	cli.env = []string{
 		"TF_IN_AUTOMATION=1", "CHECKPOINT_DISABLE=1",
 		"TF_CLI_CONFIG_FILE=" + filepath.Join(cli.dir, "terraform.tfrc"),
@@ -176,7 +183,7 @@ func (cli *iamTerraform) state(address string) map[string]interface{} {
 func (cli *iamTerraform) assertNoToken(token string) {
 	cli.t.Helper()
 	for _, output := range cli.outputs {
-		require.NotContains(cli.t, output, token, "caller token leaked to CLI output")
+		require.False(cli.t, strings.Contains(output, token), "caller token leaked to CLI output")
 	}
 	entries, err := os.ReadDir(cli.dir)
 	require.NoError(cli.t, err)
@@ -187,6 +194,6 @@ func (cli *iamTerraform) assertNoToken(token string) {
 		}
 		raw, err := os.ReadFile(filepath.Join(cli.dir, name))
 		require.NoError(cli.t, err)
-		require.NotContains(cli.t, string(raw), token, "caller token leaked to %s", name)
+		require.False(cli.t, strings.Contains(string(raw), token), "caller token leaked to %s", name)
 	}
 }

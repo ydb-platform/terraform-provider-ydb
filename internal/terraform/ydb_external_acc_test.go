@@ -1,8 +1,8 @@
 package terraform_test
 
 import (
-	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -20,25 +20,23 @@ func TestAccYdbExternalDataSource_ydbTokenWithSecret(t *testing.T) {
 	dsPath := "tf_acc_ext/ds_tok_" + suffix
 	loc := accLocationHostPortFromConn(conn)
 
-	config := accTestConfigPrefix(conn) + fmt.Sprintf(`
+	config := accTestConfigPrefix(conn) + strings.NewReplacer("test-secret", secretRel, "test-source", dsPath, "localhost:2136", loc).Replace(`
 resource "ydb_secret" "for_token" {
   connection_string = var.connection_string
-  name                = %q
+  name                = "test-secret"
   value               = "acc-dummy-token-for-external-ds"
 }
 
 resource "ydb_external_data_source" "with_secret" {
-  depends_on = [ydb_secret.for_token]
-
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "Ydb"
-  location            = %q
+  location            = "localhost:2136"
   auth_method         = "TOKEN"
   token_secret_path   = ydb_secret.for_token.path
   database_name       = "/local"
 }
-`, secretRel, dsPath, loc)
+`)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { accPreCheckYDB(t) },
@@ -82,18 +80,18 @@ func TestAccYdbExternalDataSource_updateInPlaceWithDependentTable(t *testing.T) 
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.NewReplacer("test-source", dsPath, "test-table", tblPath).Replace(`
 resource "ydb_external_data_source" "test" {
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "ObjectStorage"
-  location            = %q
+  location            = "https://example.com/terraform-acc-bucket/"
   auth_method         = "NONE"
 }
 
 resource "ydb_external_table" "dependent" {
   connection_string  = var.connection_string
-  path                 = %q
+  path                 = "test-table"
   data_source_path     = ydb_external_data_source.test.path
   location             = "prefix/"
   format               = "csv_with_names"
@@ -107,7 +105,7 @@ resource "ydb_external_table" "dependent" {
     type = "Utf8"
   }
 }
-`, dsPath, locInitial, tblPath),
+`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "path", dsPath),
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "source_type", "ObjectStorage"),
@@ -119,18 +117,18 @@ resource "ydb_external_table" "dependent" {
 				),
 			},
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.NewReplacer("test-source", dsPath, "test-table", tblPath).Replace(`
 resource "ydb_external_data_source" "test" {
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "ObjectStorage"
-  location            = %q
+  location            = "https://example.com/terraform-acc-bucket-updated/"
   auth_method         = "NONE"
 }
 
 resource "ydb_external_table" "dependent" {
   connection_string  = var.connection_string
-  path                 = %q
+  path                 = "test-table"
   data_source_path     = ydb_external_data_source.test.path
   location             = "prefix/"
   format               = "csv_with_names"
@@ -144,7 +142,7 @@ resource "ydb_external_table" "dependent" {
     type = "Utf8"
   }
 }
-`, dsPath, locUpdated, tblPath),
+`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "location", locUpdated),
 					resource.TestCheckResourceAttr("ydb_external_table.dependent", "path", tblPath),
@@ -168,30 +166,30 @@ func TestAccYdbExternalDataSource_sourceTypeRequiresReplacement(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_external_data_source" "test" {
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "ObjectStorage"
   location            = "https://example.com/terraform-acc-bucket/"
   auth_method         = "NONE"
 }
-`, dsPath),
+`, "test-source", dsPath),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "source_type", "ObjectStorage"),
 				),
 			},
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.NewReplacer("test-source", dsPath, "localhost:2136", ydbLoc).Replace(`
 resource "ydb_external_data_source" "test" {
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "Ydb"
-  location            = %q
+  location            = "localhost:2136"
   auth_method         = "NONE"
   database_name       = "/local"
 }
-`, dsPath, ydbLoc),
+`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "source_type", "Ydb"),
 					resource.TestCheckResourceAttr("ydb_external_data_source.test", "location", ydbLoc),
@@ -211,10 +209,10 @@ func TestAccYdbExternalTable_withDataSource(t *testing.T) {
 	dsPath := "tf_acc_ext/ds_" + suffix
 	tblPath := "tf_acc_ext/tbl_" + suffix
 
-	config := accTestConfigPrefix(conn) + fmt.Sprintf(`
+	config := accTestConfigPrefix(conn) + strings.NewReplacer("test-source", dsPath, "test-table", tblPath).Replace(`
 resource "ydb_external_data_source" "s3" {
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "ObjectStorage"
   location            = "https://example.com/terraform-acc-bucket/"
   auth_method         = "NONE"
@@ -222,7 +220,7 @@ resource "ydb_external_data_source" "s3" {
 
 resource "ydb_external_table" "test" {
   connection_string  = var.connection_string
-  path                 = %q
+  path                 = "test-table"
   data_source_path     = ydb_external_data_source.s3.path
   location             = "prefix/"
   format               = "csv_with_names"
@@ -246,7 +244,7 @@ resource "ydb_external_table" "test" {
     type = "Utf8"
   }
 }
-`, dsPath, tblPath)
+`)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { accPreCheckYDB(t) },
@@ -280,10 +278,10 @@ func TestAccYdbExternalTable_dataSource(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.NewReplacer("test-source", dsPath, "test-table", tblPath).Replace(`
 resource "ydb_external_data_source" "s3" {
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "ObjectStorage"
   location            = "https://example.com/terraform-acc-bucket/"
   auth_method         = "NONE"
@@ -291,7 +289,7 @@ resource "ydb_external_data_source" "s3" {
 
 resource "ydb_external_table" "src" {
   connection_string  = var.connection_string
-  path                 = %q
+  path                 = "test-table"
   data_source_path     = ydb_external_data_source.s3.path
   location             = "data/"
   format               = "parquet"
@@ -307,7 +305,7 @@ data "ydb_external_table" "out" {
   connection_string = ydb_external_table.src.connection_string
   path              = ydb_external_table.src.path
 }
-`, dsPath, tblPath),
+`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrPair("data.ydb_external_table.out", "path", "ydb_external_table.src", "path"),
 					resource.TestCheckResourceAttrPair("data.ydb_external_table.out", "format", "ydb_external_table.src", "format"),
@@ -328,10 +326,10 @@ func TestAccYdbExternalDataSource_dataSource(t *testing.T) {
 		ProviderFactories: accProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: accTestConfigPrefix(conn) + fmt.Sprintf(`
+				Config: accTestConfigPrefix(conn) + strings.ReplaceAll(`
 resource "ydb_external_data_source" "src" {
   connection_string = var.connection_string
-  path                = %q
+  path                = "test-source"
   source_type         = "ObjectStorage"
   location            = "https://example.com/terraform-acc-ds-read/"
   auth_method         = "NONE"
@@ -341,7 +339,7 @@ data "ydb_external_data_source" "out" {
   connection_string = ydb_external_data_source.src.connection_string
   path              = ydb_external_data_source.src.path
 }
-`, path),
+`, "test-source", path),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrPair("data.ydb_external_data_source.out", "path", "ydb_external_data_source.src", "path"),
 					resource.TestCheckResourceAttrPair("data.ydb_external_data_source.out", "source_type", "ydb_external_data_source.src", "source_type"),

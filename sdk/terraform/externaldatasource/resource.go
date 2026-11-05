@@ -17,7 +17,7 @@ func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -30,7 +30,7 @@ func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -43,7 +43,7 @@ func DataSourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -56,7 +56,7 @@ func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -69,7 +69,7 @@ func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)

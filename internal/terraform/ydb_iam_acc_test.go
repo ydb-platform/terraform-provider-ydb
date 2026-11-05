@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -43,7 +44,7 @@ func TestAccYdbExternalDataSource_iamCallerToken(t *testing.T) {
 	}
 	location, databaseName, useTLS := targetURL.Host, targetURL.Query().Get("database"), targetURL.Scheme == "grpcs"
 	fixturePath := prefix + "/fixture_" + accRandomHex8(t)
-	edsPath := prefix + "/eds_" + accRandomHex8(t)
+	edsPath := fixturePath + "_source"
 
 	// Keep credentials out of HCL while exercising the normal provider configure path.
 	factories := accProviderFactories()
@@ -55,33 +56,39 @@ func TestAccYdbExternalDataSource_iamCallerToken(t *testing.T) {
 		}
 		return p, err
 	}
-	tableConfig := accConnectionStringVarBlock(ownerConn) + fmt.Sprintf(`
+	tableConfig := accConnectionStringVarBlock(ownerConn) + strings.NewReplacer(
+		`"grpc://target.example:2136/?database=/target"`, strconv.Quote(targetConn),
+		`"test-fixture"`, strconv.Quote(fixturePath),
+	).Replace(`
 provider "ydb" {}
 
 resource "ydb_table" "fixture" {
-  connection_string = %q
-  path              = %q
+  connection_string = "grpc://target.example:2136/?database=/target"
+  path              = "test-fixture"
   column {
     name = "id"
     type = "Uint64"
   }
   primary_key = ["id"]
 }
-`, targetConn, fixturePath)
-	iamConfig := tableConfig + fmt.Sprintf(`
+`)
+	iamConfig := tableConfig + strings.NewReplacer(
+		`"target.example:2136"`, strconv.Quote(location),
+		`"/target"`, strconv.Quote(databaseName),
+		`"runtime-service-account"`, strconv.Quote(os.Getenv("YDB_ACC_IAM_SERVICE_ACCOUNT_ID")),
+		"use_tls            = false", "use_tls            = "+strconv.FormatBool(useTLS),
+	).Replace(`
 resource "ydb_external_data_source" "iam" {
-  depends_on = [ydb_table.fixture]
-
   connection_string  = var.connection_string
-  path               = %q
+  path               = "${ydb_table.fixture.path}_source"
   source_type        = "Ydb"
-  location           = %q
-  database_name      = %q
+  location           = "target.example:2136"
+  database_name      = "/target"
   auth_method        = "IAM"
-  service_account_id = %q
-  use_tls            = %t
+  service_account_id = "runtime-service-account"
+  use_tls            = false
 }
-`, edsPath, location, databaseName, os.Getenv("YDB_ACC_IAM_SERVICE_ACCOUNT_ID"), useTLS)
+`)
 	seedTarget := func(_ *terraform.State) error {
 		db, err := ydb.Open(t.Context(), targetConn, ydb.WithAccessTokenCredentials(os.Getenv("YDB_ACC_TOKEN")))
 		if err != nil {

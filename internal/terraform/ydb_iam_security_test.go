@@ -2,6 +2,7 @@ package terraform_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -15,10 +16,10 @@ import (
 	eds "github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/externaldatasource"
 )
 
-func TestIAMCredentialErrorsDoNotExposeTokens(t *testing.T) {
-	const token = "synthetic-private-caller-token"
+func TestIAMCredentialErrorsPreserveDetails(t *testing.T) {
+	wantErr := errors.New("credential service is unavailable (sentinel)")
 	cb := func(context.Context) (auth.YdbCredentials, error) {
-		return auth.YdbCredentials{}, fmt.Errorf("credential service rejected %s", token)
+		return auth.YdbCredentials{}, wantErr
 	}
 	for name, operation := range map[string]helpers.TerraformCRUD{
 		"create": eds.ResourceCreateFunc(cb), "read": eds.ResourceReadFunc(cb), "update": eds.ResourceUpdateFunc(cb),
@@ -28,7 +29,8 @@ func TestIAMCredentialErrorsDoNotExposeTokens(t *testing.T) {
 			d := schema.TestResourceDataRaw(t, eds.ResourceSchema(), nil)
 			diags := operation(context.Background(), d, nil)
 			require.True(t, diags.HasError())
-			require.NotContains(t, fmt.Sprint(diags), token)
+			require.Len(t, diags, 1)
+			require.Equal(t, wantErr.Error(), diags[0].Detail)
 		})
 	}
 }

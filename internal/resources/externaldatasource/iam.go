@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"path"
-	"strconv"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -16,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/secret"
 )
 
 func (h *Handler) createIAMSecret(ctx context.Context, db *ydb.Driver, root string) (string, error) {
@@ -23,8 +23,7 @@ func (h *Handler) createIAMSecret(ctx context.Context, db *ydb.Driver, root stri
 		return "", fmt.Errorf("IAM authentication requires the caller's IAM token")
 	}
 	p := path.Join(root, "__tf_iam_"+rand.Text())
-	// Secret DDL requires a String literal; query parameters are not supported.
-	q := "CREATE SECRET `" + helpers.EscapeYQLIdentifier(p) + "` WITH (value = " + strconv.Quote(h.authCreds.Token) + ")"
+	q := secret.PrepareCreateQuery(p, h.authCreds.Token, false)
 	if err := db.Query().Exec(ctx, q); err != nil {
 		return "", fmt.Errorf("temporary IAM secret CREATE was not acknowledged at %q (%s); EDS was not submitted. Verify ownership and request termination before manual cleanup", p, iamStatus(err))
 	}

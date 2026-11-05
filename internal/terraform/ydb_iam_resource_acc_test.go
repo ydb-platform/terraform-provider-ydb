@@ -1,7 +1,7 @@
 package terraform_test
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,10 +9,15 @@ import (
 
 func TestAccYdbExternalDataSource_iamRejectsEmptyResourceID(t *testing.T) {
 	cli := newIAMTerraform(t)
-	for _, resourceID := range []string{"", "  "} {
-		t.Run(fmt.Sprintf("resource_id=%q", resourceID), func(t *testing.T) {
-			cli.write("main.tf", fmt.Sprintf(`terraform {
-  required_providers { ydb = { source = %q } }
+	for _, tc := range []struct {
+		name, argument string
+	}{
+		{name: "empty", argument: `resource_id = ""`},
+		{name: "whitespace", argument: `resource_id = "  "`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cli.write("main.tf", strings.ReplaceAll(`terraform {
+  required_providers { ydb = { source = "terraform.storage.ydb.tech/provider/ydb" } }
 }
 provider "ydb" { token = "synthetic-caller" }
 resource "ydb_external_data_source" "test" {
@@ -23,9 +28,9 @@ resource "ydb_external_data_source" "test" {
   database_name = "/target"
   auth_method = "IAM"
   service_account_id = "runtime-sa"
-  resource_id = %q
+  resource_id = ""
 }
-`, iamTestProviderAddress, resourceID))
+`, `resource_id = ""`, tc.argument))
 			out, err := cli.run("plan", "-no-color")
 			require.Error(t, err)
 			require.Contains(t, out, "resource_id")

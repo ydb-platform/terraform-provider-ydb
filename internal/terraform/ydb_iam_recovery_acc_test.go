@@ -1,7 +1,8 @@
 package terraform_test
 
 import (
-	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,12 +16,15 @@ func TestAccYdbExternalDataSource_iamCleanupRecovery(t *testing.T) {
 	writeIAMRecoveryConfig(cli, f, "runtime-sa")
 	out, err := cli.run("apply", "-auto-approve", "-no-color")
 	require.NoError(t, err, "%s", out)
+	require.Contains(t, out, "temporary secret cleanup pending")
 	attrs := cli.state(address)
 	id := attrs["id"]
 	require.NotEmpty(t, id)
 	require.Equal(t, "resolved:/target", attrs["resource_id"], "cleanup warnings must still resolve computed attributes")
 	require.NotEmpty(t, attrs["pending_cleanup_path"])
 	f.mu.Lock()
+	require.Len(t, f.secrets, 1)
+	require.Equal(t, f.properties["INITIAL_TOKEN_SECRET_PATH"], attrs["pending_cleanup_path"])
 	f.failDrop = false
 	requests := len(f.requests)
 	f.mu.Unlock()
@@ -101,18 +105,21 @@ func TestAccYdbExternalDataSource_iamUnknownCreateDoesNotAcquireOwnership(t *tes
 
 func writeIAMRecoveryConfig(cli *iamTerraform, f *iamWireDB, serviceAccount string) {
 	cli.t.Helper()
-	cli.write("main.tf", fmt.Sprintf(`terraform {
-  required_providers { ydb = { source = %q } }
+	cli.write("main.tf", strings.NewReplacer(
+		"127.0.0.1:2136", f.addr,
+		`"runtime-sa"`, strconv.Quote(serviceAccount),
+	).Replace(`terraform {
+  required_providers { ydb = { source = "terraform.storage.ydb.tech/provider/ydb" } }
 }
 provider "ydb" { token = "synthetic-recovery-caller" }
 resource "ydb_external_data_source" "test" {
-  connection_string = "grpc://%s/?database=/owner"
+  connection_string = "grpc://127.0.0.1:2136/?database=/owner"
   path = "eds"
   source_type = "Ydb"
   location = "target:2135"
   database_name = "/target"
   auth_method = "IAM"
-  service_account_id = %q
+  service_account_id = "runtime-sa"
 }
-`, iamTestProviderAddress, f.addr, serviceAccount))
+`))
 }

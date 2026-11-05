@@ -163,9 +163,19 @@ cloud roles. The caller also needs permission to manage the EDS and its temporar
 bootstrap secret in the owner database.
 
 The temporary-secret DDL request contains the caller token as a quoted value.
-The provider suppresses raw credential-bearing errors, and EDS resource state
-does not store the token. Server-side query and audit logging follow the server's
-configuration; the provider does not control or redact those logs.
+EDS resource state does not store the token. For IAM Create and Update, the
+provider disables the YDB SDK logger, including `YDB_LOG_SEVERITY_LEVEL`, because
+server errors can echo the full secret-bearing SQL. Those requests report status
+codes instead of raw server errors. Errors from the authentication callback keep
+their original diagnostic text.
+
+This does not guarantee secrecy in every debug mode. The YDB server's
+[`KQP_SESSION` DEBUG log](https://github.com/ydb-platform/ydb/blob/dbe0e3e71d2d4319e219dc8a5a1833052d7ac78e/ydb/core/kqp/session_actor/kqp_session_actor.cpp#L547-L555)
+logs the original SQL, including the secret value, bypassing the normal sensitive
+query protection. That server path needs a fix before such a guarantee is
+possible. Separately, Terraform's `TF_LOG_SDK_PROTO_DATA_DIR` writes raw protocol
+payloads; these contain the caller token when it is supplied in provider
+configuration, independently of secret creation.
 
 ### Cleanup and interrupted requests
 

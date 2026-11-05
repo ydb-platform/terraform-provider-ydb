@@ -109,23 +109,6 @@ func TestIAMUpdateUsesCurrentCallerToken(t *testing.T) {
 	require.Equal(t, token, f.requests[len(f.requests)-1].ticket)
 }
 
-func TestIAMCreatePreservesForeignEDS(t *testing.T) {
-	f := newIAMWireDB(t)
-	f.exists = true
-	f.properties = map[string]string{"SOURCE_TYPE": "Ydb", "AUTH_METHOD": "NONE", "LOCATION": "foreign"}
-	d := iamWireData(t, f)
-	cb := func(context.Context) (auth.YdbCredentials, error) {
-		return auth.YdbCredentials{Token: "caller"}, nil
-	}
-	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
-	require.True(t, diags.HasError(), "%v", diags)
-	require.Empty(t, d.Id())
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	require.Equal(t, "foreign", f.properties["LOCATION"])
-	require.Empty(t, f.secrets)
-}
-
 func TestIAMUnknownUpdateRetainsSecretAndBlocksOperations(t *testing.T) {
 	f := newIAMWireDB(t)
 	d := iamWireData(t, f)
@@ -169,33 +152,6 @@ func TestIAMRejectedUpdateDoesNotFreezeEDS(t *testing.T) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	require.Empty(t, f.secrets, "terminal rejection no longer needs the owned bootstrap secret")
-}
-
-func TestIAMCleanupFailureRetainsIdentityAndRecoversOnRead(t *testing.T) {
-	f := newIAMWireDB(t)
-	f.failDrop = true
-	d := iamWireData(t, f)
-	cb := func(context.Context) (auth.YdbCredentials, error) {
-		return auth.YdbCredentials{Token: "caller"}, nil
-	}
-	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
-	require.False(t, diags.HasError(), "%v", diags)
-	require.NotEmpty(t, diags, "cleanup failure must be visible as a warning")
-	id := d.Id()
-	require.NotEmpty(t, id)
-	f.mu.Lock()
-	require.Len(t, f.secrets, 1)
-	require.Equal(t, f.properties["INITIAL_TOKEN_SECRET_PATH"], d.Get("pending_cleanup_path"))
-	f.failDrop = false
-	requests := len(f.requests)
-	f.mu.Unlock()
-	require.False(t, eds.ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
-	require.Equal(t, id, d.Id())
-	require.Empty(t, d.Get("pending_cleanup_path"))
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	require.Empty(t, f.secrets)
-	require.Len(t, f.requests, requests+1, "refresh must only remove the owned temporary secret")
 }
 
 func TestIAMAcknowledgedCreateRetainsIdentityWhenReadBackFails(t *testing.T) {
@@ -358,21 +314,22 @@ type iamWireRequest struct {
 }
 
 type iamWireDB struct {
-	mu             sync.Mutex
-	addr           string
-	secrets        map[string]string
-	exists         bool
-	properties     map[string]string
-	requests       []iamWireRequest
-	loseReply      string
-	failDrop       bool
-	describeStatus Ydb.StatusIds_StatusCode
-	discoveryCalls int
-	listStatus     Ydb.StatusIds_StatusCode
-	discoveryError error
-	describeError  error
-	deleteError    error
-	mutationError  error
+	mu              sync.Mutex
+	addr            string
+	secrets         map[string]string
+	exists          bool
+	properties      map[string]string
+	requests        []iamWireRequest
+	loseReply       string
+	failDrop        bool
+	describeStatus  Ydb.StatusIds_StatusCode
+	discoveryCalls  int
+	listStatus      Ydb.StatusIds_StatusCode
+	discoveryError  error
+	describeError   error
+	deleteError     error
+	mutationError   error
+	echoSecretError bool
 }
 
 func newIAMWireDB(t *testing.T) *iamWireDB {
@@ -462,6 +419,9 @@ func (s *iamWireQuery) ExecuteQuery(req *Ydb_Query.ExecuteQueryRequest, stream q
 		}
 		f.exists = false
 	case strings.Contains(q, "CREATE SECRET"):
+		if f.echoSecretError {
+			return status.Error(codes.InvalidArgument, q)
+		}
 		var token string
 		if value := iamWireSecretValue.FindStringSubmatch(q); len(value) == 2 {
 			token, _ = strconv.Unquote(value[1])

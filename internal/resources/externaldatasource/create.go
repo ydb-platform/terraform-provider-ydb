@@ -26,8 +26,9 @@ func (h *Handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
-		DatabaseEndpoint: r.getConnectionString(),
-		AuthCreds:        h.authCreds,
+		DatabaseEndpoint:  r.getConnectionString(),
+		AuthCreds:         h.authCreds,
+		DisableSDKLogging: r.strAttr("auth_method") == "IAM",
 	})
 	if err != nil {
 		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
