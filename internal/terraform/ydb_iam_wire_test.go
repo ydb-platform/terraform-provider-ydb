@@ -67,11 +67,8 @@ func TestIAMCreateUsesCallerToken(t *testing.T) {
 	require.NotNil(t, created, "the EDS must reference the secret created for this request")
 	require.Equal(t, Ydb.StatusIds_SUCCESS, created.status)
 	require.Equal(t, token, created.ticket)
-	value := iamWireSecretValue.FindStringSubmatch(created.query.GetQueryContent().GetText())
-	require.Len(t, value, 2)
-	decoded, err := strconv.Unquote(value[1])
-	require.NoError(t, err)
-	require.Equal(t, created.ticket, decoded)
+	require.Equal(t, created.ticket, created.query.GetParameters()["$value"].GetValue().GetTextValue())
+	require.NotRegexp(t, iamWireSecretValue, created.query.GetQueryContent().GetText(), "secret value must not be embedded in SQL")
 	require.NotContains(t, fmt.Sprint(d.State(), diags), token)
 }
 
@@ -422,10 +419,7 @@ func (s *iamWireQuery) ExecuteQuery(req *Ydb_Query.ExecuteQueryRequest, stream q
 		if f.echoSecretError {
 			return status.Error(codes.InvalidArgument, q)
 		}
-		var token string
-		if value := iamWireSecretValue.FindStringSubmatch(q); len(value) == 2 {
-			token, _ = strconv.Unquote(value[1])
-		}
+		token := req.GetParameters()["$value"].GetValue().GetTextValue()
 		switch {
 		case token == "" || token != ticket:
 			code = Ydb.StatusIds_BAD_REQUEST

@@ -162,20 +162,17 @@ service account separately. The provider does not provision databases or grant
 cloud roles. The caller also needs permission to manage the EDS and its temporary
 bootstrap secret in the owner database.
 
-The temporary-secret DDL request contains the caller token as a quoted value.
-EDS resource state does not store the token. For IAM Create and Update, the
-provider disables the YDB SDK logger, including `YDB_LOG_SEVERITY_LEVEL`, because
-server errors can echo the full secret-bearing SQL. Those requests report status
-codes instead of raw server errors. Errors from the authentication callback keep
-their original diagnostic text.
+The caller token is sent as a query parameter, never as a SQL literal, and is not
+stored in EDS resource state. This requires a server supporting parameterized
+secret DDL, verified on YDB 26.3.1.17. YDB 26.2.1.14 rejects it; the provider does
+not fall back to embedding the token in SQL. YDB also has an
+[upstream regression test for parameterized secret values in server TRACE logs](https://github.com/ydb-platform/ydb/blob/512da6c36db5f25306733be23672464aec73a642/ydb/tests/functional/secrets/slow/test_secrets_logging.py#L54-L86).
 
-This does not guarantee secrecy in every debug mode. The YDB server's
-[`KQP_SESSION` DEBUG log](https://github.com/ydb-platform/ydb/blob/dbe0e3e71d2d4319e219dc8a5a1833052d7ac78e/ydb/core/kqp/session_actor/kqp_session_actor.cpp#L547-L555)
-logs the original SQL, including the secret value, bypassing the normal sensitive
-query protection. That server path needs a fix before such a guarantee is
-possible. Separately, Terraform's `TF_LOG_SDK_PROTO_DATA_DIR` writes raw protocol
-payloads; these contain the caller token when it is supplied in provider
-configuration, independently of secret creation.
+SDK logging remains available. IAM server failures report status codes instead of
+raw error text; authentication callback errors retain their original diagnostic
+text. Terraform's `TF_LOG_SDK_PROTO_DATA_DIR` writes raw protocol payloads; these
+contain the caller token when supplied in provider configuration, independently
+of secret creation.
 
 ### Cleanup and interrupted requests
 
@@ -253,5 +250,7 @@ All IAM acceptance tests are in `internal/terraform` and run with the existing
 acceptance suite under `TF_ACC=1`. Terraform CLI scenarios cover lifecycle and
 recovery against a controlled gRPC server. The local YDB test
 `TestAccYdbExternalDataSource_iamBootstrapCleanup` checks real temporary-secret
-DDL and cleanup after a rejected EDS Create, while preserving the existing EDS.
+DDL and cleanup after a rejected EDS Create on servers supporting secret
+parameters. Older servers must reject bootstrap without a literal fallback.
+Both cases preserve the existing EDS.
 The existing CI acceptance job runs these tests against `latest` and `edge`.

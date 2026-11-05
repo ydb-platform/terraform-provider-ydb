@@ -12,7 +12,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/stretchr/testify/require"
+	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/query"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
@@ -47,6 +49,18 @@ func TestAccYdbExternalDataSource_iamBootstrapCleanup(t *testing.T) {
 		err := db.Query().Exec(context.WithoutCancel(ctx), "DROP EXTERNAL DATA SOURCE `"+helpers.EscapeYQLIdentifier(p)+"`")
 		require.NoError(t, err)
 	})
+	probe := p + "_parameter_probe"
+	probeErr := db.Query().Exec(ctx,
+		"DECLARE $value AS Utf8; CREATE SECRET `"+helpers.EscapeYQLIdentifier(probe)+"` WITH (value = $value)",
+		query.WithParameters(ydb.ParamsBuilder().Param("$value").Text("public parameter capability probe").Build()),
+	)
+	parametersSupported := probeErr == nil
+	if parametersSupported {
+		require.NoError(t, db.Query().Exec(ctx, "DROP SECRET `"+helpers.EscapeYQLIdentifier(probe)+"`"))
+	} else {
+		require.True(t, ydb.IsOperationError(probeErr, Ydb.StatusIds_GENERIC_ERROR), "unexpected probe failure: %v", probeErr)
+		require.Contains(t, probeErr.Error(), "Expected data type: String, but got: Utf8")
+	}
 	secrets := func() map[string]bool {
 		t.Helper()
 		dir, err := db.Scheme().ListDirectory(ctx, root)
@@ -72,7 +86,12 @@ func TestAccYdbExternalDataSource_iamBootstrapCleanup(t *testing.T) {
 	diags := eds.ResourceCreateFunc(cb)(ctx, d, nil)
 
 	require.True(t, diags.HasError())
-	require.Contains(t, fmt.Sprint(diags), "IAM EDS request failed", "bootstrap secret creation must succeed before the terminal EDS rejection")
+	if parametersSupported {
+		require.Contains(t, fmt.Sprint(diags), "IAM EDS request failed", "bootstrap secret creation must succeed before the terminal EDS rejection")
+	} else {
+		require.Contains(t, fmt.Sprint(diags), "temporary IAM secret CREATE was not acknowledged")
+		require.Contains(t, fmt.Sprint(diags), "EDS was not submitted", "unsupported servers must fail without a literal fallback")
+	}
 	require.NotContains(t, fmt.Sprint(diags), token)
 	require.Empty(t, d.Id(), "a rejected Create must not acquire the existing EDS")
 	desc, err := db.Table().DescribeExternalDataSource(ctx, p)

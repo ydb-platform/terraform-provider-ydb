@@ -11,11 +11,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/query"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
-	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/secret"
 )
 
 func (h *Handler) createIAMSecret(ctx context.Context, db *ydb.Driver, root string) (string, error) {
@@ -23,9 +23,10 @@ func (h *Handler) createIAMSecret(ctx context.Context, db *ydb.Driver, root stri
 		return "", fmt.Errorf("IAM authentication requires the caller's IAM token")
 	}
 	p := path.Join(root, "__tf_iam_"+rand.Text())
-	q := secret.PrepareCreateQuery(p, h.authCreds.Token, false)
-	if err := db.Query().Exec(ctx, q); err != nil {
-		return "", fmt.Errorf("temporary IAM secret CREATE was not acknowledged at %q (%s); EDS was not submitted. Verify ownership and request termination before manual cleanup", p, iamStatus(err))
+	q := "DECLARE $value AS Utf8; CREATE SECRET `" + helpers.EscapeYQLIdentifier(p) + "` WITH (value = $value)"
+	params := ydb.ParamsBuilder().Param("$value").Text(h.authCreds.Token).Build()
+	if err := db.Query().Exec(ctx, q, query.WithParameters(params)); err != nil {
+		return "", fmt.Errorf("temporary IAM secret CREATE was not acknowledged at %q (%s); EDS was not submitted. The server must support parameterized CREATE SECRET. Verify ownership and request termination before manual cleanup", p, iamStatus(err))
 	}
 	return p, nil
 }
@@ -140,7 +141,7 @@ func iamOutcomeUnknown(err error) bool {
 	return true
 }
 
-// Server and callback messages may contain credentials; keep only their status.
+// Server messages may contain credentials; keep only their status.
 func iamStatus(err error) string {
 	if e := ydb.OperationError(err); e != nil {
 		return fmt.Sprintf("YDB status %d", e.Code())

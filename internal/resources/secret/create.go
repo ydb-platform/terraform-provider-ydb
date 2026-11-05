@@ -2,10 +2,12 @@ package secret
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
@@ -32,7 +34,13 @@ func (h *handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		_ = db.Close(ctx)
 	}()
 
-	err = db.Query().Exec(ctx, PrepareCreateQuery(name, value, inheritPermissions))
+	escapedName := helpers.EscapeYQLIdentifier(name)
+	escapedValue := helpers.EscapeYQLString(value)
+	q := fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s')", escapedName, escapedValue)
+	if inheritPermissions {
+		q = fmt.Sprintf("CREATE SECRET `%s` WITH (value = '%s', inherit_permissions = True)", escapedName, escapedValue)
+	}
+	err = db.Query().Exec(ctx, q)
 	if err != nil {
 		return diag.Diagnostics{
 			{Severity: diag.Error, Summary: "failed to executing `CREATE SECRET ...`", Detail: err.Error()},
