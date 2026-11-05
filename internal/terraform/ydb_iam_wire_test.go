@@ -1,4 +1,4 @@
-package externaldatasource
+package terraform_test
 
 import (
 	"context"
@@ -31,6 +31,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+	eds "github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/externaldatasource"
 )
 
 func TestIAMCreateUsesCallerToken(t *testing.T) {
@@ -42,7 +43,7 @@ func TestIAMCreateUsesCallerToken(t *testing.T) {
 		calls++
 		return auth.YdbCredentials{Token: token}, nil
 	}
-	diags := ResourceCreateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
 	require.NotEmpty(t, d.Id())
 	require.Equal(t, 1, calls, "transport and bootstrap must use one credential snapshot")
@@ -76,7 +77,7 @@ func TestIAMCreateUsesCallerToken(t *testing.T) {
 
 func iamWireData(t *testing.T, f *iamWireDB) *schema.ResourceData {
 	t.Helper()
-	return schema.TestResourceDataRaw(t, ResourceSchema(), map[string]interface{}{
+	return schema.TestResourceDataRaw(t, eds.ResourceSchema(), map[string]interface{}{
 		"connection_string":  fmt.Sprintf("grpc://%s/?database=/owner", f.addr),
 		"path":               "eds",
 		"source_type":        "Ydb",
@@ -94,11 +95,11 @@ func TestIAMUpdateUsesCurrentCallerToken(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: token}, nil
 	}
-	require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+	require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 	id := d.Id()
 	token = "current-caller-token"
 	require.NoError(t, d.Set("service_account_id", "updated-runtime-sa"))
-	diags := ResourceUpdateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
 	require.Equal(t, id, d.Id())
 	f.mu.Lock()
@@ -116,7 +117,7 @@ func TestIAMCreatePreservesForeignEDS(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	diags := ResourceCreateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.True(t, diags.HasError(), "%v", diags)
 	require.Empty(t, d.Id())
 	f.mu.Lock()
@@ -131,12 +132,12 @@ func TestIAMUnknownUpdateRetainsSecretAndBlocksOperations(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+	require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 	id := d.Id()
 	f.mu.Lock()
 	f.loseReply = "EXTERNAL DATA SOURCE"
 	f.mu.Unlock()
-	diags := ResourceUpdateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
 	require.True(t, diags.HasError())
 	require.Equal(t, id, d.Id())
 	require.Equal(t, "UNKNOWN", d.Get("pending_iam_mutation"))
@@ -144,9 +145,9 @@ func TestIAMUnknownUpdateRetainsSecretAndBlocksOperations(t *testing.T) {
 	require.Len(t, f.secrets, 1, "the server may still need this secret")
 	requests := len(f.requests)
 	f.mu.Unlock()
-	require.True(t, ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
-	require.True(t, ResourceUpdateFunc(cb)(context.Background(), d, nil).HasError())
-	require.True(t, ResourceDeleteFunc(cb)(context.Background(), d, nil).HasError())
+	require.True(t, eds.ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
+	require.True(t, eds.ResourceUpdateFunc(cb)(context.Background(), d, nil).HasError())
+	require.True(t, eds.ResourceDeleteFunc(cb)(context.Background(), d, nil).HasError())
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	require.Len(t, f.requests, requests)
@@ -158,11 +159,11 @@ func TestIAMRejectedUpdateDoesNotFreezeEDS(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+	require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 	f.mu.Lock()
 	f.mutationError = status.Error(codes.PermissionDenied, "request rejected")
 	f.mu.Unlock()
-	diags := ResourceUpdateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
 	require.True(t, diags.HasError())
 	require.Empty(t, d.Get("pending_iam_mutation"), "a terminal rejection has a known outcome")
 	f.mu.Lock()
@@ -177,7 +178,7 @@ func TestIAMCleanupFailureRetainsIdentityAndRecoversOnRead(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	diags := ResourceCreateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
 	require.NotEmpty(t, diags, "cleanup failure must be visible as a warning")
 	id := d.Id()
@@ -188,7 +189,7 @@ func TestIAMCleanupFailureRetainsIdentityAndRecoversOnRead(t *testing.T) {
 	f.failDrop = false
 	requests := len(f.requests)
 	f.mu.Unlock()
-	require.False(t, ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
+	require.False(t, eds.ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
 	require.Equal(t, id, d.Id())
 	require.Empty(t, d.Get("pending_cleanup_path"))
 	f.mu.Lock()
@@ -204,7 +205,7 @@ func TestIAMAcknowledgedCreateRetainsIdentityWhenReadBackFails(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	diags := ResourceCreateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
 	require.NotEmpty(t, d.Id(), "an acknowledged Create owns the EDS even when Describe fails")
 	require.NotEmpty(t, diags, "read-back failure must be visible as a warning")
@@ -217,7 +218,7 @@ func TestIAMCleanupAcceptsVerifiedAbsence(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	diags := ResourceCreateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
 	require.Empty(t, d.Get("pending_cleanup_path"), "confirmed absence completes cleanup despite a lost DROP reply")
 	require.Empty(t, diags)
@@ -234,7 +235,7 @@ func TestIAMReadRequiresVerifiedAbsence(t *testing.T) {
 			cb := func(context.Context) (auth.YdbCredentials, error) {
 				return auth.YdbCredentials{Token: "caller"}, nil
 			}
-			require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+			require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 			id := d.Id()
 			f.mu.Lock()
 			f.describeStatus = Ydb.StatusIds_SCHEME_ERROR
@@ -243,7 +244,7 @@ func TestIAMReadRequiresVerifiedAbsence(t *testing.T) {
 				f.listStatus = Ydb.StatusIds_UNAUTHORIZED
 			}
 			f.mu.Unlock()
-			diags := ResourceReadFunc(cb)(context.Background(), d, nil)
+			diags := eds.ResourceReadFunc(cb)(context.Background(), d, nil)
 			if mode == "absent" {
 				require.False(t, diags.HasError(), "%v", diags)
 				require.Empty(t, d.Id())
@@ -268,7 +269,7 @@ func TestIAMCreateRejectsAlternateCredentials(t *testing.T) {
 			cb := func(context.Context) (auth.YdbCredentials, error) {
 				return auth.YdbCredentials{Token: "caller"}, nil
 			}
-			require.True(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+			require.True(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 			require.Empty(t, d.Id())
 			f.mu.Lock()
 			defer f.mu.Unlock()
@@ -284,7 +285,7 @@ func TestIAMRequiresCallerTokenBeforeConnecting(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{}, nil
 	}
-	diags := ResourceCreateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.True(t, diags.HasError())
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -297,8 +298,8 @@ func TestIAMExitWithUnknownOutcomeRetainsGuard(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
-	r := &schema.Resource{Schema: ResourceSchema(), CustomizeDiff: CustomizeDiff, UpdateContext: schema.UpdateContextFunc(ResourceUpdateFunc(cb))}
+	require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+	r := &schema.Resource{Schema: eds.ResourceSchema(), CustomizeDiff: eds.CustomizeDiff, UpdateContext: schema.UpdateContextFunc(eds.ResourceUpdateFunc(cb))}
 	cfg := map[string]interface{}{
 		"connection_string": d.Get("connection_string"), "path": "eds", "source_type": "Ydb",
 		"location": "target:2135", "database_name": "/target", "auth_method": "NONE",
@@ -324,7 +325,7 @@ func TestIAMUnknownSecretCreateDoesNotFreezeEDS(t *testing.T) {
 				return auth.YdbCredentials{Token: "caller"}, nil
 			}
 			if update {
-				require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+				require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 			}
 			id := d.Id()
 			f.mu.Lock()
@@ -333,9 +334,9 @@ func TestIAMUnknownSecretCreateDoesNotFreezeEDS(t *testing.T) {
 			f.mu.Unlock()
 			var diags interface{}
 			if update {
-				diags = ResourceUpdateFunc(cb)(context.Background(), d, nil)
+				diags = eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
 			} else {
-				diags = ResourceCreateFunc(cb)(context.Background(), d, nil)
+				diags = eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 			}
 			require.Equal(t, id, d.Id())
 			require.Empty(t, d.Get("pending_iam_mutation"), "EDS mutation was never submitted")

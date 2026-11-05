@@ -1,4 +1,4 @@
-package externaldatasource
+package terraform_test
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIAMTerraformCleanupRecovery(t *testing.T) {
+func TestAccYdbExternalDataSource_iamCleanupRecovery(t *testing.T) {
 	cli := newIAMTerraform(t)
 	f := newIAMWireDB(t)
 	f.failDrop = true
@@ -39,7 +39,7 @@ func TestIAMTerraformCleanupRecovery(t *testing.T) {
 	cli.assertNoToken("synthetic-recovery-caller")
 }
 
-func TestIAMTerraformUnknownUpdateSurvivesRestart(t *testing.T) {
+func TestAccYdbExternalDataSource_iamUnknownUpdateSurvivesRestart(t *testing.T) {
 	cli := newIAMTerraform(t)
 	f := newIAMWireDB(t)
 	const address = "ydb_external_data_source.test"
@@ -81,7 +81,7 @@ func TestIAMTerraformUnknownUpdateSurvivesRestart(t *testing.T) {
 	cli.assertNoToken("synthetic-recovery-caller")
 }
 
-func TestIAMTerraformUnknownCreateDoesNotAcquireOwnership(t *testing.T) {
+func TestAccYdbExternalDataSource_iamUnknownCreateDoesNotAcquireOwnership(t *testing.T) {
 	cli := newIAMTerraform(t)
 	f := newIAMWireDB(t)
 	f.loseReply = "EXTERNAL DATA SOURCE"

@@ -1,4 +1,4 @@
-package externaldatasource
+package terraform_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+	eds "github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/externaldatasource"
 )
 
 func TestIAMCredentialErrorsDoNotExposeTokens(t *testing.T) {
@@ -20,11 +21,11 @@ func TestIAMCredentialErrorsDoNotExposeTokens(t *testing.T) {
 		return auth.YdbCredentials{}, fmt.Errorf("credential service rejected %s", token)
 	}
 	for name, operation := range map[string]helpers.TerraformCRUD{
-		"create": ResourceCreateFunc(cb), "read": ResourceReadFunc(cb), "update": ResourceUpdateFunc(cb),
-		"delete": ResourceDeleteFunc(cb), "data-source": DataSourceReadFunc(cb),
+		"create": eds.ResourceCreateFunc(cb), "read": eds.ResourceReadFunc(cb), "update": eds.ResourceUpdateFunc(cb),
+		"delete": eds.ResourceDeleteFunc(cb), "data-source": eds.DataSourceReadFunc(cb),
 	} {
 		t.Run(name, func(t *testing.T) {
-			d := schema.TestResourceDataRaw(t, ResourceSchema(), nil)
+			d := schema.TestResourceDataRaw(t, eds.ResourceSchema(), nil)
 			diags := operation(context.Background(), d, nil)
 			require.True(t, diags.HasError())
 			require.NotContains(t, fmt.Sprint(diags), token)
@@ -42,7 +43,7 @@ func TestIAMServerErrorsDoNotExposeTokens(t *testing.T) {
 			f := newIAMWireDB(t)
 			d := iamWireData(t, f)
 			if operation != "connect" {
-				require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+				require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 			}
 			failure := status.Error(codes.PermissionDenied, "request rejected: "+token)
 			f.mu.Lock()
@@ -55,12 +56,12 @@ func TestIAMServerErrorsDoNotExposeTokens(t *testing.T) {
 				f.deleteError = failure
 			}
 			f.mu.Unlock()
-			crud := ResourceCreateFunc(cb)
+			crud := eds.ResourceCreateFunc(cb)
 			switch operation {
 			case "read":
-				crud = ResourceReadFunc(cb)
+				crud = eds.ResourceReadFunc(cb)
 			case "delete":
-				crud = ResourceDeleteFunc(cb)
+				crud = eds.ResourceDeleteFunc(cb)
 			}
 			diags := crud(context.Background(), d, nil)
 			require.True(t, diags.HasError())

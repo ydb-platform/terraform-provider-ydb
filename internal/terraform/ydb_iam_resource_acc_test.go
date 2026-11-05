@@ -1,4 +1,4 @@
-package externaldatasource
+package terraform_test
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIAMTerraformRejectsEmptyResourceID(t *testing.T) {
+func TestAccYdbExternalDataSource_iamRejectsEmptyResourceID(t *testing.T) {
 	cli := newIAMTerraform(t)
 	for _, resourceID := range []string{"", "  "} {
 		t.Run(fmt.Sprintf("resource_id=%q", resourceID), func(t *testing.T) {

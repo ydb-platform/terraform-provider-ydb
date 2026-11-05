@@ -96,27 +96,6 @@ jobs:
           flags: unit,${{ matrix.platform.name }},go-${{ matrix.go-version }}
           name: unit
 
-  iam-lifecycle:
-    name: IAM lifecycle (Terraform Core)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-          cache: true
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.5.7'
-          terraform_wrapper: false
-      - name: Verify Terraform is on PATH
-        run: terraform version
-      - name: Terraform Core IAM tests
-        run: go test -race -v -timeout 5m -run '^TestIAMTerraform' ./sdk/terraform/externaldatasource
-
   # Acceptance tests: YDB runs as a GitHub Actions service container. Both the stable and edge
   # images are covered so provider changes remain compatible with current and upcoming YDB versions.
   acceptance:
@@ -160,4 +139,4 @@ jobs:
           terraform_version: '1.5.7'
           terraform_wrapper: false
       - name: Acceptance tests
-        run: go test -v -timeout 30m ./internal/terraform/... ./internal/resources/externaldatasource/...
+        run: go test -v -timeout 30m ./internal/terraform/...

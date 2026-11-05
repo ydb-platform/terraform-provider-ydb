@@ -1,4 +1,4 @@
-package externaldatasource
+package terraform_test
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 
 const iamTestProviderAddress = "terraform.storage.ydb.tech/provider/ydb"
 
-func TestIAMTerraformLifecycle(t *testing.T) {
+func TestAccYdbExternalDataSource_iamLifecycle(t *testing.T) {
 	cli := newIAMTerraform(t)
 	f := newIAMWireDB(t)
 	const (
@@ -97,18 +97,19 @@ type iamTerraform struct {
 
 func newIAMTerraform(t *testing.T) *iamTerraform {
 	t.Helper()
+	if os.Getenv("TF_ACC") != "1" {
+		t.Skip("set TF_ACC=1 to run Terraform acceptance tests")
+	}
 	executable := os.Getenv("TF_ACC_TERRAFORM_PATH")
 	if executable == "" {
 		var err error
 		executable, err = exec.LookPath("terraform")
-		if err != nil {
-			t.Skip("Terraform CLI required; set TF_ACC_TERRAFORM_PATH")
-		}
+		require.NoError(t, err, "Terraform CLI required; set TF_ACC_TERRAFORM_PATH")
 	}
 	cli := &iamTerraform{t: t, executable: executable, dir: t.TempDir()}
 	plugins := t.TempDir()
 	binary := filepath.Join(plugins, "terraform-provider-ydb")
-	cmd := exec.CommandContext(t.Context(), "go", "build", "-buildvcs=false", "-o", binary, "../../..")
+	cmd := exec.CommandContext(t.Context(), "go", "build", "-buildvcs=false", "-o", binary, "../..")
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "%s", out)
 	cli.write("terraform.tfrc", fmt.Sprintf(`provider_installation {

@@ -237,6 +237,11 @@ TF_ACC=1 YDB_ACC_IAM_LIVE=1 go test -v ./internal/terraform/ \
 
 With the gate enabled, missing fixture configuration fails the test. Ordinary
 test runs skip it. This real-cloud test has not yet been run for this change;
-local tests do not establish live delegation or runtime authorization. The
-separate `TestAccIAMSecret` acceptance test checks the actual temporary-secret
-DDL against local YDB; CI runs it against both `latest` and `edge` images.
+local tests do not establish live delegation or runtime authorization.
+
+All IAM acceptance tests are in `internal/terraform` and run with the existing
+acceptance suite under `TF_ACC=1`. Terraform CLI scenarios cover lifecycle and
+recovery against a controlled gRPC server. The local YDB test
+`TestAccYdbExternalDataSource_iamBootstrapCleanup` checks real temporary-secret
+DDL and cleanup after a rejected EDS Create, while preserving the existing EDS.
+The existing CI acceptance job runs these tests against `latest` and `edge`.

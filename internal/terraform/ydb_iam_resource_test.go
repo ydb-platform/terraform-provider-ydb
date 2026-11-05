@@ -1,4 +1,4 @@
-package externaldatasource
+package terraform_test
 
 import (
 	"context"
@@ -11,11 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
+	eds "github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/externaldatasource"
 )
 
 func TestIAMExplicitResourceID(t *testing.T) {
 	f := newIAMWireDB(t)
-	d := schema.TestResourceDataRaw(t, ResourceSchema(), map[string]interface{}{
+	d := schema.TestResourceDataRaw(t, eds.ResourceSchema(), map[string]interface{}{
 		"connection_string":  fmt.Sprintf("grpc://%s/?database=/owner", f.addr),
 		"path":               "eds",
 		"source_type":        "Ydb",
@@ -28,7 +29,7 @@ func TestIAMExplicitResourceID(t *testing.T) {
 	cb := func(context.Context) (auth.YdbCredentials, error) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	diags := ResourceCreateFunc(cb)(context.Background(), d, nil)
+	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -44,8 +45,8 @@ func TestIAMTargetChangeResolvesResourceID(t *testing.T) {
 			cb := func(context.Context) (auth.YdbCredentials, error) {
 				return auth.YdbCredentials{Token: "caller"}, nil
 			}
-			require.False(t, ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
-			r := &schema.Resource{Schema: ResourceSchema(), CustomizeDiff: CustomizeDiff, UpdateContext: schema.UpdateContextFunc(ResourceUpdateFunc(cb))}
+			require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
+			r := &schema.Resource{Schema: eds.ResourceSchema(), CustomizeDiff: eds.CustomizeDiff, UpdateContext: schema.UpdateContextFunc(eds.ResourceUpdateFunc(cb))}
 			cfg := iamResourceConfig(f)
 			cfg[key] = "/updated-target"
 			state := d.State()
@@ -62,7 +63,7 @@ func TestIAMTargetChangeResolvesResourceID(t *testing.T) {
 }
 
 func TestIAMImplicitCloudIDRequiresDatabasePath(t *testing.T) {
-	r := &schema.Resource{Schema: ResourceSchema(), CustomizeDiff: CustomizeDiff}
+	r := &schema.Resource{Schema: eds.ResourceSchema(), CustomizeDiff: eds.CustomizeDiff}
 	cfg := iamResourceConfig(&iamWireDB{addr: "localhost:2136"})
 	delete(cfg, "database_name")
 	cfg["database_id"] = "target-id"
@@ -83,7 +84,7 @@ func TestIAMDatabaseTargetPlans(t *testing.T) {
 		{name: "unknown cloud ID", resourceID: "74D93920-ED26-11E3-AC10-0800200C9A66"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := &schema.Resource{Schema: ResourceSchema(), CustomizeDiff: CustomizeDiff}
+			r := &schema.Resource{Schema: eds.ResourceSchema(), CustomizeDiff: eds.CustomizeDiff}
 			cfg := iamResourceConfig(&iamWireDB{addr: "localhost:2136"})
 			cfg["database_name"] = tc.databaseName
 			cfg["database_id"] = "target-id"
@@ -103,7 +104,7 @@ func TestIAMDatabaseTargetPlans(t *testing.T) {
 func TestIAMUnknownAuthPlan(t *testing.T) {
 	for _, key := range []string{"auth_method", "service_account_id"} {
 		t.Run(key, func(t *testing.T) {
-			r := &schema.Resource{Schema: ResourceSchema(), CustomizeDiff: CustomizeDiff}
+			r := &schema.Resource{Schema: eds.ResourceSchema(), CustomizeDiff: eds.CustomizeDiff}
 			cfg := iamResourceConfig(&iamWireDB{addr: "localhost:2136"})
 			cfg[key] = "74D93920-ED26-11E3-AC10-0800200C9A66"
 			_, err := iamResourceDiff(r, nil, cfg)
