@@ -11,6 +11,9 @@ import (
 )
 
 func (h *Handler) Delete(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+	if diags := guardIAMMutation(d); diags.HasError() {
+		return diags
+	}
 	entity, err := helpers.ParseYDBEntityID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
@@ -21,14 +24,17 @@ func (h *Handler) Delete(ctx context.Context, d *schema.ResourceData, _ interfac
 		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
-		return diag.Errorf("failed to initialize client: %s", err)
+		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
 	}
 	defer func() { _ = db.Close(ctx) }()
+	if diags := recoverIAMSecret(ctx, d, db); diags.HasError() {
+		return diags
+	}
 
 	q := PrepareDropQuery(entity.GetFullEntityPath())
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
-		return diag.Errorf("failed to drop external data source %q: %s", entity.GetEntityPath(), err)
+		return diag.Errorf("failed to drop external data source %q: %s", entity.GetEntityPath(), iamStatus(err))
 	}
 
 	return nil

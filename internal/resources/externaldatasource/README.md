@@ -76,8 +76,8 @@ resource "ydb_external_data_source" "s3_aws" {
 
 ### Optional
 
-- `auth_method` (String) - Authentication method. One of: `NONE`, `BASIC`, `MDB_BASIC`, `AWS`, `TOKEN`, `SERVICE_ACCOUNT`.
-- `database_name` (String) - Database name in the external source (for ClickHouse/PostgreSQL).
+- `auth_method` (String) - Authentication method. One of: `NONE`, `BASIC`, `MDB_BASIC`, `AWS`, `TOKEN`, `SERVICE_ACCOUNT`, `IAM`.
+- `database_name` (String) - Database name in the external source. For Ydb IAM, use the full target database path.
 - `protocol` (String) - Communication protocol: `NATIVE`, `HTTP`.
 - `use_tls` (Boolean) - Enable TLS for the external data source connection.
 - `mdb_cluster_id` (String) - Managed Database cluster ID.
@@ -129,3 +129,114 @@ data "ydb_external_data_source" "example" {
     connection_string = "grpc://localhost:2136/?database=/local"
 }
 ```
+
+## Ydb IAM with the caller token
+
+Use `auth_method = "IAM"` with `source_type = "Ydb"` and the runtime
+`service_account_id`. The provider uses the caller token from its authentication
+configuration to bootstrap IAM delegation through a temporary secret. Configure
+the caller token on the provider; IAM resources do not accept a bootstrap mode or
+an initial token secret path.
+
+```tf
+resource "ydb_external_data_source" "cloud_target" {
+  connection_string  = "grpcs://owner.example:2135/?database=/owner"
+  path               = "cloud_target"
+  source_type        = "Ydb"
+  location           = "target.example:2135"
+  database_name      = "/target/database/path"
+  auth_method        = "IAM"
+  service_account_id = "runtime-service-account-id"
+  use_tls            = true
+}
+```
+
+`database_name` identifies the target database by its full path. When `resource_id`
+is omitted, YDB uses that path to resolve the target cloud ID. `database_id` does
+not replace this path for IAM resolution. Set `resource_id` only when supplying an
+explicit target cloud ID.
+
+The owner YDB server must support IAM external data sources and have the feature
+enabled. Configure delegation for the caller and target access for the runtime
+service account separately. The provider does not provision databases or grant
+cloud roles. The caller also needs permission to manage the EDS and its temporary
+bootstrap secret in the owner database.
+
+The temporary-secret DDL request contains the caller token as a quoted value.
+The provider suppresses raw credential-bearing errors, and EDS resource state
+does not store the token. Server-side query and audit logging follow the server's
+configuration; the provider does not control or redact those logs.
+
+### Cleanup and interrupted requests
+
+After a confirmed EDS mutation, the provider removes its temporary secret. If
+cleanup fails, a managed resource retains its identity and records the exact
+owned secret in `pending_cleanup_path`. Refresh retries removal; run a normal
+`terraform plan` to retry it. Update and destroy also retry pending cleanup before
+changing the EDS. This attribute contains a path, never the caller token.
+
+A lost mutation response does not prove that the server stopped using the secret.
+For an existing resource, the provider records `pending_iam_mutation = "UNKNOWN"`
+and blocks refresh, update and destroy. An unknown Create does not acquire an EDS
+identity or persist recovery metadata; preserve the temporary secret path from
+the diagnostic. Neither an equal EDS description nor an absent EDS proves that
+the original request has terminated.
+
+To recover an unknown request, or cleanup that cannot be retried successfully:
+
+1. Back up Terraform state and preserve the resource ID and exact temporary secret
+   path from state or the diagnostic.
+2. Have the YDB operator establish that the relevant request has terminated.
+   Inspect the EDS and reconcile its ownership, target and service account before
+   importing it. If temporary-secret creation itself was unacknowledged, the EDS
+   was not submitted; establish termination of that secret request instead.
+3. After confirming ownership and termination, remove only that temporary secret
+   from the owner database. Do not delete a secret based solely on its name prefix.
+4. If the verified EDS exists, remove its old Terraform state entry when present
+   and import its verified ID. Import clears the pending metadata. For an unknown
+   Create, import only after independently establishing EDS ownership. If no EDS
+   remains after the request has terminated, remove any stale state entry before
+   creating it again.
+
+For an existing resource, the state commands are:
+
+```sh
+terraform state pull > iam-state-backup.json
+# Complete the server verification and owned-secret removal described above first.
+terraform state rm ydb_external_data_source.cloud_target
+terraform import ydb_external_data_source.cloud_target "$VERIFIED_EDS_ID"
+terraform plan
+```
+
+### Live cloud acceptance test
+
+`TestAccYdbExternalDataSource_iamCallerToken` creates a target table, seeds a row,
+creates an IAM EDS, and reads that row through the EDS after bootstrap. It also
+checks a no-op plan and import, then destroys the test resources. Both databases
+and the required delegation/runtime grants must already exist; the owner database
+must support federated queries to the target.
+
+Set these variables explicitly:
+
+- `YDB_ACC_CONNECTION_STRING`: owner database connection string.
+- `YDB_ACC_TOKEN`: caller token, also used to create and seed the target fixture.
+- `YDB_ACC_IAM_TARGET_CONNECTION_STRING`: target database connection string,
+  including its full database path.
+- `YDB_ACC_IAM_SERVICE_ACCOUNT_ID`: runtime service account with target read access.
+- `YDB_ACC_IAM_FIXTURE_PREFIX`: dedicated relative namespace in both databases,
+  such as `terraform_iam_acceptance`. Use letters, digits, underscores, hyphens
+  and slashes; the test creates randomly named objects beneath it.
+
+The test reads credentials from the environment without placing them in its HCL.
+Enable the dedicated gate and run only this test:
+
+```sh
+TF_ACC=1 YDB_ACC_IAM_LIVE=1 go test -v ./internal/terraform/ \
+  -run '^TestAccYdbExternalDataSource_iamCallerToken$' -timeout 15m
+```
+
+With the gate enabled, missing fixture configuration fails the test. Ordinary
+test runs skip it. This real-cloud test has not yet been run for this change;
+local tests do not establish live delegation or runtime authorization. The
+separate `TestAccIAMSecret` acceptance test checks the actual temporary-secret
+DDL against local YDB; CI runs it against both `latest` and `edge` images.

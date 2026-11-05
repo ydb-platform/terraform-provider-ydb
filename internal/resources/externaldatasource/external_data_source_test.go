@@ -32,6 +32,15 @@ func (m testAuthPlan) NewValueKnown(key string) bool {
 	return known
 }
 
+func TestIAMAuthAcceptsRuntimeServiceAccount(t *testing.T) {
+	r := res(map[string]string{
+		"auth_method": "IAM", "source_type": "Ydb",
+		"service_account_id": "runtime-sa", "database_name": "/target",
+	})
+	require.NoError(t, validateResourceAuth(r, nil))
+	require.NoError(t, validateSourceType(r, nil))
+}
+
 func TestValidateResourceAuth(t *testing.T) {
 	tests := []struct {
 		name    string

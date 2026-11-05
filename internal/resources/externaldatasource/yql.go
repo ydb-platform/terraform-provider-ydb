@@ -16,6 +16,9 @@ func collectWithParams(r *Resource) []withParam {
 		}
 		params = append(params, withParam{Key: strings.ToUpper(k), Value: v})
 	}
+	if r.initialTokenSecretPath != "" {
+		params = append(params, withParam{Key: "INITIAL_TOKEN_SECRET_PATH", Value: r.initialTokenSecretPath})
+	}
 	if r.UseTLS != nil {
 		v := "FALSE"
 		if *r.UseTLS {
@@ -43,8 +46,13 @@ func appendWithClause(buf []byte, params []withParam) []byte {
 }
 
 func PrepareDataSourceQuery(fullPath string, r *Resource) string {
+	return prepareDataSourceQuery(fullPath, r, "CREATE OR REPLACE")
+}
+
+func prepareDataSourceQuery(fullPath string, r *Resource, operation string) string {
 	buf := make([]byte, 0, 512)
-	buf = append(buf, "CREATE OR REPLACE EXTERNAL DATA SOURCE `"...)
+	buf = append(buf, operation...)
+	buf = append(buf, " EXTERNAL DATA SOURCE `"...)
 	buf = append(buf, fullPath...)
 	buf = append(buf, '`')
 	buf = appendWithClause(buf, collectWithParams(r))

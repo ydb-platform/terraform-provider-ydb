@@ -42,23 +42,34 @@ func (h *Handler) DataSourceRead(ctx context.Context, d *schema.ResourceData, _ 
 }
 
 func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.ResourceData, entity *helpers.YDBEntity) diag.Diagnostics {
+	if diags := guardIAMMutation(d); diags.HasError() {
+		return diags
+	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: entity.PrepareFullYDBEndpoint(),
 		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
-		return diag.Errorf("failed to initialize client: %s", err)
+		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
 	}
 	defer func() { _ = db.Close(ctx) }()
-
-	desc, err := db.Table().DescribeExternalDataSource(ctx, entity.GetFullEntityPath())
-	if err != nil {
-		if ydb.IsOperationErrorSchemeError(err) {
-			d.SetId("")
-			return nil
-		}
-		return diag.Errorf("failed to describe external data source %q: %s", entity.GetEntityPath(), err)
+	if diags := recoverIAMSecret(ctx, d, db); diags.HasError() {
+		return diags
 	}
 
-	return diag.FromErr(flattenDescription(d, entity, desc.Properties, desc.SourceType, desc.Location))
+	desc, err := db.Table().DescribeExternalDataSource(ctx, entity.GetFullEntityPath())
+	if err == nil {
+		return diag.FromErr(flattenDescription(d, entity, desc.Properties, desc.SourceType, desc.Location))
+	}
+	if !ydb.IsOperationErrorSchemeError(err) {
+		return diag.Errorf("failed to describe external data source %q: %s", entity.GetEntityPath(), iamStatus(err))
+	}
+	if method, _ := d.Get("auth_method").(string); method == "IAM" || method == "" {
+		absent, checkErr := iamPathAbsent(ctx, db, entity.GetFullEntityPath())
+		if checkErr != nil || !absent {
+			return diag.Errorf("cannot establish absence of external data source %q: %s", entity.GetEntityPath(), iamStatus(err))
+		}
+	}
+	d.SetId("")
+	return nil
 }

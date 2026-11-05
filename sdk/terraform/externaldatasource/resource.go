@@ -17,7 +17,7 @@ func ResourceCreateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -30,7 +30,7 @@ func ResourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -43,7 +43,7 @@ func DataSourceReadFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -56,7 +56,7 @@ func ResourceUpdateFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -69,7 +69,7 @@ func ResourceDeleteFunc(cb auth.GetAuthCallback) helpers.TerraformCRUD {
 		authCreds, err := cb(ctx)
 		if err != nil {
 			return diag.Diagnostics{
-				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: err.Error()},
+				{Severity: diag.Error, Summary: "failed to create token for YDB request", Detail: "Credential details omitted. Check the provider authentication configuration."},
 			}
 		}
 		h := externaldatasource.NewHandler(authCreds)
@@ -85,7 +85,7 @@ var (
 		"Oracle", "Logging", "Solomon", "Redis",
 		"Prometheus", "MongoDB", "OpenSearch", "YdbTopics",
 	}
-	externalDataSourceAuthMethods = []string{"NONE", "BASIC", "MDB_BASIC", "AWS", "TOKEN", "SERVICE_ACCOUNT"}
+	externalDataSourceAuthMethods = []string{"NONE", "BASIC", "MDB_BASIC", "AWS", "TOKEN", "SERVICE_ACCOUNT", "IAM"}
 	externalDataSourceProtocols   = []string{"NATIVE", "HTTP"}
 )
 
@@ -97,6 +97,11 @@ func optionalEnum(valid []string) schema.SchemaValidateDiagFunc {
 		}
 		return check(v, k)
 	})
+}
+
+// CustomizeDiff validates plans and refreshes observed IAM cloud IDs for providers using [ResourceSchema].
+func CustomizeDiff(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	return externaldatasource.CustomizeDiff(d)
 }
 
 func ResourceSchema() map[string]*schema.Schema {
@@ -128,10 +133,13 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"auth_method": {
 			Type:             schema.TypeString,
-			Description:      "Authentication method (NONE, BASIC, MDB_BASIC, AWS, TOKEN, SERVICE_ACCOUNT).",
+			Description:      "Authentication method (NONE, BASIC, MDB_BASIC, AWS, TOKEN, SERVICE_ACCOUNT, IAM).",
 			Optional:         true,
 			ValidateDiagFunc: optionalEnum(externalDataSourceAuthMethods),
 		},
+		"pending_cleanup_path": {Type: schema.TypeString, Computed: true, Description: "Provider-owned temporary IAM secret awaiting removal; never contains a token."},
+		"pending_iam_mutation": {Type: schema.TypeString, Computed: true, Description: "UNKNOWN while an owned EDS update may still be running; manual reconciliation is required."},
+		"resource_id":          {Type: schema.TypeString, Optional: true, Computed: true, Description: "Target cloud ID for IAM authentication. YDB resolves it when omitted.", ValidateDiagFunc: validation.ToDiagFunc(validation.StringIsNotWhiteSpace)},
 		"login": {
 			Type:        schema.TypeString,
 			Description: "Login for BASIC/MDB_BASIC authentication.",
@@ -273,6 +281,7 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Description: "Authentication method.",
 			Computed:    true,
 		},
+		"resource_id": {Type: schema.TypeString, Computed: true, Description: "Observed target cloud ID for IAM authentication."},
 		"login": {
 			Type:        schema.TypeString,
 			Description: "Login.",
