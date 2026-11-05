@@ -29,7 +29,7 @@ type Resource struct {
 var allStringAttrKeys = []string{
 	"source_type", "location",
 	"auth_method", "login", "password_secret_path",
-	"service_account_id", "service_account_secret_path", "resource_id",
+	"service_account_id", "service_account_secret_path",
 	"aws_access_key_id_secret_path",
 	"aws_secret_access_key_secret_path",
 	"aws_region",
@@ -87,9 +87,6 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 	for _, k := range allStringAttrKeys {
 		vals[k] = d.Get(k).(string)
 	}
-	if !resourceIDConfigured(d.GetRawConfig()) && (d.HasChange("database_name") || d.HasChange("database_id") || d.HasChange("location")) {
-		vals["resource_id"] = ""
-	}
 	res := &Resource{
 		Entity:           entity,
 		FullPath:         path,
@@ -126,7 +123,6 @@ var authSpecs = map[string]authMethodSpec{
 	"NONE": {},
 	"IAM": {
 		mandatoryPlain: map[string]func(*Resource) string{"SERVICE_ACCOUNT_ID": yqlStr("SERVICE_ACCOUNT_ID")},
-		optionalKeys:   []string{"RESOURCE_ID"},
 	},
 	"BASIC": {
 		mandatoryPlain: map[string]func(*Resource) string{
@@ -167,7 +163,7 @@ var authSpecs = map[string]authMethodSpec{
 
 // authYQLKeys lists every auth-related YQL property name (uppercase) checked by validateResourceAuth.
 var authYQLKeys = []string{
-	"LOGIN", "PASSWORD_SECRET_PATH", "RESOURCE_ID",
+	"LOGIN", "PASSWORD_SECRET_PATH",
 	"SERVICE_ACCOUNT_ID", "SERVICE_ACCOUNT_SECRET_PATH",
 	"AWS_ACCESS_KEY_ID_SECRET_PATH",
 	"AWS_SECRET_ACCESS_KEY_SECRET_PATH",
@@ -355,18 +351,11 @@ func validateSourceType(r *Resource, plan resourcePlanDiff) error {
 }
 
 func validateIAMDatabaseName(r *Resource, plan resourcePlanDiff) error {
-	if r.strAttr("resource_id") != "" || (plan != nil && !plan.NewValueKnown("database_name")) {
+	if plan != nil && !plan.NewValueKnown("database_name") {
 		return nil
 	}
-	if plan != nil && !plan.NewValueKnown("resource_id") {
-		// Optional+Computed is unknown both for an explicit reference and for an
-		// omitted cloud ID. Only the explicit reference can supply an override.
-		if d, ok := plan.(*schema.ResourceDiff); !ok || resourceIDConfigured(d.GetRawConfig()) {
-			return nil
-		}
-	}
 	if !strings.HasPrefix(strings.TrimSpace(r.strAttr("database_name")), "/") {
-		return fmt.Errorf("IAM authentication without RESOURCE_ID requires DATABASE_NAME to be a full database path")
+		return fmt.Errorf("IAM authentication requires DATABASE_NAME to be a full database path")
 	}
 	return nil
 }

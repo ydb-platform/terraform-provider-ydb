@@ -55,24 +55,17 @@ func iamPathAbsent(ctx context.Context, db *ydb.Driver, p string) (bool, error) 
 	return true, nil
 }
 
-func completeIAMSecret(ctx context.Context, d *schema.ResourceData, db *ydb.Driver, p string, err error) diag.Diagnostics {
+func completeIAMSecret(ctx context.Context, db *ydb.Driver, p string, err error) diag.Diagnostics {
 	if iamOutcomeUnknown(err) {
-		if d.Id() != "" {
-			_ = d.Set("pending_iam_mutation", "UNKNOWN")
-			_ = d.Set("pending_cleanup_path", p)
-		}
-		return diag.Errorf("IAM EDS outcome is unknown (%s); temporary secret %q is retained. Verify the server request has terminated before manual recovery and import", iamStatus(err), p)
+		return diag.Errorf("IAM EDS outcome is unknown (%s); temporary secret %q is retained. Verify the server request has terminated before manual cleanup or another mutation", iamStatus(err), p)
 	}
 	var cleanupErr error
 	if p != "" {
 		cleanupErr = dropIAMSecret(ctx, db, p)
 	}
 	if cleanupErr != nil {
-		if d.Id() != "" {
-			_ = d.Set("pending_cleanup_path", p)
-		}
 		if err == nil {
-			return diag.Diagnostics{{Severity: diag.Warning, Summary: "IAM EDS saved; temporary secret cleanup pending", Detail: fmt.Sprintf("Secret %q: %s. Refresh retries cleanup.", p, iamStatus(cleanupErr))}}
+			return diag.Diagnostics{{Severity: diag.Warning, Summary: "IAM EDS saved; temporary secret cleanup pending", Detail: fmt.Sprintf("Secret %q: %s. Remove the owned secret manually.", p, iamStatus(cleanupErr))}}
 		}
 		return diag.Errorf("IAM EDS request failed (%s); temporary secret %q requires cleanup (%s)", iamStatus(err), p, iamStatus(cleanupErr))
 	}
@@ -82,29 +75,15 @@ func completeIAMSecret(ctx context.Context, d *schema.ResourceData, db *ydb.Driv
 	return nil
 }
 
-func cancelIAMSubmission(ctx context.Context, d *schema.ResourceData, db *ydb.Driver, p string, timeout time.Duration) diag.Diagnostics {
+func cancelIAMSubmission(ctx context.Context, db *ydb.Driver, p string, timeout time.Duration) diag.Diagnostics {
 	if p != "" {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
 		defer cancel()
 		if err := dropIAMSecret(cleanupCtx, db, p); err != nil {
-			if d.Id() != "" {
-				_ = d.Set("pending_cleanup_path", p)
-			}
 			return diag.Errorf("IAM EDS was not submitted (%s); temporary secret %q requires cleanup (%s)", ctx.Err(), p, iamStatus(err))
 		}
 	}
 	return diag.Errorf("IAM EDS was not submitted: %s", ctx.Err())
-}
-
-func recoverIAMSecret(ctx context.Context, d *schema.ResourceData, db *ydb.Driver) diag.Diagnostics {
-	p, _ := d.Get("pending_cleanup_path").(string)
-	if p == "" {
-		return nil
-	}
-	if err := dropIAMSecret(ctx, db, p); err != nil {
-		return diag.Errorf("cannot remove owned temporary IAM secret %q: %s", p, iamStatus(err))
-	}
-	return diag.FromErr(d.Set("pending_cleanup_path", ""))
 }
 
 func readIAMAfterWrite(ctx context.Context, d *schema.ResourceData, db *ydb.Driver) diag.Diagnostics {
@@ -117,13 +96,6 @@ func readIAMAfterWrite(ctx context.Context, d *schema.ResourceData, db *ydb.Driv
 		return diag.Diagnostics{{Severity: diag.Warning, Summary: "IAM EDS saved; refresh required", Detail: "Read-back failed: " + iamStatus(err) + ". The acknowledged EDS identity is retained."}}
 	}
 	return diag.FromErr(flattenDescription(d, entity, desc.Properties, desc.SourceType, desc.Location))
-}
-
-func guardIAMMutation(d *schema.ResourceData) diag.Diagnostics {
-	if pending, _ := d.Get("pending_iam_mutation").(string); pending != "" {
-		return diag.Errorf("IAM EDS outcome remains unknown; verify the server request has terminated before manual recovery and import")
-	}
-	return nil
 }
 
 // A lost response does not establish whether the server has stopped using the secret.

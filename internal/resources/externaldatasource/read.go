@@ -42,9 +42,6 @@ func (h *Handler) DataSourceRead(ctx context.Context, d *schema.ResourceData, _ 
 }
 
 func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.ResourceData, entity *helpers.YDBEntity) diag.Diagnostics {
-	if diags := guardIAMMutation(d); diags.HasError() {
-		return diags
-	}
 	db, err := tbl.CreateDBConnection(ctx, tbl.ClientParams{
 		DatabaseEndpoint: entity.PrepareFullYDBEndpoint(),
 		AuthCreds:        h.authCreds,
@@ -53,9 +50,6 @@ func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.Resource
 		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
 	}
 	defer func() { _ = db.Close(ctx) }()
-	if diags := recoverIAMSecret(ctx, d, db); diags.HasError() {
-		return diags
-	}
 
 	desc, err := db.Table().DescribeExternalDataSource(ctx, entity.GetFullEntityPath())
 	if err == nil {

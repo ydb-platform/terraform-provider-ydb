@@ -151,10 +151,9 @@ resource "ydb_external_data_source" "cloud_target" {
 }
 ```
 
-`database_name` identifies the target database by its full path. When `resource_id`
-is omitted, YDB uses that path to resolve the target cloud ID. `database_id` does
-not replace this path for IAM resolution. Set `resource_id` only when supplying an
-explicit target cloud ID.
+`database_name` identifies the target database by its full path. YDB resolves the
+target cloud ID from that path for every mutation. `database_id` does not replace
+this path for IAM resolution.
 
 The owner YDB server must support IAM external data sources and have the feature
 enabled. Configure delegation for the caller and target access for the runtime
@@ -177,43 +176,19 @@ of secret creation.
 ### Cleanup and interrupted requests
 
 After a confirmed EDS mutation, the provider removes its temporary secret. If
-cleanup fails, a managed resource retains its identity and records the exact
-owned secret in `pending_cleanup_path`. Refresh retries removal; run a normal
-`terraform plan` to retry it. Update and destroy also retry pending cleanup before
-changing the EDS. This attribute contains a path, never the caller token.
+cleanup fails, the managed resource retains its identity and a warning reports
+the exact owned secret path for manual removal. Preserve that path from the
+diagnostic. The provider does not store recovery metadata or retry cleanup on
+later invocations.
 
 A lost mutation response does not prove that the server stopped using the secret.
-For an existing resource, the provider records `pending_iam_mutation = "UNKNOWN"`
-and blocks refresh, update and destroy. An unknown Create does not acquire an EDS
-identity or persist recovery metadata; preserve the temporary secret path from
-the diagnostic. Neither an equal EDS description nor an absent EDS proves that
-the original request has terminated.
-
-To recover an unknown request, or cleanup that cannot be retried successfully:
-
-1. Back up Terraform state and preserve the resource ID and exact temporary secret
-   path from state or the diagnostic.
-2. Have the YDB operator establish that the relevant request has terminated.
-   Inspect the EDS and reconcile its ownership, target and service account before
-   importing it. If temporary-secret creation itself was unacknowledged, the EDS
-   was not submitted; establish termination of that secret request instead.
-3. After confirming ownership and termination, remove only that temporary secret
-   from the owner database. Do not delete a secret based solely on its name prefix.
-4. If the verified EDS exists, remove its old Terraform state entry when present
-   and import its verified ID. Import clears the pending metadata. For an unknown
-   Create, import only after independently establishing EDS ownership. If no EDS
-   remains after the request has terminated, remove any stale state entry before
-   creating it again.
-
-For an existing resource, the state commands are:
-
-```sh
-terraform state pull > iam-state-backup.json
-# Complete the server verification and owned-secret removal described above first.
-terraform state rm ydb_external_data_source.cloud_target
-terraform import ydb_external_data_source.cloud_target "$VERIFIED_EDS_ID"
-terraform plan
-```
+The provider retains it and reports the exact path. Have the YDB operator confirm
+that the original request has terminated before removing that secret or applying
+another mutation. Later Terraform operations are not automatically blocked.
+Neither an equal EDS description nor an absent EDS proves request termination.
+An unacknowledged Create does not claim ownership; import an existing EDS only
+after independently verifying its ownership, target and service account. If the
+temporary-secret Create was unacknowledged, the EDS request was not submitted.
 
 ### Live cloud acceptance test
 
@@ -242,13 +217,15 @@ TF_ACC=1 YDB_ACC_IAM_LIVE=1 go test -v ./internal/terraform/ \
   -run '^TestAccYdbExternalDataSource_iamCallerToken$' -timeout 15m
 ```
 
-With the gate enabled, missing fixture configuration fails the test. Ordinary
-test runs skip it. This real-cloud test has not yet been run for this change;
-local tests do not establish live delegation or runtime authorization.
+With the gate enabled, missing fixture configuration fails the test. The existing
+GitHub Actions workflow starts local YDB containers and does not configure cloud
+fixtures or set this gate, so this scenario is skipped in CI. It has not yet been
+run for this change; local tests do not establish live delegation or runtime
+authorization.
 
 All IAM acceptance tests are in `internal/terraform` and run with the existing
 acceptance suite under `TF_ACC=1`. Terraform CLI scenarios cover lifecycle and
-recovery against a controlled gRPC server. The local YDB test
+failure diagnostics against a controlled gRPC server. The local YDB test
 `TestAccYdbExternalDataSource_iamBootstrapCleanup` checks real temporary-secret
 DDL and cleanup after a rejected EDS Create on servers supporting secret
 parameters. Older servers must reject bootstrap without a literal fallback.

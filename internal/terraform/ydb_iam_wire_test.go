@@ -106,7 +106,7 @@ func TestIAMUpdateUsesCurrentCallerToken(t *testing.T) {
 	require.Equal(t, token, f.requests[len(f.requests)-1].ticket)
 }
 
-func TestIAMUnknownUpdateRetainsSecretAndBlocksOperations(t *testing.T) {
+func TestIAMUnknownUpdateRetainsSecretForManualCleanup(t *testing.T) {
 	f := newIAMWireDB(t)
 	d := iamWireData(t, f)
 	cb := func(context.Context) (auth.YdbCredentials, error) {
@@ -120,20 +120,21 @@ func TestIAMUnknownUpdateRetainsSecretAndBlocksOperations(t *testing.T) {
 	diags := eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
 	require.True(t, diags.HasError())
 	require.Equal(t, id, d.Id())
-	require.Equal(t, "UNKNOWN", d.Get("pending_iam_mutation"))
 	f.mu.Lock()
 	require.Len(t, f.secrets, 1, "the server may still need this secret")
+	for p := range f.secrets {
+		require.Contains(t, fmt.Sprint(diags), p, "manual recovery requires the exact owned path")
+	}
 	requests := len(f.requests)
 	f.mu.Unlock()
-	require.True(t, eds.ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
-	require.True(t, eds.ResourceUpdateFunc(cb)(context.Background(), d, nil).HasError())
-	require.True(t, eds.ResourceDeleteFunc(cb)(context.Background(), d, nil).HasError())
+	require.False(t, eds.ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	require.Len(t, f.requests, requests)
+	require.Len(t, f.secrets, 1, "read must not remove a secret retained after an unknown outcome")
 }
 
-func TestIAMRejectedUpdateDoesNotFreezeEDS(t *testing.T) {
+func TestIAMRejectedUpdateRemovesTemporarySecret(t *testing.T) {
 	f := newIAMWireDB(t)
 	d := iamWireData(t, f)
 	cb := func(context.Context) (auth.YdbCredentials, error) {
@@ -145,7 +146,6 @@ func TestIAMRejectedUpdateDoesNotFreezeEDS(t *testing.T) {
 	f.mu.Unlock()
 	diags := eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
 	require.True(t, diags.HasError())
-	require.Empty(t, d.Get("pending_iam_mutation"), "a terminal rejection has a known outcome")
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	require.Empty(t, f.secrets, "terminal rejection no longer needs the owned bootstrap secret")
@@ -173,7 +173,6 @@ func TestIAMCleanupAcceptsVerifiedAbsence(t *testing.T) {
 	}
 	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
-	require.Empty(t, d.Get("pending_cleanup_path"), "confirmed absence completes cleanup despite a lost DROP reply")
 	require.Empty(t, diags)
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -245,31 +244,7 @@ func TestIAMRequiresCallerTokenBeforeConnecting(t *testing.T) {
 	require.Zero(t, f.discoveryCalls, "IAM without a caller token must fail before contacting YDB")
 }
 
-func TestIAMExitWithUnknownOutcomeRetainsGuard(t *testing.T) {
-	f := newIAMWireDB(t)
-	d := iamWireData(t, f)
-	cb := func(context.Context) (auth.YdbCredentials, error) {
-		return auth.YdbCredentials{Token: "caller"}, nil
-	}
-	require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
-	r := &schema.Resource{Schema: eds.ResourceSchema(), CustomizeDiff: eds.CustomizeDiff, UpdateContext: schema.UpdateContextFunc(eds.ResourceUpdateFunc(cb))}
-	cfg := map[string]interface{}{
-		"connection_string": d.Get("connection_string"), "path": "eds", "source_type": "Ydb",
-		"location": "target:2135", "database_name": "/target", "auth_method": "NONE",
-	}
-	previous := d.State()
-	diff, err := iamResourceDiff(r, previous, cfg)
-	require.NoError(t, err)
-	f.mu.Lock()
-	f.loseReply = "EXTERNAL DATA SOURCE"
-	f.mu.Unlock()
-	state, diags := r.Apply(context.Background(), previous, diff, nil)
-	require.True(t, diags.HasError())
-	require.Equal(t, d.Id(), state.ID)
-	require.Equal(t, "UNKNOWN", state.Attributes["pending_iam_mutation"])
-}
-
-func TestIAMUnknownSecretCreateDoesNotFreezeEDS(t *testing.T) {
+func TestIAMUnknownSecretCreateDoesNotSubmitEDS(t *testing.T) {
 	for _, update := range []bool{false, true} {
 		t.Run(fmt.Sprintf("update=%t", update), func(t *testing.T) {
 			f := newIAMWireDB(t)
@@ -292,7 +267,6 @@ func TestIAMUnknownSecretCreateDoesNotFreezeEDS(t *testing.T) {
 				diags = eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 			}
 			require.Equal(t, id, d.Id())
-			require.Empty(t, d.Get("pending_iam_mutation"), "EDS mutation was never submitted")
 			f.mu.Lock()
 			defer f.mu.Unlock()
 			require.Len(t, f.requests, before+1)

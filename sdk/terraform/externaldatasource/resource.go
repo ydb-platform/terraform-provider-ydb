@@ -99,11 +99,6 @@ func optionalEnum(valid []string) schema.SchemaValidateDiagFunc {
 	})
 }
 
-// CustomizeDiff validates plans and refreshes observed IAM cloud IDs for providers using [ResourceSchema].
-func CustomizeDiff(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
-	return externaldatasource.CustomizeDiff(d)
-}
-
 func ResourceSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"connection_string": {
@@ -137,9 +132,6 @@ func ResourceSchema() map[string]*schema.Schema {
 			Optional:         true,
 			ValidateDiagFunc: optionalEnum(externalDataSourceAuthMethods),
 		},
-		"pending_cleanup_path": {Type: schema.TypeString, Computed: true, Description: "Provider-owned temporary IAM secret awaiting removal; never contains a token."},
-		"pending_iam_mutation": {Type: schema.TypeString, Computed: true, Description: "UNKNOWN while an owned EDS update may still be running; manual reconciliation is required."},
-		"resource_id":          {Type: schema.TypeString, Optional: true, Computed: true, Description: "Target cloud ID for IAM authentication. YDB resolves it when omitted.", ValidateDiagFunc: validation.ToDiagFunc(validation.StringIsNotWhiteSpace)},
 		"login": {
 			Type:        schema.TypeString,
 			Description: "Login for BASIC/MDB_BASIC authentication.",
@@ -281,7 +273,6 @@ func DataSourceSchema() map[string]*schema.Schema {
 			Description: "Authentication method.",
 			Computed:    true,
 		},
-		"resource_id": {Type: schema.TypeString, Computed: true, Description: "Observed target cloud ID for IAM authentication."},
 		"login": {
 			Type:        schema.TypeString,
 			Description: "Login.",

@@ -10,9 +10,6 @@ import (
 )
 
 func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if diags := guardIAMMutation(d); diags.HasError() {
-		return diags
-	}
 	r, err := resourceSchemaToResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -36,9 +33,6 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
 	}
 	defer func() { _ = db.Close(ctx) }()
-	if diags := recoverIAMSecret(ctx, d, db); diags.HasError() {
-		return diags
-	}
 	if r.strAttr("auth_method") == "IAM" {
 		r.initialTokenSecretPath, err = h.createIAMSecret(ctx, db, r.Entity.GetDatabasePath())
 		if err != nil {
@@ -47,21 +41,16 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	q := PrepareDataSourceQuery(r.Entity.GetFullEntityPath(), r)
-	if ctx.Err() != nil {
-		if previousAuth, _ := d.GetChange("auth_method"); r.initialTokenSecretPath != "" || previousAuth == "IAM" {
-			return cancelIAMSubmission(ctx, d, db, r.initialTokenSecretPath, d.Timeout(schema.TimeoutUpdate))
-		}
+	if ctx.Err() != nil && r.initialTokenSecretPath != "" {
+		return cancelIAMSubmission(ctx, db, r.initialTokenSecretPath, d.Timeout(schema.TimeoutUpdate))
 	}
 	err = db.Query().Exec(ctx, q)
 	if err != nil && r.initialTokenSecretPath == "" {
-		if previousAuth, _ := d.GetChange("auth_method"); previousAuth == "IAM" {
-			return completeIAMSecret(ctx, d, db, "", err)
-		}
 		return diag.Errorf("failed to update external data source: %s", iamStatus(err))
 	}
 	var diags diag.Diagnostics
 	if r.initialTokenSecretPath != "" {
-		diags = completeIAMSecret(ctx, d, db, r.initialTokenSecretPath, err)
+		diags = completeIAMSecret(ctx, db, r.initialTokenSecretPath, err)
 		if diags.HasError() {
 			return diags
 		}

@@ -11,9 +11,6 @@ import (
 )
 
 func (h *Handler) Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if diags := guardIAMMutation(d); diags.HasError() {
-		return diags
-	}
 	r, err := resourceSchemaToResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -52,7 +49,7 @@ func (h *Handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 		q = prepareDataSourceQuery(fullPath, r, "CREATE")
 	}
 	if ctx.Err() != nil && r.initialTokenSecretPath != "" {
-		return cancelIAMSubmission(ctx, d, db, r.initialTokenSecretPath, d.Timeout(schema.TimeoutCreate))
+		return cancelIAMSubmission(ctx, db, r.initialTokenSecretPath, d.Timeout(schema.TimeoutCreate))
 	}
 	err = db.Query().Exec(ctx, q)
 	if err != nil && r.initialTokenSecretPath == "" {
@@ -63,7 +60,7 @@ func (h *Handler) Create(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 	var diags diag.Diagnostics
 	if r.initialTokenSecretPath != "" {
-		diags = completeIAMSecret(ctx, d, db, r.initialTokenSecretPath, err)
+		diags = completeIAMSecret(ctx, db, r.initialTokenSecretPath, err)
 		if diags.HasError() {
 			return diags
 		}

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAccYdbExternalDataSource_iamCleanupRecovery(t *testing.T) {
+func TestAccYdbExternalDataSource_iamCleanupFailureRequiresManualCleanup(t *testing.T) {
 	cli := newIAMTerraform(t)
 	f := newIAMWireDB(t)
 	f.failDrop = true
@@ -17,14 +17,18 @@ func TestAccYdbExternalDataSource_iamCleanupRecovery(t *testing.T) {
 	out, err := cli.run("apply", "-auto-approve", "-no-color")
 	require.NoError(t, err, "%s", out)
 	require.Contains(t, out, "temporary secret cleanup pending")
+	require.Contains(t, out, "Remove the owned secret manually.")
 	attrs := cli.state(address)
 	id := attrs["id"]
 	require.NotEmpty(t, id)
-	require.Equal(t, "resolved:/target", attrs["resource_id"], "cleanup warnings must still resolve computed attributes")
-	require.NotEmpty(t, attrs["pending_cleanup_path"])
+	require.Equal(t, "IAM", attrs["auth_method"], "cleanup warnings must still complete read-back")
+	for _, removed := range []string{"resource_id", "pending_cleanup_path", "pending_iam_mutation"} {
+		require.NotContains(t, attrs, removed)
+	}
 	f.mu.Lock()
 	require.Len(t, f.secrets, 1)
-	require.Equal(t, f.properties["INITIAL_TOKEN_SECRET_PATH"], attrs["pending_cleanup_path"])
+	secretPath := f.properties["INITIAL_TOKEN_SECRET_PATH"]
+	require.Contains(t, out, secretPath)
 	f.failDrop = false
 	requests := len(f.requests)
 	f.mu.Unlock()
@@ -33,53 +37,11 @@ func TestAccYdbExternalDataSource_iamCleanupRecovery(t *testing.T) {
 	require.NoError(t, err, "%s", out)
 	attrs = cli.state(address)
 	require.Equal(t, id, attrs["id"])
-	require.Empty(t, attrs["pending_cleanup_path"])
 	f.mu.Lock()
-	require.Empty(t, f.secrets)
-	require.Len(t, f.requests, requests+1, "refresh must only remove the saved owned secret")
-	f.mu.Unlock()
-	out, err = cli.run("plan", "-detailed-exitcode", "-no-color")
-	require.NoError(t, err, "%s", out)
-	cli.assertNoToken("synthetic-recovery-caller")
-}
-
-func TestAccYdbExternalDataSource_iamUnknownUpdateSurvivesRestart(t *testing.T) {
-	cli := newIAMTerraform(t)
-	f := newIAMWireDB(t)
-	const address = "ydb_external_data_source.test"
-	writeIAMRecoveryConfig(cli, f, "runtime-sa")
-	out, err := cli.run("apply", "-auto-approve", "-no-color")
-	require.NoError(t, err, "%s", out)
-	id := cli.state(address)["id"]
-	writeIAMRecoveryConfig(cli, f, "updated-runtime-sa")
-	f.mu.Lock()
-	f.loseReply = "EXTERNAL DATA SOURCE"
-	f.mu.Unlock()
-	out, err = cli.run("apply", "-auto-approve", "-no-color")
-	require.Error(t, err, "%s", out)
-	attrs := cli.state(address)
-	require.Equal(t, id, attrs["id"])
-	require.Equal(t, "UNKNOWN", attrs["pending_iam_mutation"])
-	require.NotEmpty(t, attrs["pending_cleanup_path"])
-	f.mu.Lock()
-	requests := len(f.requests)
 	require.Len(t, f.secrets, 1)
+	require.Len(t, f.requests, requests, "refresh must not retry cleanup")
+	delete(f.secrets, secretPath) // Simulate manual cleanup of the exact owned path from the warning.
 	f.mu.Unlock()
-	out, err = cli.run("plan", "-no-color")
-	require.Error(t, err, "%s", out)
-	require.Contains(t, out, "outcome remains unknown")
-	f.mu.Lock()
-	require.Len(t, f.requests, requests, "a new provider must honor the durable guard")
-	// Simulate an operator verifying that the accepted request has terminated,
-	// reconciling EDS ownership and removing exactly its temporary secret.
-	require.Equal(t, "updated-runtime-sa", f.properties["SERVICE_ACCOUNT_ID"])
-	delete(f.secrets, attrs["pending_cleanup_path"].(string))
-	f.mu.Unlock()
-	out, err = cli.run("state", "rm", address)
-	require.NoError(t, err, "%s", out)
-	out, err = cli.run("import", "-no-color", address, id.(string))
-	require.NoError(t, err, "%s", out)
-	require.Empty(t, cli.state(address)["pending_iam_mutation"])
 	out, err = cli.run("plan", "-detailed-exitcode", "-no-color")
 	require.NoError(t, err, "%s", out)
 	cli.assertNoToken("synthetic-recovery-caller")

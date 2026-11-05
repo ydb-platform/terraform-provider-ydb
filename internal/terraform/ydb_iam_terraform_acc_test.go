@@ -71,7 +71,7 @@ resource "ydb_external_data_source" "test" {
 	id := checkState("runtime-sa")["id"].(string)
 	require.NotEmpty(t, id)
 	run("plan", "-detailed-exitcode", "-no-color")
-	for _, argument := range []string{"iam_bootstrap_mode", "initial_token_secret_path"} {
+	for _, argument := range []string{"iam_bootstrap_mode", "initial_token_secret_path", "resource_id", "pending_cleanup_path", "pending_iam_mutation"} {
 		config("runtime-sa", argument+` = "external"`)
 		out, err := cli.run("plan", "-no-color")
 		require.Error(t, err)

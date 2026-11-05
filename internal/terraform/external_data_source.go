@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/externaldatasource"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	eds "github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/externaldatasource"
 )
@@ -21,8 +22,13 @@ func ydbExternalDataSourceResource() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		CustomizeDiff: eds.CustomizeDiff,
-		Timeouts:      defaultTimeouts(),
+		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+			if err := externaldatasource.ValidateResourceDiffAuth(d); err != nil {
+				return err
+			}
+			return externaldatasource.ValidateResourceDiffSourceType(d)
+		},
+		Timeouts: defaultTimeouts(),
 	}
 }
 
