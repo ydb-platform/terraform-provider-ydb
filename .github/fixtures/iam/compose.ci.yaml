@@ -1,4 +1,0 @@
-services:
-  ydb:
-    extra_hosts:
-      - "iam:host-gateway"

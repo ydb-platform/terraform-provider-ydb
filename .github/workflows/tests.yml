@@ -126,20 +126,10 @@ jobs:
         with:
           terraform_version: '1.5.7'
           terraform_wrapper: false
-      - name: Start IAM AccessService
-        uses: bavix/gripmock-action@9bd2ac6c48a0c9295d419ed970ca402365545041 # v1
-        with:
-          version: '3.18.4'
-          source: .github/fixtures/iam/proto/v1.proto
-          sources: .github/fixtures/iam/proto/v2.proto
-          stub: .github/fixtures/iam/stubs
-        env:
-          # v1 reads INPUT_GRPC_HOST instead of the runner's INPUT_GRPC-HOST.
-          INPUT_GRPC_HOST: 0.0.0.0
-      - name: Start YDB
-        run: docker compose -f docker-compose.yml -f .github/fixtures/iam/compose.ci.yaml up --no-deps --wait ydb
+      - name: Start YDB and IAM AccessService
+        run: docker compose up --wait
       - name: Acceptance tests
-        run: go test -v -timeout 30m ./internal/terraform/...
-      - name: Stop YDB
+        run: go test -v -count=1 -timeout 30m ./internal/terraform/...
+      - name: Stop YDB and IAM AccessService
         if: always()
-        run: docker compose -f docker-compose.yml -f .github/fixtures/iam/compose.ci.yaml down
+        run: docker compose down
