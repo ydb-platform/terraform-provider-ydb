@@ -20,6 +20,8 @@ type Resource struct {
 	// Values holds Terraform string attributes (snake_case keys) for the EXTERNAL DATA SOURCE WITH clause.
 	Values map[string]string
 	UseTLS *bool
+
+	initialTokenSecretPath string
 }
 
 // allStringAttrKeys is every Terraform string attribute mirrored in Resource.Values.
@@ -96,6 +98,11 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 		b := v.(bool)
 		res.UseTLS = &b
 	}
+	if res.strAttr("auth_method") == "IAM" {
+		if err := validateResourceAuth(res, nil); err != nil {
+			return nil, err
+		}
+	}
 	return res, nil
 }
 
@@ -114,6 +121,9 @@ type authMethodSpec struct {
 
 var authSpecs = map[string]authMethodSpec{
 	"NONE": {},
+	"IAM": {
+		mandatoryPlain: map[string]func(*Resource) string{"SERVICE_ACCOUNT_ID": yqlStr("SERVICE_ACCOUNT_ID")},
+	},
 	"BASIC": {
 		mandatoryPlain: map[string]func(*Resource) string{
 			"LOGIN": yqlStr("LOGIN"),
@@ -206,6 +216,9 @@ func (s *authMethodSpec) allowedAuthFields(r *Resource, method string, plan reso
 // unit tests and strict checks use plan nil.
 func validateResourceAuth(r *Resource, plan resourcePlanDiff) error {
 	method := r.strAttr("auth_method")
+	if plan != nil && !plan.NewValueKnown("auth_method") {
+		return nil
+	}
 	if method == "" {
 		for _, yqlKey := range authYQLKeys {
 			if r.strAttr(strings.ToLower(yqlKey)) != "" {
@@ -239,7 +252,7 @@ var sourceTypeAuthMethods = map[string][]string{
 	"ClickHouse":    {"MDB_BASIC", "BASIC"},
 	"PostgreSQL":    {"MDB_BASIC", "BASIC"},
 	"MySQL":         {"MDB_BASIC", "BASIC"},
-	"Ydb":           {"NONE", "BASIC", "SERVICE_ACCOUNT", "TOKEN"},
+	"Ydb":           {"NONE", "BASIC", "SERVICE_ACCOUNT", "TOKEN", "IAM"},
 	"YT":            {"NONE", "TOKEN"},
 	"Greenplum":     {"MDB_BASIC", "BASIC"},
 	"MsSQLServer":   {"BASIC"},
@@ -292,7 +305,7 @@ func validateSourceType(r *Resource, plan resourcePlanDiff) error {
 
 	// Validate auth_method × source_type.
 	method := r.strAttr("auth_method")
-	if method != "" {
+	if method != "" && (plan == nil || plan.NewValueKnown("auth_method")) {
 		allowed, ok := sourceTypeAuthMethods[srcType]
 		if ok {
 			found := slices.Contains(allowed, method)
@@ -322,12 +335,27 @@ func validateSourceType(r *Resource, plan resourcePlanDiff) error {
 			return fmt.Errorf("%s is not supported for SOURCE_TYPE %q", strings.ToUpper(key), srcType)
 		}
 	}
+	if srcType == "Ydb" && method == "IAM" {
+		if err := validateIAMDatabaseName(r, plan); err != nil {
+			return err
+		}
+	}
 
 	if srcType == "Ydb" &&
 		strings.TrimSpace(r.strAttr("database_name")) == "" &&
 		strings.TrimSpace(r.strAttr("database_id")) == "" &&
 		(plan == nil || (plan.NewValueKnown("database_name") && plan.NewValueKnown("database_id"))) {
 		return fmt.Errorf("SOURCE_TYPE %q requires a non-empty DATABASE_NAME or DATABASE_ID", srcType)
+	}
+	return nil
+}
+
+func validateIAMDatabaseName(r *Resource, plan resourcePlanDiff) error {
+	if plan != nil && !plan.NewValueKnown("database_name") {
+		return nil
+	}
+	if !strings.HasPrefix(strings.TrimSpace(r.strAttr("database_name")), "/") {
+		return fmt.Errorf("IAM authentication requires DATABASE_NAME to be a full database path")
 	}
 	return nil
 }

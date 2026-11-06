@@ -16,6 +16,9 @@ func collectWithParams(r *Resource) []withParam {
 		}
 		params = append(params, withParam{Key: strings.ToUpper(k), Value: v})
 	}
+	if r.initialTokenSecretPath != "" {
+		params = append(params, withParam{Key: "INITIAL_TOKEN_SECRET_PATH", Value: r.initialTokenSecretPath})
+	}
 	if r.UseTLS != nil {
 		v := "FALSE"
 		if *r.UseTLS {

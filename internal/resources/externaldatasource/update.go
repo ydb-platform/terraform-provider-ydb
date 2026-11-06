@@ -2,14 +2,16 @@ package externaldatasource
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/secret"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	r, err := resourceSchemaToResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -17,7 +19,6 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 	if err := validateSourceType(r, nil); err != nil {
 		return diag.FromErr(err)
 	}
-
 	if r.Entity == nil {
 		return diag.Errorf("external data source id is required for update")
 	}
@@ -30,12 +31,26 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("failed to initialize client: %s", err)
 	}
 	defer func() { _ = db.Close(ctx) }()
+	if r.strAttr("auth_method") == "IAM" {
+		r.initialTokenSecretPath, err = h.createIAMSecret(ctx, db, r.Entity.GetDatabasePath())
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		defer func() {
+			if err := secret.DropSecret(ctx, db, r.initialTokenSecretPath); err != nil {
+				diags = append(diags, diag.Diagnostic{
+					Severity: diag.Warning,
+					Summary:  fmt.Sprintf("failed to drop temporary IAM secret %q", r.initialTokenSecretPath),
+					Detail:   err.Error(),
+				})
+			}
+		}()
+	}
 
 	q := PrepareDataSourceQuery(r.Entity.GetFullEntityPath(), r)
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
 		return diag.Errorf("failed to update external data source: %s", err)
 	}
-
 	return h.Read(ctx, d, meta)
 }

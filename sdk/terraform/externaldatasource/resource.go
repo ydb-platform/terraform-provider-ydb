@@ -85,7 +85,7 @@ var (
 		"Oracle", "Logging", "Solomon", "Redis",
 		"Prometheus", "MongoDB", "OpenSearch", "YdbTopics",
 	}
-	externalDataSourceAuthMethods = []string{"NONE", "BASIC", "MDB_BASIC", "AWS", "TOKEN", "SERVICE_ACCOUNT"}
+	externalDataSourceAuthMethods = []string{"NONE", "BASIC", "MDB_BASIC", "AWS", "TOKEN", "SERVICE_ACCOUNT", "IAM"}
 	externalDataSourceProtocols   = []string{"NATIVE", "HTTP"}
 )
 
@@ -128,7 +128,7 @@ func ResourceSchema() map[string]*schema.Schema {
 		},
 		"auth_method": {
 			Type:             schema.TypeString,
-			Description:      "Authentication method (NONE, BASIC, MDB_BASIC, AWS, TOKEN, SERVICE_ACCOUNT).",
+			Description:      "Authentication method (NONE, BASIC, MDB_BASIC, AWS, TOKEN, SERVICE_ACCOUNT, IAM).",
 			Optional:         true,
 			ValidateDiagFunc: optionalEnum(externalDataSourceAuthMethods),
 		},

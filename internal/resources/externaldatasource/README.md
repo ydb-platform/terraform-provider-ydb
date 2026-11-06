@@ -76,8 +76,8 @@ resource "ydb_external_data_source" "s3_aws" {
 
 ### Optional
 
-- `auth_method` (String) - Authentication method. One of: `NONE`, `BASIC`, `MDB_BASIC`, `AWS`, `TOKEN`, `SERVICE_ACCOUNT`.
-- `database_name` (String) - Database name in the external source (for ClickHouse/PostgreSQL).
+- `auth_method` (String) - Authentication method. One of: `NONE`, `BASIC`, `MDB_BASIC`, `AWS`, `TOKEN`, `SERVICE_ACCOUNT`, `IAM`.
+- `database_name` (String) - Database name in the external source. For Ydb IAM, use the full target database path.
 - `protocol` (String) - Communication protocol: `NATIVE`, `HTTP`.
 - `use_tls` (Boolean) - Enable TLS for the external data source connection.
 - `mdb_cluster_id` (String) - Managed Database cluster ID.
@@ -129,3 +129,31 @@ data "ydb_external_data_source" "example" {
     connection_string = "grpc://localhost:2136/?database=/local"
 }
 ```
+
+## Ydb IAM with the caller token
+
+Use `auth_method = "IAM"` with `source_type = "Ydb"` and the runtime
+`service_account_id`. The provider uses the caller token from its authentication
+configuration to bootstrap IAM delegation through a temporary secret. Configure
+the caller token on the provider.
+
+```tf
+resource "ydb_external_data_source" "cloud_target" {
+  connection_string  = "grpcs://owner.example:2135/?database=/owner"
+  path               = "cloud_target"
+  source_type        = "Ydb"
+  location           = "target.example:2135"
+  database_name      = "/target/database/path"
+  auth_method        = "IAM"
+  service_account_id = "runtime-service-account-id"
+  use_tls            = true
+}
+```
+
+Set `database_name` to the full target database path. The owner server must
+support IAM external data sources. Configure delegation for the caller and
+target access for the runtime service account; the caller also needs permission
+to manage the EDS and temporary secrets in the owner database.
+
+The provider removes the temporary secret after the request. If deletion fails,
+a warning gives its path for manual cleanup.

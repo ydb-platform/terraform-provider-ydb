@@ -52,13 +52,18 @@ func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.Resource
 	defer func() { _ = db.Close(ctx) }()
 
 	desc, err := db.Table().DescribeExternalDataSource(ctx, entity.GetFullEntityPath())
-	if err != nil {
-		if ydb.IsOperationErrorSchemeError(err) {
-			d.SetId("")
-			return nil
-		}
+	if err == nil {
+		return diag.FromErr(flattenDescription(d, entity, desc.Properties, desc.SourceType, desc.Location))
+	}
+	if !ydb.IsOperationErrorSchemeError(err) {
 		return diag.Errorf("failed to describe external data source %q: %s", entity.GetEntityPath(), err)
 	}
-
-	return diag.FromErr(flattenDescription(d, entity, desc.Properties, desc.SourceType, desc.Location))
+	if method, _ := d.Get("auth_method").(string); method == "IAM" || method == "" {
+		absent, checkErr := iamPathAbsent(ctx, db, entity.GetFullEntityPath())
+		if checkErr != nil || !absent {
+			return diag.Errorf("cannot establish absence of external data source %q: %s", entity.GetEntityPath(), err)
+		}
+	}
+	d.SetId("")
+	return nil
 }
