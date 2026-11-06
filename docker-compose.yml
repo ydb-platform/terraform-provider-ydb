@@ -38,10 +38,10 @@ services:
 
 configs:
   iam_auth:
-    file: ./.github/fixtures/iam/auth.yaml
+    file: ./testdata/iam/auth.yaml
   iam_v1_proto:
-    file: ./.github/fixtures/iam/proto/v1.proto
+    file: ./testdata/iam/proto/v1.proto
   iam_v2_proto:
-    file: ./.github/fixtures/iam/proto/v2.proto
+    file: ./testdata/iam/proto/v2.proto
   iam_stubs:
-    file: ./.github/fixtures/iam/stubs/iam.yaml
+    file: ./testdata/iam/stubs/iam.yaml
