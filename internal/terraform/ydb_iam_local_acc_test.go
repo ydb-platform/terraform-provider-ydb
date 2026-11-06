@@ -12,17 +12,14 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/stretchr/testify/require"
-	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/query"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
 	"github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/auth"
 	eds "github.com/ydb-platform/terraform-provider-ydb/sdk/terraform/externaldatasource"
 )
 
-// IAM Create must not replace or acquire an existing EDS.
-func TestAccYdbExternalDataSource_iamCreatePreservesExisting(t *testing.T) {
+func TestAccYdbExternalDataSource_iamCreateReplacesExisting(t *testing.T) {
 	if os.Getenv("TF_ACC") != "1" {
 		t.Skip("set TF_ACC=1 to run acceptance tests")
 	}
@@ -49,7 +46,6 @@ func TestAccYdbExternalDataSource_iamCreatePreservesExisting(t *testing.T) {
 		err := db.Query().Exec(context.WithoutCancel(ctx), "DROP EXTERNAL DATA SOURCE `"+helpers.EscapeYQLIdentifier(p)+"`")
 		require.NoError(t, err)
 	})
-	parametersSupported := accIAMSecretParametersSupported(t, db, p+"_parameter_probe")
 	secrets := func() map[string]bool {
 		t.Helper()
 		paths, err := accIAMSecretPaths(ctx, db, root)
@@ -57,6 +53,16 @@ func TestAccYdbExternalDataSource_iamCreatePreservesExisting(t *testing.T) {
 		return paths
 	}
 	before := secrets()
+	t.Cleanup(func() {
+		after, err := accIAMSecretPaths(context.WithoutCancel(ctx), db, root)
+		require.NoError(t, err)
+		for name := range after {
+			if !before[name] {
+				err := db.Query().Exec(context.WithoutCancel(ctx), "DROP SECRET `"+helpers.EscapeYQLIdentifier(path.Join(root, name))+"`")
+				require.NoError(t, err)
+			}
+		}
+	})
 	d := schema.TestResourceDataRaw(t, eds.ResourceSchema(), map[string]interface{}{
 		"connection_string": conn, "path": name, "source_type": "Ydb",
 		"location": location, "database_name": root, "auth_method": "IAM",
@@ -68,54 +74,15 @@ func TestAccYdbExternalDataSource_iamCreatePreservesExisting(t *testing.T) {
 
 	diags := eds.ResourceCreateFunc(cb)(ctx, d, nil)
 
-	after := secrets()
-	switch {
-	case parametersSupported && strings.Contains(fmt.Sprint(diags), "outcome is unknown"):
-		var retained []string
-		for name := range after {
-			if !before[name] {
-				retained = append(retained, name)
-			}
-		}
-		require.Len(t, retained, 1)
-		owned := path.Join(root, retained[0])
-		require.Contains(t, fmt.Sprint(diags), strconv.Quote(owned))
-		t.Cleanup(func() {
-			require.NoError(t, db.Query().Exec(context.WithoutCancel(ctx), "DROP SECRET `"+helpers.EscapeYQLIdentifier(owned)+"`"))
-		})
-		// YDB reports this collision as GENERIC_ERROR; the provider retains the secret conservatively.
-		require.Contains(t, fmt.Sprint(diags), fmt.Sprintf("IAM EDS outcome is unknown (YDB status %d)", Ydb.StatusIds_GENERIC_ERROR))
-		delete(after, retained[0])
-	case parametersSupported:
-		require.Contains(t, fmt.Sprint(diags), "IAM EDS request failed")
-	default:
-		require.Contains(t, fmt.Sprint(diags), "temporary IAM secret CREATE was not acknowledged")
-		require.Contains(t, fmt.Sprint(diags), "EDS was not submitted", "unsupported servers must fail without a literal fallback")
-	}
-	require.True(t, diags.HasError())
+	require.False(t, diags.HasError(), "%v", diags)
 	require.NotContains(t, fmt.Sprint(diags), token)
-	require.Empty(t, d.Id(), "a rejected Create must not acquire the existing EDS")
+	require.Equal(t, conn+"?path="+name, d.Id())
 	desc, err := db.Table().DescribeExternalDataSource(ctx, p)
 	require.NoError(t, err)
-	require.Equal(t, "NONE", desc.Properties["AUTH_METHOD"])
+	require.Equal(t, "IAM", desc.Properties["AUTH_METHOD"])
+	require.Equal(t, "synthetic-runtime-sa", desc.Properties["SERVICE_ACCOUNT_ID"])
 	require.Equal(t, location, desc.Location)
-	require.Equal(t, before, after, "only the diagnosed owned secret may be retained")
-}
-
-func accIAMSecretParametersSupported(t *testing.T, db *ydb.Driver, probe string) bool {
-	t.Helper()
-	ctx := t.Context()
-	err := db.Query().Exec(ctx,
-		"DECLARE $value AS Utf8; CREATE SECRET `"+helpers.EscapeYQLIdentifier(probe)+"` WITH (value = $value)",
-		query.WithParameters(ydb.ParamsBuilder().Param("$value").Text("public parameter capability probe").Build()),
-	)
-	if err == nil {
-		require.NoError(t, db.Query().Exec(ctx, "DROP SECRET `"+helpers.EscapeYQLIdentifier(probe)+"`"))
-		return true
-	}
-	require.True(t, ydb.IsOperationError(err, Ydb.StatusIds_GENERIC_ERROR), "unexpected probe failure: %v", err)
-	require.Contains(t, err.Error(), "Expected data type: String, but got: Utf8")
-	return false
+	require.Equal(t, before, secrets(), "replacing an EDS must remove its temporary IAM secret")
 }
 
 func accIAMSecretPaths(ctx context.Context, db *ydb.Driver, root string) (map[string]bool, error) {

@@ -2,14 +2,16 @@ package externaldatasource
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/ydb-platform/terraform-provider-ydb/internal/resources/secret"
 	tbl "github.com/ydb-platform/terraform-provider-ydb/internal/table"
 )
 
-func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	r, err := resourceSchemaToResource(d)
 	if err != nil {
 		return diag.FromErr(err)
@@ -17,10 +19,6 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 	if err := validateSourceType(r, nil); err != nil {
 		return diag.FromErr(err)
 	}
-	if r.strAttr("auth_method") == "IAM" && h.authCreds.Token == "" {
-		return diag.Errorf("IAM authentication requires the caller's IAM token")
-	}
-
 	if r.Entity == nil {
 		return diag.Errorf("external data source id is required for update")
 	}
@@ -30,7 +28,7 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
-		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
+		return diag.Errorf("failed to initialize client: %s", err)
 	}
 	defer func() { _ = db.Close(ctx) }()
 	if r.strAttr("auth_method") == "IAM" {
@@ -38,23 +36,21 @@ func (h *Handler) Update(ctx context.Context, d *schema.ResourceData, meta inter
 		if err != nil {
 			return diag.FromErr(err)
 		}
+		defer func() {
+			if err := secret.DropSecret(ctx, db, r.initialTokenSecretPath); err != nil {
+				diags = append(diags, diag.Diagnostic{
+					Severity: diag.Warning,
+					Summary:  fmt.Sprintf("failed to drop temporary IAM secret %q", r.initialTokenSecretPath),
+					Detail:   err.Error(),
+				})
+			}
+		}()
 	}
 
 	q := PrepareDataSourceQuery(r.Entity.GetFullEntityPath(), r)
-	if ctx.Err() != nil && r.initialTokenSecretPath != "" {
-		return cancelIAMSubmission(ctx, db, r.initialTokenSecretPath, d.Timeout(schema.TimeoutUpdate))
-	}
 	err = db.Query().Exec(ctx, q)
-	if err != nil && r.initialTokenSecretPath == "" {
-		return diag.Errorf("failed to update external data source: %s", iamStatus(err))
+	if err != nil {
+		return diag.Errorf("failed to update external data source: %s", err)
 	}
-	var diags diag.Diagnostics
-	if r.initialTokenSecretPath != "" {
-		diags = completeIAMSecret(ctx, db, r.initialTokenSecretPath, err)
-		if diags.HasError() {
-			return diags
-		}
-		return append(diags, readIAMAfterWrite(ctx, d, db)...)
-	}
-	return append(diags, h.Read(ctx, d, meta)...)
+	return h.Read(ctx, d, meta)
 }

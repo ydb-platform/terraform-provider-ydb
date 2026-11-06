@@ -1,8 +1,25 @@
 services:
+  iam:
+    image: bavix/gripmock:3.18.4@sha256:929a5bece4ca464d93059cea2b905e5358f4c7bb151c289b4b849e180c7459bb
+    command: ["--stub=/stubs", "/proto"]
+    configs:
+      - source: iam_v1_proto
+        target: /proto/v1.proto
+      - source: iam_v2_proto
+        target: /proto/v2.proto
+      - source: iam_stubs
+        target: /stubs/iam.yaml
   ydb:
-    image: ydbplatform/local-ydb:edge
+    image: ${YDB_IMAGE:-ydbplatform/local-ydb:edge}
     pull_policy: always
     hostname: localhost
+    command: ["--auth-config-path", "/iam-auth.yaml"]
+    configs:
+      - source: iam_auth
+        target: /iam-auth.yaml
+    depends_on:
+      iam:
+        condition: service_healthy
     ports:
       - "${YDB_GRPCS_PORT:-2135}:${YDB_GRPCS_PORT:-2135}"
       - "${YDB_GRPC_PORT:-2136}:${YDB_GRPC_PORT:-2136}"
@@ -14,6 +31,17 @@ services:
       YDB_FEATURE_FLAGS: "\
         enable_replace_if_exists_for_external_entities,\
         enable_external_data_sources,\
+        enable_external_data_source_auth_method_iam,\
         enable_schema_secrets,\
         enable_resource_pools,\
         enable_add_unique_index"
+
+configs:
+  iam_auth:
+    file: ./.github/fixtures/iam/auth.yaml
+  iam_v1_proto:
+    file: ./.github/fixtures/iam/proto/v1.proto
+  iam_v2_proto:
+    file: ./.github/fixtures/iam/proto/v2.proto
+  iam_stubs:
+    file: ./.github/fixtures/iam/stubs/iam.yaml

@@ -21,14 +21,14 @@ func (h *Handler) Delete(ctx context.Context, d *schema.ResourceData, _ interfac
 		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
-		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
+		return diag.Errorf("failed to initialize client: %s", err)
 	}
 	defer func() { _ = db.Close(ctx) }()
 
 	q := PrepareDropQuery(entity.GetFullEntityPath())
 	err = db.Query().Exec(ctx, q)
 	if err != nil {
-		return diag.Errorf("failed to drop external data source %q: %s", entity.GetEntityPath(), iamStatus(err))
+		return diag.Errorf("failed to drop external data source %q: %s", entity.GetEntityPath(), err)
 	}
 
 	return nil

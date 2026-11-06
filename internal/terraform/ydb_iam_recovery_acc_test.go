@@ -16,8 +16,8 @@ func TestAccYdbExternalDataSource_iamCleanupFailureRequiresManualCleanup(t *test
 	writeIAMRecoveryConfig(cli, f, "runtime-sa")
 	out, err := cli.run("apply", "-auto-approve", "-no-color")
 	require.NoError(t, err, "%s", out)
-	require.Contains(t, out, "temporary secret cleanup pending")
-	require.Contains(t, out, "Remove the owned secret manually.")
+	require.Contains(t, out, "failed to drop temporary IAM secret")
+	require.Contains(t, out, "UNAUTHORIZED")
 	attrs := cli.state(address)
 	id := attrs["id"]
 	require.NotEmpty(t, id)
@@ -47,20 +47,20 @@ func TestAccYdbExternalDataSource_iamCleanupFailureRequiresManualCleanup(t *test
 	cli.assertNoToken("synthetic-recovery-caller")
 }
 
-func TestAccYdbExternalDataSource_iamUnknownCreateDoesNotAcquireOwnership(t *testing.T) {
+func TestAccYdbExternalDataSource_iamFailedCreateDoesNotAcquireOwnership(t *testing.T) {
 	cli := newIAMTerraform(t)
 	f := newIAMWireDB(t)
 	f.loseReply = "EXTERNAL DATA SOURCE"
 	writeIAMRecoveryConfig(cli, f, "runtime-sa")
 	out, err := cli.run("apply", "-auto-approve", "-no-color")
 	require.Error(t, err, "%s", out)
-	require.Contains(t, out, "outcome is unknown")
+	require.Contains(t, out, "lost reply")
 	out, err = cli.run("state", "list")
 	require.NoError(t, err, "%s", out)
 	require.NotContains(t, out, "ydb_external_data_source.test")
 	f.mu.Lock()
 	require.True(t, f.exists, "the server accepted the request before losing its response")
-	require.Len(t, f.secrets, 1, "the unacknowledged operation may still need its bootstrap secret")
+	require.Empty(t, f.secrets)
 	f.mu.Unlock()
 	cli.assertNoToken("synthetic-recovery-caller")
 }

@@ -2,6 +2,7 @@ package terraform
 
 import (
 	"context"
+	"errors"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -22,9 +23,13 @@ func ydbExternalDataSourceResource() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, meta interface{}) error {
 			if err := externaldatasource.ValidateResourceDiffAuth(d); err != nil {
 				return err
+			}
+			if cfg, ok := meta.(*Config); ok && cfg != nil &&
+				d.NewValueKnown("auth_method") && d.Get("auth_method") == "IAM" && cfg.AuthCreds.Token == "" {
+				return errors.New("IAM authentication requires the caller's IAM token")
 			}
 			return externaldatasource.ValidateResourceDiffSourceType(d)
 		},

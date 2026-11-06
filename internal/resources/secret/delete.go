@@ -2,7 +2,6 @@ package secret
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -28,11 +27,10 @@ func (h *handler) Delete(ctx context.Context, d *schema.ResourceData, _ interfac
 		_ = db.Close(ctx)
 	}()
 
-	q := fmt.Sprintf("DROP SECRET `%s`", helpers.EscapeYQLIdentifier(entity.GetEntityPath()))
-	err = db.Query().Exec(ctx, q)
+	err = DropSecret(ctx, db, entity.GetEntityPath())
 	if err != nil {
 		return diag.Diagnostics{
-			{Severity: diag.Error, Summary: fmt.Sprintf("failed to execute query %q", q), Detail: err.Error()},
+			{Severity: diag.Error, Summary: "failed to execute query DROP SECRET ...", Detail: err.Error()},
 		}
 	}
 

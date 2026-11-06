@@ -35,39 +35,47 @@ func TestIAMCredentialErrorsPreserveDetails(t *testing.T) {
 	}
 }
 
-func TestIAMServerErrorsDoNotExposeTokens(t *testing.T) {
-	const token = "synthetic-private-caller-token"
+func TestIAMServerErrorsPreserveDetails(t *testing.T) {
+	const detail = "request rejected: permission sentinel"
 	cb := func(context.Context) (auth.YdbCredentials, error) {
-		return auth.YdbCredentials{Token: token}, nil
+		return auth.YdbCredentials{Token: "caller"}, nil
 	}
-	for _, operation := range []string{"connect", "read", "delete"} {
+	for _, operation := range []string{"connect", "create-secret", "create", "update", "read", "delete", "cleanup", "read-back"} {
 		t.Run(operation, func(t *testing.T) {
 			f := newIAMWireDB(t)
 			d := iamWireData(t, f)
-			if operation != "connect" {
+			if operation == "update" || operation == "read" || operation == "delete" {
 				require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
 			}
-			failure := status.Error(codes.PermissionDenied, "request rejected: "+token)
+			failure := status.Error(codes.PermissionDenied, detail)
 			f.mu.Lock()
 			switch operation {
 			case "connect":
 				f.discoveryError = failure
-			case "read":
+			case "create-secret":
+				f.secretError = failure
+			case "create", "update":
+				f.mutationError = failure
+			case "read", "read-back":
 				f.describeError = failure
 			case "delete":
 				f.deleteError = failure
+			case "cleanup":
+				f.dropError = failure
 			}
 			f.mu.Unlock()
 			crud := eds.ResourceCreateFunc(cb)
 			switch operation {
+			case "update":
+				crud = eds.ResourceUpdateFunc(cb)
 			case "read":
 				crud = eds.ResourceReadFunc(cb)
 			case "delete":
 				crud = eds.ResourceDeleteFunc(cb)
 			}
 			diags := crud(context.Background(), d, nil)
-			require.True(t, diags.HasError())
-			require.NotContains(t, fmt.Sprint(diags), token)
+			require.Equal(t, operation != "cleanup", diags.HasError(), "%v", diags)
+			require.Contains(t, fmt.Sprint(diags), detail)
 		})
 	}
 }

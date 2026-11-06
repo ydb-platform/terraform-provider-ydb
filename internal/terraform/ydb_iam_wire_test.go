@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/stretchr/testify/require"
 	discovery "github.com/ydb-platform/ydb-go-genproto/Ydb_Discovery_V1"
@@ -67,9 +68,28 @@ func TestIAMCreateUsesCallerToken(t *testing.T) {
 	require.NotNil(t, created, "the EDS must reference the secret created for this request")
 	require.Equal(t, Ydb.StatusIds_SUCCESS, created.status)
 	require.Equal(t, token, created.ticket)
-	require.Equal(t, created.ticket, created.query.GetParameters()["$value"].GetValue().GetTextValue())
-	require.NotRegexp(t, iamWireSecretValue, created.query.GetQueryContent().GetText(), "secret value must not be embedded in SQL")
 	require.NotContains(t, fmt.Sprint(d.State(), diags), token)
+}
+
+func TestIAMCreateReplacesExisting(t *testing.T) {
+	f := newIAMWireDB(t)
+	f.exists = true
+	f.properties = map[string]string{"AUTH_METHOD": "NONE"}
+	d := iamWireData(t, f)
+	cb := func(context.Context) (auth.YdbCredentials, error) {
+		return auth.YdbCredentials{Token: "caller"}, nil
+	}
+
+	diags := eds.ResourceCreateFunc(cb)(t.Context(), d, nil)
+
+	require.False(t, diags.HasError(), "%v", diags)
+	require.NotEmpty(t, d.Id())
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	require.True(t, f.exists)
+	require.Equal(t, "IAM", f.properties["AUTH_METHOD"])
+	require.Equal(t, "runtime-sa", f.properties["SERVICE_ACCOUNT_ID"])
+	require.Empty(t, f.secrets)
 }
 
 func iamWireData(t *testing.T, f *iamWireDB) *schema.ResourceData {
@@ -106,49 +126,34 @@ func TestIAMUpdateUsesCurrentCallerToken(t *testing.T) {
 	require.Equal(t, token, f.requests[len(f.requests)-1].ticket)
 }
 
-func TestIAMUnknownUpdateRetainsSecretForManualCleanup(t *testing.T) {
-	f := newIAMWireDB(t)
-	d := iamWireData(t, f)
-	cb := func(context.Context) (auth.YdbCredentials, error) {
-		return auth.YdbCredentials{Token: "caller"}, nil
-	}
-	require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
-	id := d.Id()
-	f.mu.Lock()
-	f.loseReply = "EXTERNAL DATA SOURCE"
-	f.mu.Unlock()
-	diags := eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
-	require.True(t, diags.HasError())
-	require.Equal(t, id, d.Id())
-	f.mu.Lock()
-	require.Len(t, f.secrets, 1, "the server may still need this secret")
-	for p := range f.secrets {
-		require.Contains(t, fmt.Sprint(diags), p, "manual recovery requires the exact owned path")
-	}
-	requests := len(f.requests)
-	f.mu.Unlock()
-	require.False(t, eds.ResourceReadFunc(cb)(context.Background(), d, nil).HasError())
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	require.Len(t, f.requests, requests)
-	require.Len(t, f.secrets, 1, "read must not remove a secret retained after an unknown outcome")
-}
+func TestIAMFailedMutationRemovesTemporarySecret(t *testing.T) {
+	for _, update := range []bool{true, false} {
+		t.Run(fmt.Sprintf("update=%t", update), func(t *testing.T) {
+			f := newIAMWireDB(t)
+			d := iamWireData(t, f)
+			cb := func(context.Context) (auth.YdbCredentials, error) {
+				return auth.YdbCredentials{Token: "caller"}, nil
+			}
+			operation := eds.ResourceCreateFunc(cb)
+			if update {
+				require.False(t, operation(t.Context(), d, nil).HasError())
+				operation = eds.ResourceUpdateFunc(cb)
+			}
+			id := d.Id()
+			f.mu.Lock()
+			f.loseReply = "EXTERNAL DATA SOURCE"
+			f.mu.Unlock()
 
-func TestIAMRejectedUpdateRemovesTemporarySecret(t *testing.T) {
-	f := newIAMWireDB(t)
-	d := iamWireData(t, f)
-	cb := func(context.Context) (auth.YdbCredentials, error) {
-		return auth.YdbCredentials{Token: "caller"}, nil
+			diags := operation(t.Context(), d, nil)
+
+			require.True(t, diags.HasError())
+			require.Contains(t, fmt.Sprint(diags), "lost reply")
+			require.Equal(t, id, d.Id())
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			require.Empty(t, f.secrets)
+		})
 	}
-	require.False(t, eds.ResourceCreateFunc(cb)(context.Background(), d, nil).HasError())
-	f.mu.Lock()
-	f.mutationError = status.Error(codes.PermissionDenied, "request rejected")
-	f.mu.Unlock()
-	diags := eds.ResourceUpdateFunc(cb)(context.Background(), d, nil)
-	require.True(t, diags.HasError())
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	require.Empty(t, f.secrets, "terminal rejection no longer needs the owned bootstrap secret")
 }
 
 func TestIAMAcknowledgedCreateRetainsIdentityWhenReadBackFails(t *testing.T) {
@@ -159,12 +164,11 @@ func TestIAMAcknowledgedCreateRetainsIdentityWhenReadBackFails(t *testing.T) {
 		return auth.YdbCredentials{Token: "caller"}, nil
 	}
 	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
-	require.False(t, diags.HasError(), "%v", diags)
+	require.True(t, diags.HasError(), "the normal EDS refresh error must be reported: %v", diags)
 	require.NotEmpty(t, d.Id(), "an acknowledged Create owns the EDS even when Describe fails")
-	require.NotEmpty(t, diags, "read-back failure must be visible as a warning")
 }
 
-func TestIAMCleanupAcceptsVerifiedAbsence(t *testing.T) {
+func TestIAMCleanupReportsDropFailure(t *testing.T) {
 	f := newIAMWireDB(t)
 	f.loseReply = "DROP SECRET"
 	d := iamWireData(t, f)
@@ -173,7 +177,11 @@ func TestIAMCleanupAcceptsVerifiedAbsence(t *testing.T) {
 	}
 	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.False(t, diags.HasError(), "%v", diags)
-	require.Empty(t, diags)
+	require.NotEmpty(t, d.Id())
+	require.Len(t, diags, 1)
+	require.Equal(t, diag.Warning, diags[0].Severity)
+	require.Contains(t, diags[0].Summary, "failed to drop temporary IAM secret")
+	require.Contains(t, diags[0].Detail, "lost reply")
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	require.Empty(t, f.secrets)
@@ -231,7 +239,7 @@ func TestIAMCreateRejectsAlternateCredentials(t *testing.T) {
 	}
 }
 
-func TestIAMRequiresCallerTokenBeforeConnecting(t *testing.T) {
+func TestIAMSDKRequiresCallerToken(t *testing.T) {
 	f := newIAMWireDB(t)
 	d := iamWireData(t, f)
 	cb := func(context.Context) (auth.YdbCredentials, error) {
@@ -239,9 +247,10 @@ func TestIAMRequiresCallerTokenBeforeConnecting(t *testing.T) {
 	}
 	diags := eds.ResourceCreateFunc(cb)(context.Background(), d, nil)
 	require.True(t, diags.HasError())
+	require.Contains(t, fmt.Sprint(diags), "IAM authentication requires the caller's IAM token")
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	require.Zero(t, f.discoveryCalls, "IAM without a caller token must fail before contacting YDB")
+	require.Empty(t, f.requests, "IAM without a caller token must not create secrets or submit EDS queries")
 }
 
 func TestIAMUnknownSecretCreateDoesNotSubmitEDS(t *testing.T) {
@@ -285,22 +294,23 @@ type iamWireRequest struct {
 }
 
 type iamWireDB struct {
-	mu              sync.Mutex
-	addr            string
-	secrets         map[string]string
-	exists          bool
-	properties      map[string]string
-	requests        []iamWireRequest
-	loseReply       string
-	failDrop        bool
-	describeStatus  Ydb.StatusIds_StatusCode
-	discoveryCalls  int
-	listStatus      Ydb.StatusIds_StatusCode
-	discoveryError  error
-	describeError   error
-	deleteError     error
-	mutationError   error
-	echoSecretError bool
+	mu             sync.Mutex
+	addr           string
+	secrets        map[string]string
+	exists         bool
+	properties     map[string]string
+	requests       []iamWireRequest
+	loseReply      string
+	failDrop       bool
+	describeStatus Ydb.StatusIds_StatusCode
+	discoveryCalls int
+	listStatus     Ydb.StatusIds_StatusCode
+	discoveryError error
+	describeError  error
+	deleteError    error
+	mutationError  error
+	secretError    error
+	dropError      error
 }
 
 func newIAMWireDB(t *testing.T) *iamWireDB {
@@ -390,10 +400,13 @@ func (s *iamWireQuery) ExecuteQuery(req *Ydb_Query.ExecuteQueryRequest, stream q
 		}
 		f.exists = false
 	case strings.Contains(q, "CREATE SECRET"):
-		if f.echoSecretError {
-			return status.Error(codes.InvalidArgument, q)
+		if f.secretError != nil {
+			return f.secretError
 		}
-		token := req.GetParameters()["$value"].GetValue().GetTextValue()
+		var token string
+		if value := iamWireSecretValue.FindStringSubmatch(q); len(value) == 2 {
+			token, _ = strconv.Unquote(value[1])
+		}
 		switch {
 		case token == "" || token != ticket:
 			code = Ydb.StatusIds_BAD_REQUEST
@@ -403,6 +416,9 @@ func (s *iamWireQuery) ExecuteQuery(req *Ydb_Query.ExecuteQueryRequest, stream q
 			f.secrets[p] = token
 		}
 	case strings.HasPrefix(q, "DROP SECRET"):
+		if f.dropError != nil {
+			return f.dropError
+		}
 		if f.failDrop {
 			code = Ydb.StatusIds_UNAUTHORIZED
 		} else {

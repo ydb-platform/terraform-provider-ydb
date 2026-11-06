@@ -135,8 +135,7 @@ data "ydb_external_data_source" "example" {
 Use `auth_method = "IAM"` with `source_type = "Ydb"` and the runtime
 `service_account_id`. The provider uses the caller token from its authentication
 configuration to bootstrap IAM delegation through a temporary secret. Configure
-the caller token on the provider; IAM resources do not accept a bootstrap mode or
-an initial token secret path.
+the caller token on the provider.
 
 ```tf
 resource "ydb_external_data_source" "cloud_target" {
@@ -151,66 +150,10 @@ resource "ydb_external_data_source" "cloud_target" {
 }
 ```
 
-`database_name` identifies the target database by its full path. YDB resolves the
-target cloud ID from that path for every mutation. `database_id` does not replace
-this path for IAM resolution.
+Set `database_name` to the full target database path. The owner server must
+support IAM external data sources. Configure delegation for the caller and
+target access for the runtime service account; the caller also needs permission
+to manage the EDS and temporary secrets in the owner database.
 
-The owner YDB server must support IAM external data sources and have the feature
-enabled. Configure delegation for the caller and target access for the runtime
-service account separately. The provider does not provision databases or grant
-cloud roles. The caller also needs permission to manage the EDS and its temporary
-bootstrap secret in the owner database.
-
-The caller token is sent as a query parameter, never as a SQL literal, and is not
-stored in EDS resource state. This requires a server supporting parameterized
-secret DDL, verified on YDB 26.3.1.17. YDB 26.2.1.14 rejects it; the provider does
-not fall back to embedding the token in SQL. YDB also has an
-[upstream regression test for parameterized secret values in server TRACE logs](https://github.com/ydb-platform/ydb/blob/512da6c36db5f25306733be23672464aec73a642/ydb/tests/functional/secrets/slow/test_secrets_logging.py#L54-L86).
-
-SDK logging remains available. IAM server failures report status codes instead of
-raw error text; authentication callback errors retain their original diagnostic
-text. Terraform's `TF_LOG_SDK_PROTO_DATA_DIR` writes raw protocol payloads; these
-contain the caller token when supplied in provider configuration, independently
-of secret creation.
-
-### Cleanup and interrupted requests
-
-After a confirmed EDS mutation, the provider removes its temporary secret. If
-cleanup fails, the managed resource retains its identity and a warning reports
-the exact owned secret path for manual removal. Preserve that path from the
-diagnostic. The provider does not store recovery metadata or retry cleanup on
-later invocations.
-
-A lost mutation response does not prove that the server stopped using the secret.
-The provider retains it and reports the exact path. Have the YDB operator confirm
-that the original request has terminated before removing that secret or applying
-another mutation. Later Terraform operations are not automatically blocked.
-Neither an equal EDS description nor an absent EDS proves request termination.
-An unacknowledged Create does not claim ownership; import an existing EDS only
-after independently verifying its ownership, target and service account. If the
-temporary-secret Create was unacknowledged, the EDS request was not submitted.
-
-### Acceptance tests
-
-`TestAccYdbExternalDataSource_iamCatalog` creates an IAM EDS in local YDB and checks
-its catalog properties, an in-place service-account update, import, no-op plans,
-temporary-secret cleanup and deletion. The target is the same local database.
-It uses a synthetic caller token and a local AccessService stub; no cloud
-resources or data reads are required. Delegation and runtime authorization are
-outside this catalog test's scope.
-
-The existing CI acceptance job enables IAM in local YDB and configures its
-AccessService endpoint to reach the test fixture at
-`host.docker.internal:32138`. `YDB_ACC_IAM_ACCESS_SERVICE_ADDR=0.0.0.0:32138`
-starts that fixture for the test process. A manual run needs the same YDB
-configuration and a reachable fixture address in addition to the usual
-`TF_ACC=1` and `YDB_ACC_CONNECTION_STRING`.
-
-All IAM acceptance tests are alongside the existing tests in `internal/terraform`.
-Terraform CLI scenarios cover lifecycle and failure diagnostics against a
-controlled gRPC server. `TestAccYdbExternalDataSource_iamCreatePreservesExisting`
-checks that a colliding Create preserves the existing EDS without claiming its
-ownership. A GENERIC_ERROR retains one diagnosed secret for manual cleanup.
-Both local tests run in the existing `latest`/`edge` acceptance job.
-On servers rejecting Utf8 parameters in secret DDL, the catalog test is skipped
-and the cleanup test verifies safe rejection without a literal fallback.
+The provider removes the temporary secret after the request. If deletion fails,
+a warning gives its path for manual cleanup.

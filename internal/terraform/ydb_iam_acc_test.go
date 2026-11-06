@@ -19,9 +19,6 @@ func TestAccYdbExternalDataSource_iamCatalog(t *testing.T) {
 	if os.Getenv("TF_ACC") != "1" {
 		t.Skip("set TF_ACC=1 to run acceptance tests")
 	}
-	if os.Getenv("YDB_ACC_IAM_ACCESS_SERVICE_ADDR") == "" {
-		t.Skip("local IAM catalog fixture requires YDB_ACC_IAM_ACCESS_SERVICE_ADDR")
-	}
 	accPreCheckYDB(t)
 	conn := os.Getenv(envAccYDBConnection)
 	u, err := url.Parse(conn)
@@ -29,9 +26,6 @@ func TestAccYdbExternalDataSource_iamCatalog(t *testing.T) {
 	root := u.Query().Get("database")
 	require.NotEmpty(t, root)
 	db := accOpenYDB(t)
-	if !accIAMSecretParametersSupported(t, db, path.Join(root, "__tf_acc_iam_probe_"+accRandomHex8(t))) {
-		t.Skip("this YDB server rejects Utf8 parameters in CREATE SECRET; safe rejection is covered by iamCreatePreservesExisting")
-	}
 	before, err := accIAMSecretPaths(t.Context(), db, root)
 	require.NoError(t, err)
 	name := "tf_acc_iam/source_" + accRandomHex8(t)

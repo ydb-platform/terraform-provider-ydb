@@ -1,0 +1,12 @@
+- service: yandex.cloud.priv.servicecontrol.v1.AccessService
+  method: Authorize
+  input:
+    equals: {}
+  output:
+    data: {}
+- service: yandex.cloud.priv.accessservice.v2.AccessService
+  method: Authorize
+  input:
+    equals: {}
+  output:
+    data: {}

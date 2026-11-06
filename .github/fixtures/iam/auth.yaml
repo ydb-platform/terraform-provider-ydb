@@ -1,0 +1,2 @@
+access_service_endpoint: "iam:4770"
+use_access_service_tls: false

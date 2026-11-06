@@ -47,7 +47,7 @@ func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.Resource
 		AuthCreds:        h.authCreds,
 	})
 	if err != nil {
-		return diag.Errorf("failed to initialize client: %s", iamStatus(err))
+		return diag.Errorf("failed to initialize client: %s", err)
 	}
 	defer func() { _ = db.Close(ctx) }()
 
@@ -56,12 +56,12 @@ func (h *Handler) readExternalDataSource(ctx context.Context, d *schema.Resource
 		return diag.FromErr(flattenDescription(d, entity, desc.Properties, desc.SourceType, desc.Location))
 	}
 	if !ydb.IsOperationErrorSchemeError(err) {
-		return diag.Errorf("failed to describe external data source %q: %s", entity.GetEntityPath(), iamStatus(err))
+		return diag.Errorf("failed to describe external data source %q: %s", entity.GetEntityPath(), err)
 	}
 	if method, _ := d.Get("auth_method").(string); method == "IAM" || method == "" {
 		absent, checkErr := iamPathAbsent(ctx, db, entity.GetFullEntityPath())
 		if checkErr != nil || !absent {
-			return diag.Errorf("cannot establish absence of external data source %q: %s", entity.GetEntityPath(), iamStatus(err))
+			return diag.Errorf("cannot establish absence of external data source %q: %s", entity.GetEntityPath(), err)
 		}
 	}
 	d.SetId("")

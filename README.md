@@ -27,6 +27,9 @@ Optional provider auth env vars: `YDB_ACC_TOKEN`, `YDB_ACC_USER`, `YDB_ACC_PASSW
 
 ### Spin up a local YDB
 
+Requires Docker Compose. The stack also starts a local AccessService stub for IAM
+catalog tests; no cloud credentials or resources are needed.
+
 ```sh
 docker compose up -d
 ```
@@ -34,6 +37,7 @@ docker compose up -d
 The compose configuration enables the feature flags required by acceptance tests:
 
 - `enable_replace_if_exists_for_external_entities` and `enable_external_data_sources` for external data source and external table tests;
+- `enable_external_data_source_auth_method_iam` for IAM external data source catalog tests;
 - `enable_schema_secrets` for secret tests;
 - `enable_resource_pools` for resource pool and resource pool classifier tests;
 - `enable_add_unique_index` for UNIQUE indexes added to existing tables.
