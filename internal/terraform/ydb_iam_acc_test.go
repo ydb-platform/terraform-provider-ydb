@@ -2,130 +2,101 @@ package terraform_test
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
-	"regexp"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
-
-	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
+	"github.com/stretchr/testify/require"
 )
 
-// TestAccYdbExternalDataSource_iamCallerToken reads real target data after IAM
-// bootstrap. Both databases, delegation and runtime grants must already exist.
-func TestAccYdbExternalDataSource_iamCallerToken(t *testing.T) {
-	if os.Getenv("TF_ACC") != "1" || os.Getenv("YDB_ACC_IAM_LIVE") != "1" {
-		t.Skip("set TF_ACC=1 and YDB_ACC_IAM_LIVE=1 for cloud IAM acceptance")
+func TestAccYdbExternalDataSource_iamCatalog(t *testing.T) {
+	if os.Getenv("TF_ACC") != "1" {
+		t.Skip("set TF_ACC=1 to run acceptance tests")
 	}
-	for _, key := range []string{
-		envAccYDBConnection, "YDB_ACC_TOKEN", "YDB_ACC_IAM_TARGET_CONNECTION_STRING",
-		"YDB_ACC_IAM_SERVICE_ACCOUNT_ID", "YDB_ACC_IAM_FIXTURE_PREFIX",
-	} {
-		if os.Getenv(key) == "" {
-			t.Fatalf("live IAM acceptance requires %s", key)
-		}
+	if os.Getenv("YDB_ACC_IAM_ACCESS_SERVICE_ADDR") == "" {
+		t.Skip("local IAM catalog fixture requires YDB_ACC_IAM_ACCESS_SERVICE_ADDR")
 	}
-	prefix := os.Getenv("YDB_ACC_IAM_FIXTURE_PREFIX")
-	if !regexp.MustCompile(`^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$`).MatchString(prefix) {
-		t.Fatal("YDB_ACC_IAM_FIXTURE_PREFIX must be a relative namespace of letters, digits, underscores, hyphens and slashes")
+	accPreCheckYDB(t)
+	conn := os.Getenv(envAccYDBConnection)
+	u, err := url.Parse(conn)
+	require.NoError(t, err)
+	root := u.Query().Get("database")
+	require.NotEmpty(t, root)
+	db := accOpenYDB(t)
+	if !accIAMSecretParametersSupported(t, db, path.Join(root, "__tf_acc_iam_probe_"+accRandomHex8(t))) {
+		t.Skip("this YDB server rejects Utf8 parameters in CREATE SECRET; safe rejection is covered by iamCreatePreservesExisting")
 	}
-	ownerConn := os.Getenv(envAccYDBConnection)
-	targetConn := os.Getenv("YDB_ACC_IAM_TARGET_CONNECTION_STRING")
-	targetURL, err := url.Parse(targetConn)
-	if err != nil || (targetURL.Scheme != "grpc" && targetURL.Scheme != "grpcs") ||
-		targetURL.Host == "" || !strings.HasPrefix(targetURL.Query().Get("database"), "/") {
-		t.Fatal("YDB_ACC_IAM_TARGET_CONNECTION_STRING must contain an endpoint and full database path")
-	}
-	location, databaseName, useTLS := targetURL.Host, targetURL.Query().Get("database"), targetURL.Scheme == "grpcs"
-	fixturePath := prefix + "/fixture_" + accRandomHex8(t)
-	edsPath := fixturePath + "_source"
-
-	// Keep credentials out of HCL while exercising the normal provider configure path.
-	factories := accProviderFactories()
-	newProvider := factories["ydb"]
-	factories["ydb"] = func() (*schema.Provider, error) {
-		p, err := newProvider()
-		if err == nil {
-			p.Schema["token"].DefaultFunc = schema.EnvDefaultFunc("YDB_ACC_TOKEN", nil)
-		}
-		return p, err
-	}
-	tableConfig := accConnectionStringVarBlock(ownerConn) + strings.NewReplacer(
-		`"grpc://target.example:2136/?database=/target"`, strconv.Quote(targetConn),
-		`"test-fixture"`, strconv.Quote(fixturePath),
-	).Replace(`
-provider "ydb" {}
-
-resource "ydb_table" "fixture" {
-  connection_string = "grpc://target.example:2136/?database=/target"
-  path              = "test-fixture"
-  column {
-    name = "id"
-    type = "Uint64"
-  }
-  primary_key = ["id"]
-}
-`)
-	iamConfig := tableConfig + strings.NewReplacer(
-		`"target.example:2136"`, strconv.Quote(location),
-		`"/target"`, strconv.Quote(databaseName),
-		`"runtime-service-account"`, strconv.Quote(os.Getenv("YDB_ACC_IAM_SERVICE_ACCOUNT_ID")),
-		"use_tls            = false", "use_tls            = "+strconv.FormatBool(useTLS),
-	).Replace(`
+	before, err := accIAMSecretPaths(t.Context(), db, root)
+	require.NoError(t, err)
+	name := "tf_acc_iam/source_" + accRandomHex8(t)
+	fullPath := path.Join(root, name)
+	config := accConnectionStringVarBlock(conn) + strings.NewReplacer(
+		`"source-path"`, strconv.Quote(name), `"target:2136"`, strconv.Quote(accLocationHostPortFromConn(conn)), `"/target"`, strconv.Quote(root),
+	).Replace(`provider "ydb" { token = "synthetic-local-iam-caller" }
 resource "ydb_external_data_source" "iam" {
-  connection_string  = var.connection_string
-  path               = "${ydb_table.fixture.path}_source"
-  source_type        = "Ydb"
-  location           = "target.example:2136"
-  database_name      = "/target"
-  auth_method        = "IAM"
-  service_account_id = "runtime-service-account"
-  use_tls            = false
+  connection_string = var.connection_string
+  path = "source-path"
+  source_type = "Ydb"
+  location = "target:2136"
+  database_name = "/target"
+  auth_method = "IAM"
+  service_account_id = "runtime-sa"
+  use_tls = false
 }
 `)
-	seedTarget := func(_ *terraform.State) error {
-		db, err := ydb.Open(t.Context(), targetConn, ydb.WithAccessTokenCredentials(os.Getenv("YDB_ACC_TOKEN")))
-		if err != nil {
-			return fmt.Errorf("open target database: %w", err)
-		}
-		defer func() { _ = db.Close(t.Context()) }()
-		return db.Query().Exec(t.Context(), fmt.Sprintf("UPSERT INTO `%s` (id) VALUES (42u)", helpers.EscapeYQLIdentifier(fixturePath)))
-	}
-	readThroughIAM := func(_ *terraform.State) error {
-		db, err := ydb.Open(t.Context(), ownerConn, ydb.WithAccessTokenCredentials(os.Getenv("YDB_ACC_TOKEN")))
-		if err != nil {
-			return fmt.Errorf("open owner database: %w", err)
-		}
-		defer func() { _ = db.Close(t.Context()) }()
-		// YDB federated-query syntax: EDS identifier, then a table path relative to the target DB.
-		query := fmt.Sprintf("SELECT id FROM `%s`.`%s` WHERE id = 42u",
-			helpers.EscapeYQLIdentifier(edsPath), helpers.EscapeYQLIdentifier(fixturePath))
-		row, err := db.Query().QueryRow(t.Context(), query)
-		if err != nil {
-			return fmt.Errorf("read target row through IAM EDS: %w", err)
-		}
-		var got uint64
-		if err := row.Scan(&got); err != nil {
-			return fmt.Errorf("scan target row through IAM EDS: %w", err)
-		}
-		if got != 42 {
-			return fmt.Errorf("target row through IAM EDS: got %d, want 42", got)
-		}
-		return nil
+	updated := strings.Replace(config, `"runtime-sa"`, `"updated-runtime-sa"`, 1)
+	var id string
+	check := func(sa string) resource.TestCheckFunc {
+		return resource.ComposeAggregateTestCheckFunc(
+			resource.TestCheckResourceAttr("ydb_external_data_source.iam", "auth_method", "IAM"),
+			resource.TestCheckResourceAttr("ydb_external_data_source.iam", "service_account_id", sa),
+			func(s *terraform.State) error {
+				current := s.RootModule().Resources["ydb_external_data_source.iam"].Primary.ID
+				if id != "" && current != id {
+					return fmt.Errorf("EDS identity changed: got %q, want %q", current, id)
+				}
+				id = current
+				desc, err := db.Table().DescribeExternalDataSource(t.Context(), fullPath)
+				if err != nil {
+					return err
+				}
+				if desc.Properties["AUTH_METHOD"] != "IAM" || desc.Properties["SERVICE_ACCOUNT_ID"] != sa {
+					return fmt.Errorf("unexpected EDS authentication: %v", desc.Properties)
+				}
+				after, err := accIAMSecretPaths(t.Context(), db, root)
+				if err == nil && !maps.Equal(before, after) {
+					return fmt.Errorf("temporary IAM secrets changed: before %v, after %v", before, after)
+				}
+				return err
+			},
+		)
 	}
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: factories,
+		ProviderFactories: accProviderFactories(),
+		CheckDestroy: func(_ *terraform.State) error {
+			dir, err := db.Scheme().ListDirectory(t.Context(), path.Dir(fullPath))
+			if err != nil {
+				return err
+			}
+			for _, child := range dir.Children {
+				if child.Name == path.Base(fullPath) {
+					return fmt.Errorf("EDS %q still exists after destroy", fullPath)
+				}
+			}
+			return nil
+		},
 		Steps: []resource.TestStep{
-			{Config: tableConfig, Check: seedTarget},
-			{Config: iamConfig, Check: readThroughIAM},
-			{Config: iamConfig, PlanOnly: true},
+			{Config: config, Check: check("runtime-sa")},
+			{Config: config, PlanOnly: true},
+			{Config: updated, Check: check("updated-runtime-sa")},
 			{ResourceName: "ydb_external_data_source.iam", ImportState: true, ImportStateVerify: true},
+			{Config: updated, PlanOnly: true},
 		},
 	})
 }

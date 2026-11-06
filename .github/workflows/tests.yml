@@ -113,11 +113,12 @@ jobs:
     services:
       ydb:
         image: ${{ matrix.ydb.image }}
-        options: --hostname localhost
+        options: --hostname localhost --add-host=host.docker.internal:host-gateway
         env:
           YDB_FEATURE_FLAGS: "\
             enable_external_data_sources,\
             enable_replace_if_exists_for_external_entities,\
+            enable_external_data_source_auth_method_iam,\
             enable_resource_pools,\
             enable_add_unique_index"
         ports:
@@ -125,6 +126,7 @@ jobs:
     env:
       TF_ACC: "1"
       YDB_ACC_CONNECTION_STRING: grpc://127.0.0.1:2136/?database=/local
+      YDB_ACC_IAM_ACCESS_SERVICE_ADDR: 0.0.0.0:32138
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -138,5 +140,24 @@ jobs:
         with:
           terraform_version: '1.5.7'
           terraform_wrapper: false
+      - name: Configure local IAM fixture
+        env:
+          YDB_CONTAINER: ${{ job.services.ydb.id }}
+        run: |
+          docker exec -i "$YDB_CONTAINER" sh -c 'cat >> /ydb_data/cluster/kikimr_configs/config.yaml' <<'YAML'
+
+          auth_config:
+            access_service_endpoint: "host.docker.internal:32138"
+            use_access_service_tls: false
+          YAML
+          docker restart "$YDB_CONTAINER"
+          for attempt in {1..90}; do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' "$YDB_CONTAINER")" = healthy ]; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs "$YDB_CONTAINER"
+          exit 1
       - name: Acceptance tests
         run: go test -v -timeout 30m ./internal/terraform/...

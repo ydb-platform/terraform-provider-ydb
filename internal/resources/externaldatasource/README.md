@@ -190,44 +190,27 @@ An unacknowledged Create does not claim ownership; import an existing EDS only
 after independently verifying its ownership, target and service account. If the
 temporary-secret Create was unacknowledged, the EDS request was not submitted.
 
-### Live cloud acceptance test
+### Acceptance tests
 
-`TestAccYdbExternalDataSource_iamCallerToken` creates a target table, seeds a row,
-creates an IAM EDS, and reads that row through the EDS after bootstrap. It also
-checks a no-op plan and import, then destroys the test resources. Both databases
-and the required delegation/runtime grants must already exist; the owner database
-must support federated queries to the target.
+`TestAccYdbExternalDataSource_iamCatalog` creates an IAM EDS in local YDB and checks
+its catalog properties, an in-place service-account update, import, no-op plans,
+temporary-secret cleanup and deletion. The target is the same local database.
+It uses a synthetic caller token and a local AccessService stub; no cloud
+resources or data reads are required. Delegation and runtime authorization are
+outside this catalog test's scope.
 
-Set these variables explicitly:
+The existing CI acceptance job enables IAM in local YDB and configures its
+AccessService endpoint to reach the test fixture at
+`host.docker.internal:32138`. `YDB_ACC_IAM_ACCESS_SERVICE_ADDR=0.0.0.0:32138`
+starts that fixture for the test process. A manual run needs the same YDB
+configuration and a reachable fixture address in addition to the usual
+`TF_ACC=1` and `YDB_ACC_CONNECTION_STRING`.
 
-- `YDB_ACC_CONNECTION_STRING`: owner database connection string.
-- `YDB_ACC_TOKEN`: caller token, also used to create and seed the target fixture.
-- `YDB_ACC_IAM_TARGET_CONNECTION_STRING`: target database connection string,
-  including its full database path.
-- `YDB_ACC_IAM_SERVICE_ACCOUNT_ID`: runtime service account with target read access.
-- `YDB_ACC_IAM_FIXTURE_PREFIX`: dedicated relative namespace in both databases,
-  such as `terraform_iam_acceptance`. Use letters, digits, underscores, hyphens
-  and slashes; the test creates randomly named objects beneath it.
-
-The test reads credentials from the environment without placing them in its HCL.
-Enable the dedicated gate and run only this test:
-
-```sh
-TF_ACC=1 YDB_ACC_IAM_LIVE=1 go test -v ./internal/terraform/ \
-  -run '^TestAccYdbExternalDataSource_iamCallerToken$' -timeout 15m
-```
-
-With the gate enabled, missing fixture configuration fails the test. The existing
-GitHub Actions workflow starts local YDB containers and does not configure cloud
-fixtures or set this gate, so this scenario is skipped in CI. It has not yet been
-run for this change; local tests do not establish live delegation or runtime
-authorization.
-
-All IAM acceptance tests are in `internal/terraform` and run with the existing
-acceptance suite under `TF_ACC=1`. Terraform CLI scenarios cover lifecycle and
-failure diagnostics against a controlled gRPC server. The local YDB test
-`TestAccYdbExternalDataSource_iamBootstrapCleanup` checks real temporary-secret
-DDL and cleanup after a rejected EDS Create on servers supporting secret
-parameters. Older servers must reject bootstrap without a literal fallback.
-Both cases preserve the existing EDS.
-The existing CI acceptance job runs these tests against `latest` and `edge`.
+All IAM acceptance tests are alongside the existing tests in `internal/terraform`.
+Terraform CLI scenarios cover lifecycle and failure diagnostics against a
+controlled gRPC server. `TestAccYdbExternalDataSource_iamCreatePreservesExisting`
+checks that a colliding Create preserves the existing EDS without claiming its
+ownership. A GENERIC_ERROR retains one diagnosed secret for manual cleanup.
+Both local tests run in the existing `latest`/`edge` acceptance job.
+On servers rejecting Utf8 parameters in secret DDL, the catalog test is skipped
+and the cleanup test verifies safe rejection without a literal fallback.

@@ -36,7 +36,7 @@ func TestIAMSDKDebugLogs(t *testing.T) {
 	}
 	//nolint:gosec // Reexecute this test binary to isolate SDK logging and capture stderr.
 	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestIAMSDKDebugLogs$")
-	cmd.Env = append(os.Environ(), "TF_YDB_IAM_LOG_TEST_CHILD=1", "YDB_LOG_SEVERITY_LEVEL=trace", "YDB_LOG_DETAILS=.*")
+	cmd.Env = append(os.Environ(), "TF_YDB_IAM_LOG_TEST_CHILD=1", "YDB_LOG_SEVERITY_LEVEL=trace", "YDB_LOG_DETAILS=.*", "YDB_ACC_IAM_ACCESS_SERVICE_ADDR=")
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "SDK logging probe failed")
 	require.False(t, strings.Contains(string(out), token), "caller token leaked to SDK stderr with TRACE enabled")
