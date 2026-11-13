@@ -8,7 +8,7 @@ type withParam struct {
 }
 
 func collectWithParams(r *Resource) []withParam {
-	params := make([]withParam, 0, len(allStringAttrKeys)+1)
+	params := make([]withParam, 0, len(allStringAttrKeys)+2)
 	for _, k := range allStringAttrKeys {
 		v := r.strAttr(k)
 		if v == "" && k != "source_type" && k != "location" {
@@ -25,6 +25,9 @@ func collectWithParams(r *Resource) []withParam {
 			v = "TRUE"
 		}
 		params = append(params, withParam{Key: "USE_TLS", Value: v})
+	}
+	if r.SharedReading {
+		params = append(params, withParam{Key: "SHARED_READING", Value: "TRUE"})
 	}
 	return params
 }
