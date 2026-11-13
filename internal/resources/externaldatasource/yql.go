@@ -26,12 +26,8 @@ func collectWithParams(r *Resource) []withParam {
 		}
 		params = append(params, withParam{Key: "USE_TLS", Value: v})
 	}
-	if r.SharedReading != nil {
-		v := "FALSE"
-		if *r.SharedReading {
-			v = "TRUE"
-		}
-		params = append(params, withParam{Key: "SHARED_READING", Value: v})
+	if r.SharedReading {
+		params = append(params, withParam{Key: "SHARED_READING", Value: "TRUE"})
 	}
 	return params
 }

@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
@@ -21,7 +20,7 @@ type Resource struct {
 	// Values holds Terraform string attributes (snake_case keys) for the EXTERNAL DATA SOURCE WITH clause.
 	Values        map[string]string
 	UseTLS        *bool
-	SharedReading *bool
+	SharedReading bool
 
 	initialTokenSecretPath string
 }
@@ -95,44 +94,18 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 		Path:             helpers.TrimPath(d.Get("path").(string)),
 		DatabaseEndpoint: databaseEndpoint,
 		Values:           vals,
+		SharedReading:    d.Get("shared_reading").(bool),
 	}
 	if v, ok := d.GetOk("use_tls"); ok {
 		b := v.(bool)
 		res.UseTLS = &b
 	}
-	res.SharedReading = sharedReadingFromData(d)
 	if res.strAttr("auth_method") == "IAM" {
 		if err := validateResourceAuth(res, nil); err != nil {
 			return nil, err
 		}
 	}
 	return res, nil
-}
-
-type sharedReadingData interface {
-	GetRawConfig() cty.Value
-	GetOkExists(string) (interface{}, bool)
-}
-
-func sharedReadingFromData(d sharedReadingData) *bool {
-	// Refresh writes false to state even when the option was omitted. Only the
-	// configuration can distinguish that from an explicitly configured false.
-	config := d.GetRawConfig()
-	if !config.IsNull() {
-		if !config.Type().HasAttribute("shared_reading") {
-			return nil
-		}
-		value := config.GetAttr("shared_reading")
-		if value.IsNull() || !value.IsKnown() {
-			return nil
-		}
-	}
-	// Legacy SDK callers may not supply raw configuration.
-	if value, ok := d.GetOkExists("shared_reading"); ok {
-		b := value.(bool)
-		return &b
-	}
-	return nil
 }
 
 type secretSpec struct {
@@ -355,7 +328,7 @@ func validateSourceType(r *Resource, plan resourcePlanDiff) error {
 	}
 	for _, key := range allPropertyKeys {
 		if key == "shared_reading" {
-			if r.SharedReading != nil && !allowedSet[key] {
+			if r.SharedReading && !allowedSet[key] {
 				return fmt.Errorf("SHARED_READING is not supported for SOURCE_TYPE %q", srcType)
 			}
 			continue

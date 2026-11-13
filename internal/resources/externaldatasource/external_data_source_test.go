@@ -3,9 +3,7 @@ package externaldatasource
 import (
 	"testing"
 
-	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -480,7 +478,7 @@ func TestResourceSchemaToResource_SharedReading(t *testing.T) {
 		want  string
 	}{
 		{name: "enabled", value: true, want: `SHARED_READING = "TRUE"`},
-		{name: "disabled explicitly", value: false, want: `SHARED_READING = "FALSE"`},
+		{name: "disabled explicitly", value: false},
 		{name: "omitted"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -506,25 +504,6 @@ func TestResourceSchemaToResource_SharedReading(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestResourceSchemaToResource_SharedReadingRemovedFromConfig(t *testing.T) {
-	d := (&schema.Resource{Schema: flattenTestSchema()}).Data(&terraform.InstanceState{
-		Attributes: map[string]string{
-			"connection_string": "grpc://localhost:2136/?database=/local",
-			"path":              "eds",
-			"source_type":       "Ydb",
-			"location":          "target:2135",
-			"database_name":     "/target",
-			"shared_reading":    "false",
-		},
-		RawConfig: cty.ObjectVal(map[string]cty.Value{
-			"shared_reading": cty.NullVal(cty.Bool),
-		}),
-	})
-	r, err := resourceSchemaToResource(d)
-	require.NoError(t, err)
-	assert.NotContains(t, PrepareDataSourceQuery("/local/eds", r), "SHARED_READING")
 }
 
 func TestFlattenDescription_SharedReading(t *testing.T) {
@@ -566,9 +545,9 @@ func TestValidateSourceType_SharedReading(t *testing.T) {
 				if sourceType == "Ydb" {
 					r.Values["database_name"] = "/target"
 				}
-				r.SharedReading = &enabled
+				r.SharedReading = enabled
 				err := validateSourceType(r, nil)
-				if sourceType == "Ydb" || sourceType == "YdbTopics" {
+				if sourceType == "Ydb" || sourceType == "YdbTopics" || !enabled {
 					require.NoError(t, err)
 				} else {
 					require.ErrorContains(t, err, "SHARED_READING is not supported")

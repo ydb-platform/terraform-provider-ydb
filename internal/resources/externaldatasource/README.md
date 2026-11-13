@@ -80,7 +80,7 @@ resource "ydb_external_data_source" "s3_aws" {
 - `database_name` (String) - Database name in the external source. For Ydb IAM, use the full target database path.
 - `protocol` (String) - Communication protocol: `NATIVE`, `HTTP`.
 - `use_tls` (Boolean) - Enable TLS for the external data source connection.
-- `shared_reading` (Boolean) - Enable shared reading of YDB topics (`Ydb`, `YdbTopics`). Changes are applied in place. The owner server must support shared reading.
+- `shared_reading` (Boolean) - Enable shared reading of YDB topics (`Ydb`, `YdbTopics`); `false` or omission disables it. Changes are applied in place. Requires owner server support and `EnableSharedReadingInStreamingQueries` where gated.
 - `mdb_cluster_id` (String) - Managed Database cluster ID.
 
 #### BASIC / MDB_BASIC auth parameters
@@ -148,6 +148,7 @@ resource "ydb_external_data_source" "cloud_target" {
   auth_method        = "IAM"
   service_account_id = "runtime-service-account-id"
   use_tls            = true
+  shared_reading     = true
 }
 ```
 
@@ -158,15 +159,3 @@ to manage the EDS and temporary secrets in the owner database.
 
 The provider removes the temporary secret after the request. If deletion fails,
 a warning gives its path for manual cleanup.
-
-To enable shared reading on the IAM external data source above, add:
-
-```tf
-  shared_reading = true
-```
-
-This emits `SHARED_READING = "TRUE"`. An explicit `false` emits
-`SHARED_READING = "FALSE"`; omitting the argument leaves the option out of the
-request. The value is also available when reading or importing an existing EDS.
-On servers that gate this option, enable `EnableSharedReadingInStreamingQueries`
-in the owner database's server configuration.

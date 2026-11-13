@@ -60,6 +60,7 @@ func TestExternalDataSourceSharedReadingPlans(t *testing.T) {
 			{name: "enabled", value: true},
 			{name: "disabled explicitly", value: false},
 			{name: "omitted"},
+			{name: "unknown", value: "74D93920-ED26-11E3-AC10-0800200C9A66"},
 		} {
 			t.Run(sourceType+"/"+tc.name, func(t *testing.T) {
 				cfg := map[string]interface{}{
@@ -77,7 +78,7 @@ func TestExternalDataSourceSharedReadingPlans(t *testing.T) {
 				_, err := ydbExternalDataSourceResource().Diff(
 					t.Context(), &terraform.InstanceState{}, terraform.NewResourceConfigRaw(cfg), nil,
 				)
-				if sourceType == "ObjectStorage" && tc.value != nil {
+				if sourceType == "ObjectStorage" && tc.value == true {
 					require.ErrorContains(t, err, "SHARED_READING is not supported")
 				} else {
 					require.NoError(t, err)

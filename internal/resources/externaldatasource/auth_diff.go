@@ -19,13 +19,12 @@ func resourceFromDiff(d *schema.ResourceDiff) *Resource {
 	for _, k := range allStringAttrKeys {
 		vals[k] = diffString(d, k)
 	}
-	r := &Resource{Values: vals}
+	r := &Resource{Values: vals, SharedReading: d.Get("shared_reading").(bool)}
 	if v, ok := d.GetOk("use_tls"); ok {
 		if b, ok := v.(bool); ok {
 			r.UseTLS = &b
 		}
 	}
-	r.SharedReading = sharedReadingFromData(d)
 	return r
 }
 
