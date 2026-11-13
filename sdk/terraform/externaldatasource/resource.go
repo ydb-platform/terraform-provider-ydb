@@ -188,6 +188,11 @@ func ResourceSchema() map[string]*schema.Schema {
 			Description: "Whether to use TLS in the external data source connection.",
 			Optional:    true,
 		},
+		"shared_reading": {
+			Type:        schema.TypeBool,
+			Description: "Whether to enable shared reading of YDB topics (Ydb, YdbTopics).",
+			Optional:    true,
+		},
 		"mdb_cluster_id": {
 			Type:        schema.TypeString,
 			Description: "Managed Database cluster ID.",
@@ -326,6 +331,11 @@ func DataSourceSchema() map[string]*schema.Schema {
 		"use_tls": {
 			Type:        schema.TypeBool,
 			Description: "Whether TLS is used.",
+			Computed:    true,
+		},
+		"shared_reading": {
+			Type:        schema.TypeBool,
+			Description: "Whether shared reading of YDB topics is enabled.",
 			Computed:    true,
 		},
 		"mdb_cluster_id": {

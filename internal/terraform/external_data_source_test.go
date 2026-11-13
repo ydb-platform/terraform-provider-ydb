@@ -50,3 +50,39 @@ func TestExternalDataSourceCallerTokenPlans(t *testing.T) {
 		})
 	}
 }
+
+func TestExternalDataSourceSharedReadingPlans(t *testing.T) {
+	for _, sourceType := range []string{"Ydb", "YdbTopics", "ObjectStorage"} {
+		for _, tc := range []struct {
+			name  string
+			value interface{}
+		}{
+			{name: "enabled", value: true},
+			{name: "disabled explicitly", value: false},
+			{name: "omitted"},
+		} {
+			t.Run(sourceType+"/"+tc.name, func(t *testing.T) {
+				cfg := map[string]interface{}{
+					"connection_string": "grpc://localhost:2136/?database=/owner",
+					"path":              "eds",
+					"source_type":       sourceType,
+					"location":          "target:2135",
+				}
+				if sourceType == "Ydb" {
+					cfg["database_name"] = "/target"
+				}
+				if tc.value != nil {
+					cfg["shared_reading"] = tc.value
+				}
+				_, err := ydbExternalDataSourceResource().Diff(
+					t.Context(), &terraform.InstanceState{}, terraform.NewResourceConfigRaw(cfg), nil,
+				)
+				if sourceType == "ObjectStorage" && tc.value != nil {
+					require.ErrorContains(t, err, "SHARED_READING is not supported")
+				} else {
+					require.NoError(t, err)
+				}
+			})
+		}
+	}
+}

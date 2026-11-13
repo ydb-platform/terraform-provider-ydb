@@ -25,6 +25,7 @@ func resourceFromDiff(d *schema.ResourceDiff) *Resource {
 			r.UseTLS = &b
 		}
 	}
+	r.SharedReading = sharedReadingFromData(d)
 	return r
 }
 

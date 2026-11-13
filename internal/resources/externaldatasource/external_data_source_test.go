@@ -3,7 +3,9 @@ package externaldatasource
 import (
 	"testing"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -463,11 +465,117 @@ func flattenTestSchema() map[string]*schema.Schema {
 		"connection_string": {Type: schema.TypeString, Required: true},
 		"path":              {Type: schema.TypeString, Required: true},
 		"use_tls":           {Type: schema.TypeBool, Optional: true},
+		"shared_reading":    {Type: schema.TypeBool, Optional: true},
 	}
 	for _, k := range allStringAttrKeys {
 		s[k] = str()
 	}
 	return s
+}
+
+func TestResourceSchemaToResource_SharedReading(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value interface{}
+		want  string
+	}{
+		{name: "enabled", value: true, want: `SHARED_READING = "TRUE"`},
+		{name: "disabled explicitly", value: false, want: `SHARED_READING = "FALSE"`},
+		{name: "omitted"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := flattenTestSchema()
+			cfg := map[string]interface{}{
+				"connection_string": "grpc://localhost:2136/?database=/local",
+				"path":              "eds",
+				"source_type":       "Ydb",
+				"location":          "target:2135",
+				"database_name":     "/target",
+			}
+			if tc.value != nil {
+				cfg["shared_reading"] = tc.value
+			}
+			d := schema.TestResourceDataRaw(t, s, cfg)
+			r, err := resourceSchemaToResource(d)
+			require.NoError(t, err)
+			query := PrepareDataSourceQuery("/local/eds", r)
+			if tc.want == "" {
+				assert.NotContains(t, query, "SHARED_READING")
+			} else {
+				assert.Contains(t, query, tc.want)
+			}
+		})
+	}
+}
+
+func TestResourceSchemaToResource_SharedReadingRemovedFromConfig(t *testing.T) {
+	d := (&schema.Resource{Schema: flattenTestSchema()}).Data(&terraform.InstanceState{
+		Attributes: map[string]string{
+			"connection_string": "grpc://localhost:2136/?database=/local",
+			"path":              "eds",
+			"source_type":       "Ydb",
+			"location":          "target:2135",
+			"database_name":     "/target",
+			"shared_reading":    "false",
+		},
+		RawConfig: cty.ObjectVal(map[string]cty.Value{
+			"shared_reading": cty.NullVal(cty.Bool),
+		}),
+	})
+	r, err := resourceSchemaToResource(d)
+	require.NoError(t, err)
+	assert.NotContains(t, PrepareDataSourceQuery("/local/eds", r), "SHARED_READING")
+}
+
+func TestFlattenDescription_SharedReading(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{name: "enabled", value: "TRUE", want: true},
+		{name: "lowercase", value: "true", want: true},
+		{name: "disabled", value: "FALSE"},
+		{name: "numeric value is disabled", value: "1"},
+		{name: "whitespace value is disabled", value: " true "},
+		{name: "missing"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			entity, err := helpers.ParseYDBEntityID("grpc://localhost:2136/?database=/local?path=eds")
+			require.NoError(t, err)
+			d := schema.TestResourceDataRaw(t, flattenTestSchema(), map[string]interface{}{
+				"connection_string": entity.PrepareFullYDBEndpoint(),
+				"path":              "eds",
+				"shared_reading":    !tc.want,
+			})
+			properties := map[string]string{}
+			if tc.value != "" {
+				properties["SHARED_READING"] = tc.value
+			}
+			require.NoError(t, flattenDescription(d, entity, properties, "Ydb", "target:2135"))
+			assert.Equal(t, tc.want, d.Get("shared_reading"))
+		})
+	}
+}
+
+func TestValidateSourceType_SharedReading(t *testing.T) {
+	for sourceType := range sourceTypeProperties {
+		t.Run(sourceType, func(t *testing.T) {
+			for _, enabled := range []bool{true, false} {
+				r := res(map[string]string{"source_type": sourceType})
+				if sourceType == "Ydb" {
+					r.Values["database_name"] = "/target"
+				}
+				r.SharedReading = &enabled
+				err := validateSourceType(r, nil)
+				if sourceType == "Ydb" || sourceType == "YdbTopics" {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, "SHARED_READING is not supported")
+				}
+			}
+		})
+	}
 }
 
 func TestFlattenDescription_DriftWhenSecretPathMissing(t *testing.T) {

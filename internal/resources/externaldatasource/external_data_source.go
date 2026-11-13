@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/ydb-platform/terraform-provider-ydb/internal/helpers"
@@ -18,8 +19,9 @@ type Resource struct {
 	DatabaseEndpoint string
 
 	// Values holds Terraform string attributes (snake_case keys) for the EXTERNAL DATA SOURCE WITH clause.
-	Values map[string]string
-	UseTLS *bool
+	Values        map[string]string
+	UseTLS        *bool
+	SharedReading *bool
 
 	initialTokenSecretPath string
 }
@@ -98,12 +100,39 @@ func resourceSchemaToResource(d *schema.ResourceData) (*Resource, error) {
 		b := v.(bool)
 		res.UseTLS = &b
 	}
+	res.SharedReading = sharedReadingFromData(d)
 	if res.strAttr("auth_method") == "IAM" {
 		if err := validateResourceAuth(res, nil); err != nil {
 			return nil, err
 		}
 	}
 	return res, nil
+}
+
+type sharedReadingData interface {
+	GetRawConfig() cty.Value
+	GetOkExists(string) (interface{}, bool)
+}
+
+func sharedReadingFromData(d sharedReadingData) *bool {
+	// Refresh writes false to state even when the option was omitted. Only the
+	// configuration can distinguish that from an explicitly configured false.
+	config := d.GetRawConfig()
+	if !config.IsNull() {
+		if !config.Type().HasAttribute("shared_reading") {
+			return nil
+		}
+		value := config.GetAttr("shared_reading")
+		if value.IsNull() || !value.IsKnown() {
+			return nil
+		}
+	}
+	// Legacy SDK callers may not supply raw configuration.
+	if value, ok := d.GetOkExists("shared_reading"); ok {
+		b := value.(bool)
+		return &b
+	}
+	return nil
 }
 
 type secretSpec struct {
@@ -267,13 +296,13 @@ var sourceTypeAuthMethods = map[string][]string{
 }
 
 // sourceTypeProperties maps each source type to its allowed non-auth properties.
-// Source: https://github.com/ydb-platform/ydb/blob/1612d5af9e6dc3e283778ba18523a90b50177805/ydb/core/external_sources/external_source_factory.cpp#L114-L181
+// Source: https://github.com/ydb-platform/ydb/blob/8de483996e13c657dd7f1f7f90c5a9d94082b6f1/ydb/core/external_sources/external_source_factory.cpp#L142-L209
 var sourceTypeProperties = map[string][]string{
 	"ObjectStorage": {},
 	"ClickHouse":    {"database_name", "protocol", "mdb_cluster_id", "use_tls"},
 	"PostgreSQL":    {"database_name", "protocol", "mdb_cluster_id", "use_tls", "schema"},
 	"MySQL":         {"database_name", "mdb_cluster_id", "use_tls"},
-	"Ydb":           {"database_name", "use_tls", "database_id"},
+	"Ydb":           {"database_name", "use_tls", "database_id", "shared_reading"},
 	"YT":            {},
 	"Greenplum":     {"database_name", "mdb_cluster_id", "use_tls", "schema"},
 	"MsSQLServer":   {"database_name", "use_tls"},
@@ -284,12 +313,12 @@ var sourceTypeProperties = map[string][]string{
 	"Prometheus":    {"protocol", "use_tls"},
 	"MongoDB":       {"database_name", "use_tls", "reading_mode", "unexpected_type_display_mode", "unsupported_type_display_mode"},
 	"OpenSearch":    {"database_name", "use_tls"},
-	"YdbTopics":     {"database_name", "use_tls"},
+	"YdbTopics":     {"database_name", "use_tls", "shared_reading"},
 }
 
 // allPropertyKeys lists every non-auth property attribute that can appear in sourceTypeProperties.
 var allPropertyKeys = []string{
-	"database_name", "protocol", "mdb_cluster_id", "use_tls",
+	"database_name", "protocol", "mdb_cluster_id", "use_tls", "shared_reading",
 	"schema", "service_name", "folder_id",
 	"grpc_location", "project", "cluster",
 	"database_id",
@@ -325,6 +354,12 @@ func validateSourceType(r *Resource, plan resourcePlanDiff) error {
 		allowedSet[p] = true
 	}
 	for _, key := range allPropertyKeys {
+		if key == "shared_reading" {
+			if r.SharedReading != nil && !allowedSet[key] {
+				return fmt.Errorf("SHARED_READING is not supported for SOURCE_TYPE %q", srcType)
+			}
+			continue
+		}
 		if key == "use_tls" {
 			if r.UseTLS != nil && !allowedSet[key] {
 				return fmt.Errorf("USE_TLS is not supported for SOURCE_TYPE %q", srcType)
@@ -393,5 +428,8 @@ func flattenDescription(d *schema.ResourceData, entity *helpers.YDBEntity, prope
 			return err
 		}
 	}
-	return d.Set("use_tls", ydbUseTLSString(properties["USE_TLS"]))
+	if err := d.Set("use_tls", ydbUseTLSString(properties["USE_TLS"])); err != nil {
+		return err
+	}
+	return d.Set("shared_reading", strings.EqualFold(properties["SHARED_READING"], "true"))
 }
